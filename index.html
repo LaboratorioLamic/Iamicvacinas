@@ -47,13 +47,12 @@
 <body class="bg-[#eef2f7] font-sans text-slate-800 h-screen flex flex-col overflow-hidden">
 
     <!-- ══════════════════ TELA DE LOGIN ══════════════════ -->
-    <div id="login-screen" class="fixed inset-0 bg-[#0f172a] z-[9000] flex items-center justify-center p-4">
+    <div id="login-screen" class="fixed inset-0 bg-[#0f172a] z-[9000] flex flex-col p-4">
+        <!-- Logo + Card agrupados e centralizados verticalmente -->
+        <div class="flex-1 flex flex-col items-center justify-start pt-10 gap-6">
+        <img src="https://i.imgur.com/INeWXMJ.png" alt="ImunoGest" class="max-h-40 object-contain">
         <div class="w-full max-w-md">
-            <div class="text-center mb-8">
-                <div class="inline-flex items-center gap-3 mb-2">
-                    <i class="fas fa-syringe text-blue-500 text-3xl"></i>
-                    <span class="text-2xl font-light tracking-[0.2em] uppercase text-white">IMUNO<span class="font-black text-blue-500">GEST</span></span>
-                </div>
+            <div class="text-center mb-4">
                 <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Sistema de Gestão Vacinal</p>
             </div>
 
@@ -124,6 +123,7 @@
                 </form>
             </div>
         </div>
+        </div><!-- flex-1 -->
     </div>
     <!-- ══════════════════════════════════════════════════ -->
 
@@ -139,9 +139,9 @@
     <style>@keyframes ldbar{0%{width:0%}50%{width:100%}100%{width:0%}}</style>
 
     <header class="bg-navy-900 text-white shadow-2xl shrink-0 z-50 border-b border-navy-700 overflow-x-auto">
-        <div class="container mx-auto px-6 py-3 flex justify-between items-center min-w-max gap-4">
+        <div class="w-full px-3 py-3 flex justify-between items-center min-w-max gap-4">
             <div class="flex items-center gap-3">
-                <i class="fas fa-syringe text-clinic-500 text-2xl"></i>
+                <img src="https://i.imgur.com/INeWXMJ.png" alt="ImunoGest" class="h-14 object-contain">
                 <span class="text-lg font-light tracking-[0.2em] uppercase">IMUNO<span class="font-black text-clinic-500">GEST</span></span>
             </div>
             <nav class="flex bg-navy-800/50 rounded-xl p-1.5 border border-navy-700">
@@ -1367,6 +1367,9 @@
                                                 <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
                                                     <input type="checkbox" class="perm-check h-4 w-4 rounded accent-slate-600" value="backup"> Função de Backup
                                                 </label>
+                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
+                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-slate-600" value="alterar_propria_senha"> Alterar Própria Senha
+                                                </label>
                                             </div>
                                         </div>
                                     </div>
@@ -1501,7 +1504,7 @@
                 </div>
                 <div class="border-t border-slate-100"></div>
                 <!-- Troca de senha -->
-                <div>
+                <div id="perfil-secao-senha">
                     <p class="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest">Alterar senha</p>
                     <div class="space-y-3">
                         <div>
@@ -1523,7 +1526,7 @@
                 </div>
                 <div id="perfil-aviso" class="hidden flex items-start gap-2 rounded-lg px-3 py-2 text-[11px] font-black"></div>
                 <div class="flex gap-3 pt-1">
-                    <button onclick="salvarMeuPerfil()" class="flex-1 bg-navy-900 text-white font-black py-2.5 rounded-xl hover:bg-clinic-600 text-xs uppercase transition shadow-md">
+                    <button id="perfil-btn-salvar" onclick="salvarMeuPerfil()" class="flex-1 bg-navy-900 text-white font-black py-2.5 rounded-xl hover:bg-clinic-600 text-xs uppercase transition shadow-md">
                         <i class="fas fa-save mr-1"></i> Salvar
                     </button>
                     <button onclick="document.getElementById('modal-meu-perfil').classList.remove('active')" class="px-5 py-2.5 border border-slate-200 text-slate-500 font-black rounded-xl hover:bg-slate-50 text-xs uppercase transition">
@@ -2013,12 +2016,15 @@
         function closeModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('active')); }
 
         function switchTab(tab) {
-            if (tab === 'dashboard' && currentUser && !isCurrentUserAdmin() && !hasPerm('ver_dashboard')) {
-                showNotification('Você não tem permissão para visualizar o Dashboard.', 'error');
-                return;
-            }
-            if (tab === 'vacinas' && currentUser && !isCurrentUserAdmin() && !hasPerm('ver_vacinas')) {
-                showNotification('Você não tem permissão para visualizar a aba Vacinas.', 'error');
+            const tabPermsMap = {
+                dashboard: 'ver_dashboard',
+                agenda:    'ver_agenda',
+                dados:     'ver_tabela',
+                pacientes: 'ver_pacientes',
+                vacinas:   'ver_vacinas',
+            };
+            if (currentUser && !isCurrentUserAdmin() && tabPermsMap[tab] && !hasPerm(tabPermsMap[tab])) {
+                showNotification('Você não tem permissão para visualizar esta aba.', 'error');
                 return;
             }
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -4496,6 +4502,8 @@
             localStorage.setItem('ig_session', JSON.stringify(currentUser));
             document.getElementById('login-screen').style.display = 'none';
             updateUserUI();
+            const firstTab = getFirstAllowedTab();
+            if (firstTab) switchTab(firstTab);
             showNotification(`Bem-vindo, ${user.nome.split(' ')[0]}!`, 'success');
         }
 
@@ -4546,6 +4554,13 @@
             document.getElementById('perfil-senha-nova').value = '';
             document.getElementById('perfil-senha-nova2').value = '';
             document.getElementById('perfil-aviso').classList.add('hidden');
+
+            const podeTrocarSenha = u.isAdmin || hasPerm('alterar_propria_senha');
+            document.getElementById('perfil-secao-senha').classList.toggle('hidden', !podeTrocarSenha);
+
+            const podeSalvar = u.isAdmin || hasPerm('criar_editar_usuarios') || hasPerm('alterar_propria_senha');
+            document.getElementById('perfil-btn-salvar').classList.toggle('hidden', !podeSalvar);
+
             document.getElementById('modal-meu-perfil').classList.add('active');
         }
 
@@ -4610,10 +4625,33 @@
             return (isCurrentUserAdmin() || hasPerm(perm)) ? html : '';
         }
 
+        function getFirstAllowedTab() {
+            const admin = isCurrentUserAdmin();
+            const order = [
+                { tab: 'dashboard', perm: 'ver_dashboard' },
+                { tab: 'agenda',    perm: 'ver_agenda'    },
+                { tab: 'dados',     perm: 'ver_tabela'    },
+                { tab: 'pacientes', perm: 'ver_pacientes' },
+                { tab: 'vacinas',   perm: 'ver_vacinas'   },
+            ];
+            for (const { tab, perm } of order) {
+                if (admin || hasPerm(perm)) return tab;
+            }
+            return null;
+        }
+
         function applyPermissions() {
             if (!currentUser) return;
+
+            // Sempre oculta o aviso de acesso restrito ao re-aplicar permissões
+            const avisoExistente = document.getElementById('aviso-sem-permissao');
+            if (avisoExistente) avisoExistente.classList.add('hidden');
+
             const admin      = isCurrentUserAdmin();
             const canDash    = admin || hasPerm('ver_dashboard');
+            const canAgenda  = admin || hasPerm('ver_agenda');
+            const canTabela  = admin || hasPerm('ver_tabela');
+            const canPacTab  = admin || hasPerm('ver_pacientes');
             const canVacTab  = admin || hasPerm('ver_vacinas');
             const canCfg     = admin || hasPerm('ver_configuracoes');
             const canAgendar = admin || hasPerm('criar_agendamento');
@@ -4621,18 +4659,50 @@
             const canVac     = admin || hasPerm('vacinas_crud');
             const canPdf     = admin || hasPerm('baixar_pdf');
 
-            // Tab Dashboard — oculta botão e redireciona se estiver na aba
-            const dashBtn = document.getElementById('btn-dashboard');
-            if (dashBtn) dashBtn.style.display = canDash ? '' : 'none';
-            if (!canDash && document.getElementById('tab-dashboard')?.classList.contains('active')) {
-                switchTab('agenda');
+            // Tabs — oculta botões sem permissão
+            const tabVisibility = {
+                'btn-dashboard': canDash,
+                'btn-agenda':    canAgenda,
+                'btn-dados':     canTabela,
+                'btn-pacientes': canPacTab,
+                'btn-vacinas':   canVacTab,
+            };
+            for (const [id, can] of Object.entries(tabVisibility)) {
+                const btn = document.getElementById(id);
+                if (btn) btn.style.display = can ? '' : 'none';
             }
 
-            // Tab Vacinas — oculta botão e redireciona se estiver na aba
-            const vacinasBtn = document.getElementById('btn-vacinas');
-            if (vacinasBtn) vacinasBtn.style.display = canVacTab ? '' : 'none';
-            if (!canVacTab && document.getElementById('tab-vacinas')?.classList.contains('active')) {
-                switchTab('agenda');
+            // Redireciona se a aba atual não é permitida
+            const activeTab = document.querySelector('.tab-content.active');
+            if (activeTab) {
+                const activeId = activeTab.id.replace('tab-', '');
+                const tabPerms = { dashboard: canDash, agenda: canAgenda, dados: canTabela, pacientes: canPacTab, vacinas: canVacTab };
+                if (tabPerms[activeId] === false) {
+                    const next = getFirstAllowedTab();
+                    if (next) {
+                        switchTab(next);
+                    } else {
+                        // Nenhuma aba disponível — oculta conteúdo e mostra aviso
+                        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+                        let aviso = document.getElementById('aviso-sem-permissao');
+                        if (!aviso) {
+                            aviso = document.createElement('div');
+                            aviso.id = 'aviso-sem-permissao';
+                            aviso.className = 'flex flex-col items-center justify-center h-full py-32 gap-4 text-center';
+                            aviso.innerHTML = `
+                                <div class="bg-red-50 border border-red-200 rounded-2xl px-10 py-8 max-w-md">
+                                    <i class="fas fa-lock text-4xl text-red-400 mb-4"></i>
+                                    <p class="text-base font-black text-red-700 mb-1">Acesso restrito</p>
+                                    <p class="text-sm text-red-500">Você não tem permissão para acessar nenhuma aba. Entre em contato com um administrador.</p>
+                                </div>`;
+                            document.querySelector('main') && document.querySelector('main').appendChild(aviso);
+                        }
+                        aviso.classList.remove('hidden');
+                    }
+                } else {
+                    const aviso = document.getElementById('aviso-sem-permissao');
+                    if (aviso) aviso.classList.add('hidden');
+                }
             }
 
             // Engrenagem de configurações
@@ -4906,7 +4976,7 @@
             excluir_agendamento: 'Excluir Agendamento', excluir_paciente: 'Excluir Paciente',
             excluir_vacina: 'Excluir Vacina', excluir_lote: 'Excluir Lote',
             criar_editar_usuarios: 'Criar/Editar Usuários', criar_editar_grupos: 'Criar/Editar Grupos',
-            backup: 'Função de Backup'
+            backup: 'Função de Backup', alterar_propria_senha: 'Alterar Própria Senha'
         };
 
         function renderGroupsList() {
@@ -5083,7 +5153,8 @@
                 setupRealtimeSync();
                 document.getElementById('dash-ano-base').value = new Date().getFullYear();
                 populatePatientDatalist(); populateVaccineSelects(); renderVaccines(); renderPatients();
-                switchTab('agenda');
+                const initTab = getFirstAllowedTab() || 'agenda';
+                switchTab(initTab);
                 updateExpiryBadge();
                 initAuth();
                 _appReady = true;
