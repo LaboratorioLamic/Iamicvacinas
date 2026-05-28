@@ -153,7 +153,7 @@
                 <div class="w-px bg-navy-700 mx-1 self-stretch"></div>
                 <button onclick="openSettings()" id="btn-settings" class="h-9 w-9 rounded-lg hover:bg-navy-700 transition-all flex items-center justify-center" title="Configurações"><i class="fas fa-cog text-slate-400 text-sm"></i></button>
             </nav>
-            <div class="flex items-center gap-2 ml-2">
+            <div class="flex items-center gap-2 ml-2 mr-[100px]">
                 <button onclick="openMeuPerfil()" title="Meu perfil" class="flex items-center gap-2 bg-navy-800/50 hover:bg-navy-700 border border-navy-700 rounded-xl px-3 py-1.5 transition-all cursor-pointer">
                     <i class="fas fa-user-circle text-clinic-400 text-sm"></i>
                     <span id="header-user-info" class="text-xs font-bold text-slate-300 max-w-[120px] truncate">—</span>
@@ -682,19 +682,21 @@
                     <label class="block text-[10px] font-black text-red-500 uppercase mb-1">Vendedor *</label>
                     <input type="text" id="reg-vendedor" required placeholder="Nome do vendedor..."
                         oninput="filterUserDropdown('reg-vendedor','vendedor-dropdown','isVendedor')"
+                        onfocus="filterUserDropdown('reg-vendedor','vendedor-dropdown','isVendedor')"
                         onblur="hideUserDropdown('vendedor-dropdown')"
                         autocomplete="off"
                         class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
-                    <div id="vendedor-dropdown" class="hidden absolute z-50 w-full mt-0.5 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto"></div>
+                    <div id="vendedor-dropdown" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
                 </div>
                 <div class="col-span-1 md:col-span-2 relative" id="div-aplicador">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1" id="lbl-aplicador">Aplicador</label>
                     <input type="text" id="reg-aplicador" placeholder="Nome do aplicador..."
                         oninput="filterUserDropdown('reg-aplicador','aplicador-dropdown','isAplicador')"
+                        onfocus="filterUserDropdown('reg-aplicador','aplicador-dropdown','isAplicador')"
                         onblur="hideUserDropdown('aplicador-dropdown')"
                         autocomplete="off"
                         class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
-                    <div id="aplicador-dropdown" class="hidden absolute z-50 w-full mt-0.5 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto"></div>
+                    <div id="aplicador-dropdown" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
                 </div>
 
                 <div class="col-span-1 md:col-span-4 flex items-center gap-2" id="div-motivo-cancelamento" style="display:none;">
@@ -709,6 +711,7 @@
 
                 <div class="col-span-1 md:col-span-4 mt-4 flex gap-3">
                     <button type="submit" class="flex-1 bg-clinic-600 text-white font-black py-3 rounded-xl hover:bg-clinic-700 shadow-lg uppercase text-xs transition">Salvar Registro</button>
+                    <button type="button" id="btn-duplicar-record" onclick="duplicarAgendamento()" class="hidden px-5 py-3 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-xl font-black hover:bg-indigo-600 hover:text-white uppercase text-xs transition shadow-sm"><i class="fas fa-copy mr-1"></i> Duplicar</button>
                     <button type="button" id="btn-delete-record" onclick="openDeleteModal(document.getElementById('reg-id').value)" class="hidden px-5 py-3 bg-red-50 border border-red-200 text-red-600 rounded-xl font-black hover:bg-red-600 hover:text-white uppercase text-xs transition shadow-sm"><i class="fas fa-trash mr-1"></i> Excluir</button>
                     <button type="button" onclick="closeModals()" class="px-6 py-3 border border-slate-200 rounded-xl font-black text-slate-500 hover:bg-slate-50 uppercase text-xs transition">Cancelar</button>
                 </div>
@@ -954,7 +957,8 @@
                     class="w-full border-2 border-slate-200 rounded-xl py-3 px-4 font-bold text-sm focus:outline-none focus:border-green-400 transition mb-1">
                     <option value="">Selecione o lote...</option>
                 </select>
-                <p id="concluir-lote-vencido-erro" class="text-[10px] text-red-600 font-black mb-1 hidden"><i class="fas fa-ban mr-1"></i>Lote vencido — selecione outro lote.</p>
+                <p id="concluir-lote-vencendo-aviso" class="text-[10px] text-amber-600 font-black mb-1 hidden"><i class="fas fa-exclamation-triangle mr-1"></i>Lote próximo do vencimento na data do agendamento.</p>
+                <p id="concluir-lote-vencido-erro" class="text-[10px] text-red-600 font-black mb-1 hidden"><i class="fas fa-ban mr-1"></i>Lote vencido na data do agendamento — selecione outro lote.</p>
                 <p id="concluir-lote-erro" class="text-[10px] text-red-500 font-bold mb-3 hidden"><i class="fas fa-exclamation-circle mr-1"></i>Aplicador e lote são obrigatórios para concluir.</p>
                 <div class="mb-3" id="concluir-lote-spacer"></div>
                 <div class="flex gap-3">
@@ -1100,6 +1104,41 @@
         </div>
     </div>
 
+    <!-- ══════════════════ MODAL EDITAR LOTE ══════════════════ -->
+    <div id="modal-edit-lote" class="modal fixed inset-0 bg-navy-900/70 backdrop-blur-sm z-[170] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 class="font-black text-navy-900 text-base uppercase tracking-tight mb-4"><i class="fas fa-pen text-blue-500 mr-2"></i>Editar Lote</h3>
+            <input type="hidden" id="edit-lote-id">
+            <div class="space-y-3 mb-5">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Número do Lote</label>
+                    <input type="text" id="edit-lote-numero" class="w-full border border-slate-200 rounded-xl py-2 px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-clinic-500 uppercase">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Validade</label>
+                    <input type="date" id="edit-lote-validade" class="w-full border border-slate-200 rounded-xl py-2 px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-clinic-500">
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="salvarEdicaoLote()" class="flex-1 bg-clinic-600 text-white font-black py-2.5 rounded-xl hover:bg-clinic-700 transition text-xs uppercase shadow-md"><i class="fas fa-save mr-1"></i> Salvar</button>
+                <button onclick="document.getElementById('modal-edit-lote').classList.remove('active')" class="px-5 py-2.5 border border-slate-200 text-slate-500 font-black rounded-xl hover:bg-slate-50 transition text-xs uppercase">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════ MODAL AVISO APRAZAMENTO ══════════════════ -->
+    <div id="modal-aprazamento-aviso" class="modal fixed inset-0 bg-navy-900/70 backdrop-blur-sm z-[170] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <i class="fas fa-clock text-4xl text-amber-500 mb-3"></i>
+            <h3 class="text-lg font-black text-navy-900 mb-1">Aviso de Aprazamento</h3>
+            <p class="text-sm text-slate-600 mb-5" id="aprazamento-aviso-msg"></p>
+            <div class="flex gap-3">
+                <button onclick="confirmarSalvarMesmoAssim()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black py-2.5 rounded-xl transition text-xs uppercase">Prosseguir mesmo assim</button>
+                <button onclick="document.getElementById('modal-aprazamento-aviso').classList.remove('active')" class="flex-1 border border-slate-200 text-slate-600 font-black py-2.5 rounded-xl hover:bg-slate-50 transition text-xs uppercase">Corrigir data</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ══════════════════ MODAL CONFIGURAÇÕES ══════════════════ -->
     <div id="modal-settings" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[200] justify-center items-center p-4">
         <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[92vh]">
@@ -1158,6 +1197,7 @@
                                         <th class="p-3">Grupo</th>
                                         <th class="p-3 text-center">Perfil</th>
                                         <th class="p-3 text-center">Funções</th>
+                                        <th class="p-3 text-center">Status</th>
                                         <th class="p-3 text-center">Ações</th>
                                     </tr>
                                 </thead>
@@ -2789,19 +2829,26 @@
             const btn = document.getElementById('btn-confirm-concluir');
             const erroVencido = document.getElementById('concluir-lote-vencido-erro');
 
-            // Verifica se lote selecionado está vencido
+            // Verifica vencimento e proximidade com base na data do agendamento
+            const avisoVencendo = document.getElementById('concluir-lote-vencendo-aviso');
             let loteVencido = false;
+            let loteVencendo = false;
             if (loteVal) {
                 const lot = vaccineLots.find(l => l.id == loteVal);
                 if (lot && lot.validade) {
-                    const today = new Date(); today.setHours(0,0,0,0);
+                    const apmt = appointments.find(a => a.id == pendingConcluirId);
+                    const refDate = apmt && apmt.data ? new Date(apmt.data + 'T00:00:00') : new Date();
+                    refDate.setHours(0,0,0,0);
+                    const twoMonthsRef = new Date(refDate); twoMonthsRef.setMonth(twoMonthsRef.getMonth() + 2);
                     const exp = new Date(lot.validade + 'T00:00:00');
-                    loteVencido = exp < today;
+                    loteVencido  = exp < refDate;
+                    loteVencendo = !loteVencido && exp <= twoMonthsRef;
                 }
             }
 
             if (loteVencido) {
                 erroVencido.classList.remove('hidden');
+                if (avisoVencendo) avisoVencendo.classList.add('hidden');
                 sel.classList.add('border-red-400');
                 btn.disabled = true;
                 btn.className = 'flex-1 bg-red-200 text-red-400 font-black py-3 rounded-xl uppercase text-xs transition cursor-not-allowed';
@@ -2809,6 +2856,7 @@
             }
 
             erroVencido.classList.add('hidden');
+            if (avisoVencendo) avisoVencendo.classList.toggle('hidden', !loteVencendo);
             sel.classList.remove('border-red-400');
 
             const ok = loteVal.length > 0 && aplicadorVal.length > 0;
@@ -3407,17 +3455,27 @@
                     doc.setFont('helvetica', 'bold');
                     doc.text(row[3], colX[3] + colW[3] / 2, curY + 5.5, { align: 'center' });
 
-                    // Botão STATUS
-                    const btnX = colX[4];
-                    const btnW = 26;
-                    const btnH = 5.5;
-                    const btnY = curY + 1.2;
-                    doc.setFillColor(...btnColor);
-                    doc.roundedRect(btnX, btnY, btnW, btnH, 1.5, 1.5, 'F');
-                    doc.setTextColor(...white);
+                    // Badge STATUS
+                    const statusColors = {
+                        'Aplicado':      [22,  163,  74],
+                        'Agendado':      [37,   99, 235],
+                        'Em negociação': [234, 179,   8],
+                        'Cancelado':     [220,  38,  38],
+                    };
+                    const badgeColor = statusColors[status] || [100, 116, 139];
+                    const badgeLabel = status.toUpperCase();
                     doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(6.5);
-                    doc.text(status.toUpperCase(), btnX + btnW / 2, btnY + btnH / 2 + 1.1, { align: 'center' });
+                    doc.setFontSize(5.5);
+                    const textW = doc.getTextWidth(badgeLabel);
+                    const padX = 2.5;
+                    const btnW = textW + padX * 2;
+                    const btnH = 4;
+                    const btnX = colX[4] + (colW[4] - btnW) / 2;
+                    const btnY = curY + 2;
+                    doc.setFillColor(...badgeColor);
+                    doc.roundedRect(btnX, btnY, btnW, btnH, 2, 2, 'F');
+                    doc.setTextColor(...white);
+                    doc.text(badgeLabel, btnX + btnW / 2, btnY + btnH / 2 + 0.9, { align: 'center' });
 
                     doc.setDrawColor(...border);
                     doc.setLineWidth(0.15);
@@ -3735,6 +3793,7 @@
                 const exp = new Date(l.validade + 'T00:00:00');
                 const expired = exp < today;
                 const nearExpiry = !expired && exp <= twoMonths;
+                const emUso = appointments.some(a => a.loteId == l.id || a.loteNumero === l.numero);
                 let badgeHtml = '';
                 if (expired) badgeHtml = `<span class="px-2 py-0.5 rounded text-[9px] font-black bg-red-100 text-red-600">VENCIDO</span>`;
                 else if (nearExpiry) badgeHtml = `<span class="px-2 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-600">VENCENDO</span>`;
@@ -3743,13 +3802,15 @@
                     <div>
                         <p class="font-black text-navy-900 text-sm">Lote: ${l.numero}</p>
                         <p class="text-[10px] text-slate-500 font-bold">Validade: ${l.validade.split('-').reverse().join('/')} ${badgeHtml}</p>
+                        ${emUso ? '<p class="text-[9px] text-slate-400 font-bold mt-0.5"><i class="fas fa-link mr-1"></i>Em uso em agendamentos</p>' : ''}
                     </div>
                     <div class="flex gap-2">
                         ${isAberto
                             ? permBtn('lotes_fechar_abrir', `<button onclick="toggleLoteStatus(${l.id},'fechado')" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black hover:bg-slate-200 transition" title="Fechar lote"><i class="fas fa-lock mr-1"></i>Fechar</button>`)
                             : permBtn('lotes_fechar_abrir', `<button onclick="toggleLoteStatus(${l.id},'aberto')" class="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-[10px] font-black hover:bg-green-100 transition" title="Abrir lote"><i class="fas fa-lock-open mr-1"></i>Abrir</button>`)
                         }
-                        ${permBtn('excluir_lote', `<button onclick="deleteLote(${l.id})" class="h-7 w-7 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-[10px] flex items-center justify-center transition"><i class="fas fa-trash"></i></button>`)}
+                        ${!emUso ? permBtn('lotes_fechar_abrir', `<button onclick="editLote(${l.id})" class="h-7 w-7 bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white rounded-lg text-[10px] flex items-center justify-center transition" title="Editar lote"><i class="fas fa-pen"></i></button>`) : ''}
+                        ${!emUso ? permBtn('excluir_lote', `<button onclick="deleteLote(${l.id})" class="h-7 w-7 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-[10px] flex items-center justify-center transition"><i class="fas fa-trash"></i></button>`) : ''}
                     </div>
                 </div>`;
             }
@@ -3789,6 +3850,32 @@
             logAudit('Excluído', 'lote', String(lote ? lote.vaccineId : loteId), lote ? `Lote ${lote.numero}` : '—', vacLote ? `Vacina: ${vacLote.nome}` : null);
             vaccineLots = vaccineLots.filter(l => l.id != loteId);
             saveAll(); renderLoteLists(); updateExpiryBadge(); showNotification('Lote excluído.', 'success');
+        }
+
+        function editLote(loteId) {
+            if (!checkPerm('lotes_fechar_abrir')) return;
+            const l = vaccineLots.find(x => x.id == loteId);
+            if (!l) return;
+            document.getElementById('edit-lote-id').value = l.id;
+            document.getElementById('edit-lote-numero').value = l.numero;
+            document.getElementById('edit-lote-validade').value = l.validade;
+            document.getElementById('modal-edit-lote').classList.add('active');
+        }
+
+        function salvarEdicaoLote() {
+            const id = document.getElementById('edit-lote-id').value;
+            const numero = document.getElementById('edit-lote-numero').value.trim().toUpperCase();
+            const validade = document.getElementById('edit-lote-validade').value;
+            if (!numero || !validade) { showNotification('Preencha o número e a validade.', 'error'); return; }
+            const idx = vaccineLots.findIndex(l => l.id == id);
+            if (idx === -1) return;
+            const old = {...vaccineLots[idx]};
+            vaccineLots[idx].numero = numero;
+            vaccineLots[idx].validade = validade;
+            logAudit('Editado', 'lote', String(vaccineLots[idx].vaccineId), `Lote ${numero}`, `Número: ${old.numero}→${numero} | Validade: ${old.validade}→${validade}`);
+            saveAll(); renderLoteLists(); updateExpiryBadge();
+            document.getElementById('modal-edit-lote').classList.remove('active');
+            showNotification('Lote atualizado com sucesso!', 'success');
         }
 
         // ─── ALERTAS DE VENCIMENTO DE LOTES ──────────────────────────────
@@ -3905,8 +3992,8 @@
             const dd    = document.getElementById(ddId);
             if (!input || !dd) return;
             const val = normalizeStr(input.value);
-            if (!val) { dd.classList.add('hidden'); return; }
-            const matches = appUsers.filter(u => !u.isAdmin && u[flag] && normalizeStr(u.nome).includes(val)).slice(0, 10);
+            // Mostra usuários com a flag (vendedor/aplicador), incluindo admins com a flag
+            const matches = appUsers.filter(u => u[flag] && (!val || normalizeStr(u.nome).includes(val))).slice(0, 10);
             if (!matches.length) { dd.classList.add('hidden'); return; }
             dd.innerHTML = matches.map(u =>
                 `<div class="px-3 py-2 hover:bg-clinic-50 hover:text-clinic-700 cursor-pointer text-sm font-bold text-navy-900 border-b border-slate-100 last:border-0 transition"
@@ -3963,6 +4050,7 @@
             populatePatientDatalist(); populateVaccineSelects(); populateCancelReasons(); populateLoteSelect(null);
             document.getElementById('modal-title-agenda').innerText = 'Novo Agendamento Clínico';
             document.getElementById('btn-delete-record').classList.add('hidden');
+            document.getElementById('btn-duplicar-record').classList.add('hidden');
             document.getElementById('modal-record').classList.add('active');
         }
 
@@ -4189,6 +4277,12 @@
             if(iso) document.getElementById('reg-data').value = iso;
         }
 
+        function confirmarSalvarMesmoAssim() {
+            document.getElementById('modal-aprazamento-aviso').classList.remove('active');
+            window._aprazamentoConfirmado = true;
+            document.getElementById('record-form').requestSubmit();
+        }
+
         let pendingDeleteId = null;
 
         function openDeleteModal(id) {
@@ -4280,18 +4374,63 @@
                 if (canEdit) {
                     document.getElementById('modal-title-agenda').innerText = 'Editar Agendamento';
                     document.getElementById('btn-delete-record').classList.remove('hidden');
+                    document.getElementById('btn-duplicar-record').classList.remove('hidden');
                     document.querySelectorAll('#record-form input:not([type="hidden"]), #record-form select, #record-form textarea').forEach(el => { el.disabled = false; });
                     const saveBtn = document.querySelector('#record-form button[type="submit"]');
                     if (saveBtn) saveBtn.style.display = '';
                 } else {
                     document.getElementById('modal-title-agenda').innerText = 'Visualizar Agendamento';
                     document.getElementById('btn-delete-record').classList.add('hidden');
+                    document.getElementById('btn-duplicar-record').classList.add('hidden');
                     document.querySelectorAll('#record-form input:not([type="hidden"]), #record-form select, #record-form textarea').forEach(el => { el.disabled = true; });
                     const saveBtn = document.querySelector('#record-form button[type="submit"]');
                     if (saveBtn) saveBtn.style.display = 'none';
                 }
                 document.getElementById('modal-record').classList.add('active');
             }, 50);
+        }
+
+        function duplicarAgendamento() {
+            // Captura dados ANTES de resetar o formulário
+            const patientId = document.getElementById('hidden-patient-id').value;
+            const p         = patients.find(x => x.id == patientId);
+            const vacinaId  = document.getElementById('reg-vacina').value;
+            const valor     = document.getElementById('reg-valor').value;
+            const vendedor  = document.getElementById('reg-vendedor').value;
+
+            openRecordModal();
+
+            setTimeout(() => {
+                // Paciente — preenche diretamente todos os campos sem depender de busca textual
+                if (p) {
+                    const psEl = document.getElementById('reg-patient-search');
+                    psEl.value = `${p.cpf} - ${p.nome}`;
+                    psEl.setCustomValidity('');
+                    psEl.classList.remove('border-red-400');
+                    psEl.classList.add('border-slate-200');
+                    document.getElementById('hidden-patient-id').value = p.id;
+                    document.getElementById('reg-cpf').value     = p.cpf;
+                    document.getElementById('reg-dtnasc').value  = p.dtNasc;
+                    document.getElementById('reg-idade').value   = getAge(p.dtNasc) + ' anos';
+                    document.getElementById('reg-contato').value = formatPhone(p.contato);
+                    if (p.responsavel) {
+                        document.getElementById('div-responsavel').style.display = 'block';
+                        document.getElementById('div-responsavel-placeholder').style.display = 'none';
+                        document.getElementById('reg-responsavel').value = p.responsavel;
+                    }
+                    if (typeof checkAgeConstraint === 'function') checkAgeConstraint();
+                }
+
+                // Vacina, custo e vendedor
+                document.getElementById('reg-vacina').value   = vacinaId;
+                document.getElementById('reg-valor').value    = valor;
+                document.getElementById('reg-vendedor').value = vendedor;
+
+                // autoFillVaccine preenche dose/lote e aciona updateSuggestedDate
+                if (typeof autoFillVaccine === 'function') autoFillVaccine();
+
+                document.getElementById('modal-title-agenda').innerText = 'Novo Agendamento (Duplicado)';
+            }, 120);
         }
 
         function saveRecord(e) {
@@ -4315,6 +4454,46 @@
                 showNotification('Bloqueio: O dia selecionado está marcado como feriado.', 'error');
                 return;
             }
+
+            // Verificação de aprazamento: só avisa se houver doses retroativas da mesma vacina
+            if (!window._aprazamentoConfirmado) {
+                const vIdApr = document.getElementById('reg-vacina').value;
+                const doseApr = document.getElementById('reg-dose').value;
+                if (vIdApr && doseApr && !doseApr.includes('1ª') && doseApr !== 'Dose Única') {
+                    const vApr = vaccines.find(x => x.id == vIdApr);
+                    const intervalosApr = vApr && vApr.intervalos && vApr.intervalos.length ? vApr.intervalos : (vApr && vApr.intervaloDias > 0 ? [vApr.intervaloDias] : []);
+                    if (intervalosApr.length) {
+                        const doseNumApr = (doseApr.match(/(\d+)/) || [])[1];
+                        const dNum = doseNumApr ? Number(doseNumApr) : 2;
+                        const intervaloApr = intervalosApr[dNum - 2] ?? intervalosApr[intervalosApr.length - 1];
+                        if (intervaloApr > 0) {
+                            const prevAppsApr = appointments.filter(a => a.patientId == patId && a.vaccineId == vIdApr && a.id != id)
+                                .sort((a, b) => new Date(b.data) - new Date(a.data));
+                            if (prevAppsApr.length > 0) {
+                                const baseApr = new Date(prevAppsApr[0].data + 'T00:00:00');
+                                baseApr.setDate(baseApr.getDate() + intervaloApr);
+                                const minDateIso = baseApr.toISOString().split('T')[0];
+                                if (dateVal < minDateIso) {
+                                    const minBr = minDateIso.split('-').reverse().join('/');
+                                    const prevBr = prevAppsApr[0].data.split('-').reverse().join('/');
+                                    const diffMs = baseApr - new Date(dateVal + 'T00:00:00');
+                                    const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                                    document.getElementById('aprazamento-aviso-msg').innerHTML =
+                                        `A data agendada é anterior ao prazo recomendado.<br><br>
+                                        <span class="text-slate-500 text-xs">Última dose registrada: <b>${prevBr}</b></span><br>
+                                        <span class="text-slate-500 text-xs">Intervalo recomendado: <b>${intervaloApr} dias</b></span><br>
+                                        <span class="text-slate-500 text-xs">Diferença de: <b class="text-red-600">${diffDias} dia${diffDias !== 1 ? 's' : ''}</b></span><br>
+                                        <span class="text-amber-600 font-black text-xs">Data mínima sugerida: ${minBr}</span>`;
+                                    window._pendingSaveEvent = e;
+                                    document.getElementById('modal-aprazamento-aviso').classList.add('active');
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            window._aprazamentoConfirmado = false;
 
             const vId = document.getElementById('reg-vacina').value;
             const doseAtualStr = document.getElementById('reg-dose').value;
@@ -4497,6 +4676,7 @@
             if (!/^[a-z0-9]+$/.test(login)) { msgEl.textContent = 'Login inválido: use apenas letras minúsculas e números.'; errEl.classList.remove('hidden'); return; }
             const user = appUsers.find(u => u.login === login && u.senhaHash === hashPwd(senha));
             if (!user) { msgEl.textContent = 'Login ou senha incorretos.'; errEl.classList.remove('hidden'); return; }
+            if (user.ativo === false) { msgEl.textContent = 'Usuário inativo. Contate o administrador.'; errEl.classList.remove('hidden'); return; }
 
             currentUser = { id: user.id, login: user.login, nome: user.nome };
             localStorage.setItem('ig_session', JSON.stringify(currentUser));
@@ -4785,14 +4965,28 @@
                 return;
             }
             const canEditUsers = isCurrentUserAdmin() || hasPerm('criar_editar_usuarios');
-            appUsers.forEach(u => {
-                const group   = appGroups.find(g => g.id == u.grupoId);
-                const isSelf  = currentUser && u.id == currentUser.id;
-                const canDel  = canEditUsers && !u.isAdmin && !isSelf;
-                const funcoes = u.isAdmin ? '—' : [u.isVendedor ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-100 text-blue-700">Vendedor</span>' : '', u.isAplicador ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-green-100 text-green-700">Aplicador</span>' : ''].filter(Boolean).join(' ') || '—';
-                tbody.innerHTML += `<tr class="hover:bg-slate-50 transition">
-                    <td class="p-3 font-bold text-navy-900 text-sm">${u.nome}</td>
-                    <td class="p-3 text-xs text-slate-500">${u.cpf || '—'}</td>
+            const sortedUsers = [...appUsers].sort((a, b) => {
+                // Inativos sempre por último
+                const aInativo = a.ativo === false ? 1 : 0;
+                const bInativo = b.ativo === false ? 1 : 0;
+                if (aInativo !== bInativo) return aInativo - bInativo;
+                const gA = appGroups.find(g => g.id == a.grupoId)?.nome || (a.isAdmin ? '\x00' : '\xFF');
+                const gB = appGroups.find(g => g.id == b.grupoId)?.nome || (b.isAdmin ? '\x00' : '\xFF');
+                if (gA < gB) return -1;
+                if (gA > gB) return 1;
+                return a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' });
+            });
+            sortedUsers.forEach(u => {
+                const group    = appGroups.find(g => g.id == u.grupoId);
+                const isSelf   = currentUser && u.id == currentUser.id;
+                const inativo  = u.ativo === false;
+                const hasAppts = appointments.some(a => a.vendedor === u.nome || a.aplicador === u.nome || a.patientId == u.id);
+                const canDel   = canEditUsers && !u.isAdmin && !isSelf && !hasAppts;
+                const funcoes  = [u.isVendedor ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-100 text-blue-700">Vendedor</span>' : '', u.isAplicador ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-green-100 text-green-700">Aplicador</span>' : ''].filter(Boolean).join(' ') || '—';
+                const rowClass = inativo ? 'bg-slate-100 text-slate-400 opacity-70' : 'hover:bg-slate-50';
+                tbody.innerHTML += `<tr class="${rowClass} transition">
+                    <td class="p-3 font-bold text-sm ${inativo ? 'text-slate-400' : 'text-navy-900'}">${u.nome}</td>
+                    <td class="p-3 text-xs ${inativo ? 'text-slate-400' : 'text-slate-500'}">${u.cpf || '—'}</td>
                     <td class="p-3 text-xs font-bold">${u.login}</td>
                     <td class="p-3 text-xs">${u.isAdmin ? '<span class="text-amber-600 font-black italic">Administrador Geral</span>' : (group ? group.nome : '<span class="text-red-400">Sem grupo</span>')}</td>
                     <td class="p-3 text-center">
@@ -4801,13 +4995,26 @@
                     </td>
                     <td class="p-3 text-center text-xs">${funcoes}</td>
                     <td class="p-3 text-center">
+                        ${u.isAdmin ? '<span class="text-[9px] text-slate-400">—</span>' : `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${inativo ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}">${inativo ? 'Inativo' : 'Ativo'}</span>`}
+                    </td>
+                    <td class="p-3 text-center">
                         <div class="flex justify-center gap-1">
                             ${canEditUsers ? `<button onclick="editUser(${u.id})" class="h-7 w-7 bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white rounded transition text-xs shadow-sm" title="Editar"><i class="fas fa-pen"></i></button>` : ''}
+                            ${canEditUsers && !u.isAdmin && !isSelf ? `<button onclick="toggleUserActive(${u.id})" class="h-7 w-7 ${inativo ? 'bg-orange-50 text-orange-500 hover:bg-orange-500' : 'bg-green-50 text-green-600 hover:bg-green-500'} hover:text-white rounded transition text-xs shadow-sm" title="${inativo ? 'Ativar' : 'Inativar'}"><i class="fas ${inativo ? 'fa-toggle-off' : 'fa-toggle-on'}"></i></button>` : ''}
                             ${canDel ? `<button onclick="deleteUser(${u.id})" class="h-7 w-7 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded transition text-xs shadow-sm" title="Excluir"><i class="fas fa-trash"></i></button>` : ''}
                         </div>
                     </td>
                 </tr>`;
             });
+        }
+
+        function toggleUserActive(id) {
+            const u = appUsers.find(x => x.id == id);
+            if (!u) return;
+            u.ativo = u.ativo === false ? true : false;
+            saveUsersData();
+            renderUsersList();
+            showNotification(`Usuário ${u.ativo ? 'ativado' : 'inativado'} com sucesso.`, u.ativo ? 'success' : 'warning');
         }
 
         function populateGroupSelect() {
