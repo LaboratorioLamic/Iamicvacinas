@@ -354,12 +354,31 @@
                 <h2 class="text-xl font-black text-navy-900 tracking-tighter uppercase mb-4 flex items-center gap-2">
                     <i class="fas fa-dollar-sign text-emerald-500 text-base"></i> Indicadores Financeiros (KPIs)
                 </h2>
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6">
+                <!-- Linha 1: KPIs de desconto (novos) -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-4">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-teal-500">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Receita Esperada</p>
+                        <p class="text-2xl font-black text-teal-600" id="kpi-fin-esperada">R$ 0,00</p>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold">valor projetado sem descontos</p>
+                    </div>
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-emerald-500">
-                        <p class="text-[10px] font-black text-slate-400 uppercase">Receita Realizada</p>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Receita Realizada</p>
                         <p class="text-2xl font-black text-emerald-600" id="kpi-fin-realizada">R$ 0,00</p>
                         <p class="text-[10px] text-slate-400 mt-1 font-bold" id="kpi-fin-realizada-qtd">0 aplicações</p>
                     </div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-orange-400">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Desconto Total</p>
+                        <p class="text-2xl font-black text-orange-500" id="kpi-fin-desconto-total">R$ 0,00</p>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold" id="kpi-fin-desconto-qtd">0 com desconto</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-indigo-500">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Média de Desconto</p>
+                        <p class="text-2xl font-black text-indigo-600" id="kpi-fin-desconto-medio">0,0%</p>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold">% médio nos descontos</p>
+                    </div>
+                </div>
+                <!-- Linha 2: KPIs originais -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6">
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-blue-500">
                         <p class="text-[10px] font-black text-slate-400 uppercase">Receita Prevista</p>
                         <p class="text-2xl font-black text-blue-600" id="kpi-fin-prevista">R$ 0,00</p>
@@ -374,6 +393,11 @@
                         <p class="text-[10px] font-black text-slate-400 uppercase">Ticket Médio</p>
                         <p class="text-2xl font-black text-purple-600" id="kpi-fin-ticket">R$ 0,00</p>
                         <p class="text-[10px] text-slate-400 mt-1 font-bold">por aplicação</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-slate-400">
+                        <p class="text-[10px] font-black text-slate-400 uppercase">Ticket Médio Esperado</p>
+                        <p class="text-2xl font-black text-slate-600" id="kpi-fin-ticket-esperado">R$ 0,00</p>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold">sem descontos</p>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -674,10 +698,24 @@
                     <input type="time" id="reg-hora" class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none font-bold text-sm">
                 </div>
                 <div class="col-span-1 md:col-span-1">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Custo</label>
-                    <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-clinic-500">
-                        <span class="px-3 py-2 bg-slate-100 text-slate-500 font-black text-sm border-r border-slate-200 select-none">R$</span>
-                        <input type="text" id="reg-valor" placeholder="0,00" oninput="maskCurrency(this)" inputmode="numeric" class="flex-1 py-2 px-3 outline-none text-sm font-bold">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Valor</label>
+                    <!-- Campo de valor não editável + botão desconto -->
+                    <div class="flex items-stretch rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+                        <span class="px-3 flex items-center bg-slate-100 text-slate-400 font-black text-xs border-r border-slate-200 select-none shrink-0">R$</span>
+                        <input type="text" id="reg-valor" placeholder="—" readonly class="flex-1 py-2 px-3 outline-none text-sm font-black text-navy-900 bg-white cursor-default select-all min-w-0">
+                        <button type="button" id="btn-desconto" onclick="openDescontoModal()" title="Aplicar desconto"
+                            class="flex items-center gap-1.5 px-3 bg-gradient-to-br from-indigo-600 to-indigo-800 hover:from-indigo-500 hover:to-indigo-700 text-white text-[10px] font-black uppercase tracking-wide transition shrink-0 border-l border-indigo-700">
+                            <i class="fas fa-tag text-[10px]"></i>
+                            <span>Desc.</span>
+                        </button>
+                    </div>
+                    <!-- Linha de info de desconto -->
+                    <div id="reg-desconto-info" class="hidden mt-1.5 flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1.5">
+                        <i class="fas fa-tag text-indigo-400 text-[9px] shrink-0"></i>
+                        <span class="text-[10px] text-slate-500">Cheio: <b id="reg-valor-cheio-display" class="text-slate-700"></b></span>
+                        <span class="text-slate-300 text-[10px]">•</span>
+                        <span class="text-[10px] font-black text-indigo-600" id="reg-desconto-pct-display"></span>
+                        <button type="button" onclick="removerDesconto()" class="ml-auto text-slate-400 hover:text-red-500 transition" title="Remover desconto"><i class="fas fa-times text-[9px]"></i></button>
                     </div>
                 </div>
                 <div class="col-span-1 md:col-span-1">
@@ -873,14 +911,18 @@
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Nome da Vacina *</label>
                     <input type="text" id="vac-nome" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
                 </div>
+                <!-- ESQUEMA VACINAL -->
                 <div class="col-span-1 md:col-span-2">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Qtd. Doses base *</label>
-                    <select id="vac-doses" required onchange="updateIntervalosUI()" class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
-                        <option value="1">1 Dose</option><option value="2">2 Doses</option><option value="3">3 Doses</option><option value="4">4 Doses</option>
-                    </select>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase">Esquema Vacinal</label>
+                        <button type="button" onclick="addEsquemaVacinal()" class="flex items-center gap-1 bg-navy-900 hover:bg-navy-800 text-white text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition shadow-sm">
+                            <i class="fas fa-plus text-[9px]"></i> Adicionar
+                        </button>
+                    </div>
+                    <div id="container-esquemas" class="space-y-2"></div>
+                    <p id="esquemas-empty-hint" class="text-[10px] text-slate-400 italic mt-1">Nenhum esquema adicionado. Clique em "Adicionar" para definir o esquema por faixa etária.</p>
                 </div>
-                <div class="col-span-1 md:col-span-2" id="container-intervalos"></div>
-                <div class="col-span-1 md:col-span-2 flex gap-6 mt-2">
+                <div class="col-span-1 md:col-span-2 flex gap-6">
                     <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
                         <input type="checkbox" id="vac-reforco" class="h-4 w-4 text-clinic-600 rounded"> Contém Dose de Reforço
                     </label>
@@ -888,31 +930,8 @@
                         <input type="checkbox" id="vac-unica" class="h-4 w-4 text-clinic-600 rounded"> Habilitar Dose Única
                     </label>
                 </div>
-                <div class="border-t border-slate-100 col-span-1 md:col-span-2 my-1"></div>
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Idade Mínima (Anos) *</label>
-                    <input type="number" id="vac-idade-min" required value="0" class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Idade Mínima (Meses) *</label>
-                    <select id="vac-idade-min-meses" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
-                        <option value="0">0 meses</option>
-                        <option value="1">1 mês</option>
-                        <option value="2">2 meses</option>
-                        <option value="3">3 meses</option>
-                        <option value="4">4 meses</option>
-                        <option value="5">5 meses</option>
-                        <option value="6">6 meses</option>
-                        <option value="7">7 meses</option>
-                        <option value="8">8 meses</option>
-                        <option value="9">9 meses</option>
-                        <option value="10">10 meses</option>
-                        <option value="11">11 meses</option>
-                        <option value="12">12 meses</option>
-                    </select>
-                </div>
                 <div class="col-span-1 md:col-span-2">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Custo Padrão *</label>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Valor Padrão *</label>
                     <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-clinic-500">
                         <span class="px-3 py-2 bg-slate-100 text-slate-500 font-black text-sm border-r border-slate-200 select-none">R$</span>
                         <input type="text" id="vac-valor" required placeholder="0,00" oninput="maskCurrency(this)" inputmode="numeric" class="flex-1 py-2 px-3 outline-none text-sm font-bold">
@@ -1145,10 +1164,114 @@
 
     <div id="modal-age-warning" class="modal fixed inset-0 bg-navy-900/60 backdrop-blur-sm z-[130] justify-center items-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
-            <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
-            <h3 class="text-lg font-black text-navy-900 mb-2">Atenção Farmacêutica</h3>
+            <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+            <h3 class="text-lg font-black text-red-700 mb-2">Restrição de Idade</h3>
             <p class="text-sm text-slate-600 mb-6" id="age-warning-msg"></p>
-            <button onclick="document.getElementById('modal-age-warning').classList.remove('active')" class="w-full bg-yellow-500 text-white font-bold py-2 rounded-lg hover:bg-yellow-600 transition">Ciente, continuar agendamento</button>
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('modal-age-warning').classList.remove('active')" class="w-full bg-red-600 text-white font-bold py-2 rounded-lg hover:bg-red-700 transition">Entendido — não agendar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════ MODAL FAIXA ETÁRIA DO ESQUEMA ══════════════════ -->
+    <div id="modal-faixa-etaria" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[200] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="bg-slate-100 p-4 border-b border-slate-200 flex justify-between items-center">
+                <h3 class="font-black text-navy-900 uppercase text-sm">Definir Faixa Etária</h3>
+                <button type="button" onclick="document.getElementById('modal-faixa-etaria').classList.remove('active')" class="h-8 w-8 rounded-full hover:bg-slate-200 flex justify-center items-center transition text-slate-500"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="faixa-etaria-target-idx">
+                <p class="text-[10px] font-black text-slate-400 uppercase">Idade mínima</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Anos</label>
+                        <input type="number" id="faixa-min-anos" min="0" max="18" value="0" class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Meses</label>
+                        <select id="faixa-min-meses" class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
+                            <option value="0">0 meses</option><option value="1">1 mês</option><option value="2">2 meses</option><option value="3">3 meses</option><option value="4">4 meses</option><option value="5">5 meses</option><option value="6">6 meses</option><option value="7">7 meses</option><option value="8">8 meses</option><option value="9">9 meses</option><option value="10">10 meses</option><option value="11">11 meses</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="text-[10px] font-black text-slate-400 uppercase mt-2">Idade máxima <span class="text-slate-300 font-normal">(deixe em branco para sem limite)</span></p>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Anos</label>
+                        <input type="number" id="faixa-max-anos" min="0" max="99" placeholder="—" class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Meses</label>
+                        <select id="faixa-max-meses" class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
+                            <option value="">—</option><option value="0">0 meses</option><option value="1">1 mês</option><option value="2">2 meses</option><option value="3">3 meses</option><option value="4">4 meses</option><option value="5">5 meses</option><option value="6">6 meses</option><option value="7">7 meses</option><option value="8">8 meses</option><option value="9">9 meses</option><option value="10">10 meses</option><option value="11">11 meses</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="button" onclick="confirmarFaixaEtaria()" class="w-full bg-navy-900 text-white font-black py-2.5 rounded-lg hover:bg-clinic-600 text-xs uppercase transition mt-2">Confirmar Faixa Etária</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════ MODAL FECHAR LOTE — AVISO REDE FRIO ══════════════════ -->
+    <div id="modal-fechar-lote-aviso" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[180] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <!-- Header -->
+            <div class="bg-gradient-to-br from-amber-500 to-orange-600 p-5 text-white">
+                <div class="flex items-center gap-3">
+                    <div class="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center shadow shrink-0">
+                        <i class="fas fa-temperature-low text-xl text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-base uppercase tracking-tight leading-tight">Verificação de Rede Frio</h3>
+                        <p class="text-amber-100 text-[10px] font-bold uppercase tracking-widest mt-0.5">Antes de fechar o lote</p>
+                    </div>
+                </div>
+                <!-- Info do lote -->
+                <div class="mt-4 bg-white/15 rounded-xl px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <span class="text-amber-200 font-bold uppercase text-[10px]">Lote</span>
+                    <span class="text-amber-200 font-bold uppercase text-[10px]">Vacina</span>
+                    <span class="text-white font-black" id="fechar-lote-numero">—</span>
+                    <span class="text-white font-black truncate" id="fechar-lote-vacina">—</span>
+                    <span class="text-amber-200 font-bold uppercase text-[10px] mt-1">Validade</span>
+                    <span></span>
+                    <span class="text-white font-black" id="fechar-lote-validade">—</span>
+                </div>
+            </div>
+            <!-- Body -->
+            <div class="p-5">
+                <p class="text-sm font-bold text-slate-700 mb-4">Antes de confirmar o fechamento, certifique-se de que:</p>
+                <ul class="space-y-3 mb-5">
+                    <li class="flex items-start gap-3">
+                        <div class="h-6 w-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <i class="fas fa-snowflake text-amber-500 text-[10px]"></i>
+                        </div>
+                        <span class="text-sm text-slate-600">Todos os imunobiológicos deste lote foram <b>recolhidos da rede frio</b> (geladeiras, caixas térmicas e isopores).</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <div class="h-6 w-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <i class="fas fa-clipboard-check text-amber-500 text-[10px]"></i>
+                        </div>
+                        <span class="text-sm text-slate-600">O <b>estoque físico</b> foi conferido e está zerado para este lote.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <div class="h-6 w-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <i class="fas fa-box-open text-amber-500 text-[10px]"></i>
+                        </div>
+                        <span class="text-sm text-slate-600">Não há doses pendentes de aplicação vinculadas a este lote que ainda não foram administradas.</span>
+                    </li>
+                </ul>
+                <div class="flex gap-3">
+                    <button type="button" id="btn-confirmar-fechar-lote"
+                        class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-black py-2.5 rounded-xl transition text-xs uppercase shadow-sm">
+                        <i class="fas fa-lock mr-1.5"></i>Confirmar Fechamento
+                    </button>
+                    <button type="button" onclick="document.getElementById('modal-fechar-lote-aviso').classList.remove('active')"
+                        class="flex-1 border border-slate-200 text-slate-500 font-black py-2.5 rounded-xl hover:bg-slate-50 transition text-xs uppercase">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1175,14 +1298,116 @@
     </div>
 
     <!-- ══════════════════ MODAL AVISO APRAZAMENTO ══════════════════ -->
-    <div id="modal-aprazamento-aviso" class="modal fixed inset-0 bg-navy-900/70 backdrop-blur-sm z-[170] justify-center items-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
-            <i class="fas fa-clock text-4xl text-amber-500 mb-3"></i>
-            <h3 class="text-lg font-black text-navy-900 mb-1">Aviso de Aprazamento</h3>
-            <p class="text-sm text-slate-600 mb-5" id="aprazamento-aviso-msg"></p>
-            <div class="flex gap-3">
-                <button onclick="confirmarSalvarMesmoAssim()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black py-2.5 rounded-xl transition text-xs uppercase">Prosseguir mesmo assim</button>
-                <button onclick="document.getElementById('modal-aprazamento-aviso').classList.remove('active')" class="flex-1 border border-slate-200 text-slate-600 font-black py-2.5 rounded-xl hover:bg-slate-50 transition text-xs uppercase">Corrigir data</button>
+    <div id="modal-aprazamento-aviso" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[170] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="bg-gradient-to-br from-red-600 to-red-800 p-5 text-white text-center">
+                <div class="h-14 w-14 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                    <i class="fas fa-calendar-times text-2xl text-white"></i>
+                </div>
+                <h3 class="font-black text-lg uppercase tracking-tight">Bloqueio de Aprazamento</h3>
+                <p class="text-red-200 text-xs mt-1 font-bold uppercase tracking-widest">Intervalo insuficiente</p>
+            </div>
+            <div class="p-5">
+                <p class="text-sm text-slate-600 text-center mb-5" id="aprazamento-aviso-msg"></p>
+                <button onclick="document.getElementById('modal-aprazamento-aviso').classList.remove('active')" class="w-full bg-red-600 hover:bg-red-700 text-white font-black py-2.5 rounded-xl transition text-xs uppercase">Corrigir a data do agendamento</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════ MODAL ALERTA DOSE ANTERIOR ══════════════════ -->
+    <div id="modal-dose-anterior-aviso" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[175] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="bg-gradient-to-br from-amber-500 to-orange-600 p-5 text-white text-center">
+                <div class="h-14 w-14 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                    <i class="fas fa-syringe text-2xl text-white"></i>
+                </div>
+                <h3 class="font-black text-lg uppercase tracking-tight">Alerta Farmacêutico</h3>
+                <p class="text-amber-100 text-xs mt-1 font-bold uppercase tracking-widest">Dose anterior não registrada</p>
+            </div>
+            <div class="p-5">
+                <p class="text-sm text-slate-600 text-center mb-5" id="dose-anterior-aviso-msg"></p>
+                <div class="flex gap-3">
+                    <button onclick="confirmarDoseAnterior()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black py-2.5 rounded-xl transition text-xs uppercase">Registrar mesmo assim</button>
+                    <button onclick="document.getElementById('modal-dose-anterior-aviso').classList.remove('active')" class="flex-1 border border-slate-200 text-slate-600 font-black py-2.5 rounded-xl hover:bg-slate-50 transition text-xs uppercase">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════ MODAL DESCONTO ══════════════════ -->
+    <div id="modal-desconto" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[190] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <!-- Header -->
+            <div class="bg-gradient-to-br from-indigo-700 to-indigo-900 p-5 text-white">
+                <div class="flex items-center gap-3">
+                    <div class="h-10 w-10 bg-white/15 rounded-xl flex items-center justify-center shadow">
+                        <i class="fas fa-tag text-lg text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-base uppercase tracking-tight leading-none">Aplicar Desconto</h3>
+                        <p class="text-indigo-200 text-[10px] font-bold uppercase tracking-widest mt-0.5">Valor da vacina</p>
+                    </div>
+                </div>
+                <!-- Valor cheio em destaque -->
+                <div class="mt-4 bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                    <span class="text-indigo-200 text-xs font-bold uppercase">Valor Cheio</span>
+                    <span class="text-white font-black text-xl" id="modal-desc-valor-cheio">R$ 0,00</span>
+                </div>
+            </div>
+            <!-- Body -->
+            <div class="p-5 space-y-4">
+                <!-- Tabs: por % ou por valor fixo -->
+                <div class="flex rounded-xl overflow-hidden border border-slate-200 text-[11px] font-black uppercase">
+                    <button type="button" id="tab-desc-pct" onclick="switchDescontoTab('pct')"
+                        class="flex-1 py-2 bg-indigo-600 text-white transition">Por %</button>
+                    <button type="button" id="tab-desc-val" onclick="switchDescontoTab('val')"
+                        class="flex-1 py-2 bg-white text-slate-400 hover:bg-slate-50 transition">Valor fixo</button>
+                </div>
+
+                <!-- Entrada por percentual -->
+                <div id="desc-pct-panel">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Percentual de desconto</label>
+                    <div class="flex items-center border-2 border-indigo-200 focus-within:border-indigo-500 rounded-xl overflow-hidden transition">
+                        <input type="number" id="desc-pct-input" min="0" max="100" step="0.5" placeholder="0"
+                            oninput="calcDescontoPreview()"
+                            class="flex-1 py-2.5 px-4 text-lg font-black text-navy-900 outline-none bg-white">
+                        <span class="px-4 text-indigo-600 font-black text-lg bg-indigo-50 border-l border-indigo-200 select-none">%</span>
+                    </div>
+                    <!-- Atalhos rápidos -->
+                    <div class="flex gap-2 mt-2">
+                        <button type="button" onclick="setDescontoPct(5)"  class="flex-1 py-1 text-[10px] font-black rounded-lg bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 transition">5%</button>
+                        <button type="button" onclick="setDescontoPct(10)" class="flex-1 py-1 text-[10px] font-black rounded-lg bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 transition">10%</button>
+                        <button type="button" onclick="setDescontoPct(15)" class="flex-1 py-1 text-[10px] font-black rounded-lg bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 transition">15%</button>
+                        <button type="button" onclick="setDescontoPct(20)" class="flex-1 py-1 text-[10px] font-black rounded-lg bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 transition">20%</button>
+                        <button type="button" onclick="setDescontoPct(50)" class="flex-1 py-1 text-[10px] font-black rounded-lg bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 transition">50%</button>
+                    </div>
+                </div>
+
+                <!-- Entrada por valor fixo -->
+                <div id="desc-val-panel" class="hidden">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Novo valor final</label>
+                    <div class="flex items-center border-2 border-indigo-200 focus-within:border-indigo-500 rounded-xl overflow-hidden transition">
+                        <span class="px-3 py-2.5 bg-indigo-50 text-indigo-600 font-black text-sm border-r border-indigo-200 select-none">R$</span>
+                        <input type="text" id="desc-val-input" placeholder="0,00" inputmode="numeric"
+                            oninput="maskCurrency(this); calcDescontoPreview()"
+                            class="flex-1 py-2.5 px-3 text-lg font-black text-navy-900 outline-none bg-white">
+                    </div>
+                </div>
+
+                <!-- Preview do resultado -->
+                <div id="desc-preview" class="hidden bg-gradient-to-br from-slate-50 to-indigo-50 border border-indigo-100 rounded-xl px-4 py-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[10px] font-black text-slate-400 uppercase">Valor final</span>
+                        <span class="text-[10px] font-black text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full" id="desc-preview-pct"></span>
+                    </div>
+                    <span class="text-2xl font-black text-navy-900" id="desc-preview-valor"></span>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Economia de <b class="text-green-600" id="desc-preview-economia"></b></p>
+                </div>
+
+                <div class="flex gap-3 pt-1">
+                    <button type="button" onclick="aplicarDesconto()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 rounded-xl transition text-xs uppercase shadow-sm">Aplicar</button>
+                    <button type="button" onclick="document.getElementById('modal-desconto').classList.remove('active')" class="flex-1 border border-slate-200 text-slate-500 font-black py-2.5 rounded-xl hover:bg-slate-50 transition text-xs uppercase">Cancelar</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1292,11 +1517,11 @@
                                     class="w-full border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-clinic-500">
                             </div>
                             <div id="div-user-admin-geral" class="col-span-2 hidden">
-                                <label class="flex items-center gap-3 cursor-pointer select-none bg-amber-50 border border-amber-300 rounded-xl px-4 py-3">
-                                    <input type="checkbox" id="new-user-is-admin" onchange="toggleAdminGeralCheck()" class="h-4 w-4 rounded accent-amber-500">
+                                <label class="flex items-center gap-3 cursor-pointer select-none bg-blue-50 border border-blue-300 rounded-xl px-4 py-3">
+                                    <input type="checkbox" id="new-user-is-admin" onchange="toggleAdminGeralCheck()" class="h-4 w-4 rounded accent-blue-600">
                                     <div>
-                                        <span class="font-black text-sm text-amber-700">Administrador Geral</span>
-                                        <p class="text-[10px] text-amber-600 font-bold mt-0.5">Acesso total ao sistema — isento de grupo</p>
+                                        <span class="font-bold text-sm text-navy-800">Administrador Geral</span>
+                                        <p class="text-[10px] text-blue-700 font-semibold mt-0.5">Acesso total ao sistema — isento de grupo</p>
                                     </div>
                                 </label>
                             </div>
@@ -2530,7 +2755,8 @@
 
         function renderDashFinanceiro(apps) {
             const fmt = fmtBRL;
-            const toVal = a => parseFloat(String(a.valorAplicado || '0').replace(',','.')) || 0;
+            const toVal    = a => parseFloat(String(a.valorAplicado || '0').replace(',','.')) || 0;
+            const toCheio  = a => a.valorCheio ? (parseFloat(String(a.valorCheio).replace(',','.')) || toVal(a)) : toVal(a);
 
             const aplicados   = apps.filter(a => a.status === 'Aplicado');
             const pendentes   = apps.filter(a => a.status === 'Agendado' || a.status === 'Em negociação');
@@ -2541,13 +2767,29 @@
             const receitaCanc  = cancelados.reduce((s,a) => s + toVal(a), 0);
             const ticketMedio  = aplicados.length ? receitaReal / aplicados.length : 0;
 
-            document.getElementById('kpi-fin-realizada').innerText     = fmt(receitaReal);
-            document.getElementById('kpi-fin-realizada-qtd').innerText = `${aplicados.length} aplicação(ões)`;
-            document.getElementById('kpi-fin-prevista').innerText      = fmt(receitaPrev);
-            document.getElementById('kpi-fin-prevista-qtd').innerText  = `${pendentes.length} agendamento(s)`;
-            document.getElementById('kpi-fin-cancelado').innerText     = fmt(receitaCanc);
-            document.getElementById('kpi-fin-cancelado-qtd').innerText = `${cancelados.length} cancelamento(s)`;
-            document.getElementById('kpi-fin-ticket').innerText        = fmt(ticketMedio);
+            // KPIs de desconto — baseados em todos os agendamentos com desconto aplicado
+            const comDesconto      = apps.filter(a => a.valorCheio && a.descontoPct > 0);
+            const receitaEsperada  = apps.reduce((s,a) => s + toCheio(a), 0);
+            const descontoTotal    = receitaEsperada - apps.reduce((s,a) => s + toVal(a), 0);
+            const mediaDesconto    = comDesconto.length
+                ? comDesconto.reduce((s,a) => s + (a.descontoPct || 0), 0) / comDesconto.length
+                : 0;
+            const ticketEsperado   = aplicados.length
+                ? aplicados.reduce((s,a) => s + toCheio(a), 0) / aplicados.length
+                : 0;
+
+            document.getElementById('kpi-fin-esperada').innerText        = fmt(receitaEsperada);
+            document.getElementById('kpi-fin-realizada').innerText       = fmt(receitaReal);
+            document.getElementById('kpi-fin-realizada-qtd').innerText   = `${aplicados.length} aplicação(ões)`;
+            document.getElementById('kpi-fin-desconto-total').innerText  = fmt(descontoTotal < 0 ? 0 : descontoTotal);
+            document.getElementById('kpi-fin-desconto-qtd').innerText    = `${comDesconto.length} com desconto`;
+            document.getElementById('kpi-fin-desconto-medio').innerText  = mediaDesconto.toFixed(1).replace('.',',') + '%';
+            document.getElementById('kpi-fin-prevista').innerText        = fmt(receitaPrev);
+            document.getElementById('kpi-fin-prevista-qtd').innerText    = `${pendentes.length} agendamento(s)`;
+            document.getElementById('kpi-fin-cancelado').innerText       = fmt(receitaCanc);
+            document.getElementById('kpi-fin-cancelado-qtd').innerText   = `${cancelados.length} cancelamento(s)`;
+            document.getElementById('kpi-fin-ticket').innerText          = fmt(ticketMedio);
+            document.getElementById('kpi-fin-ticket-esperado').innerText = fmt(ticketEsperado);
 
             // Receita por Vacina
             const ctxFV = document.getElementById('finVaccineChart').getContext('2d');
@@ -2861,7 +3103,7 @@
                 document.getElementById('modal-agendar').classList.remove('active');
                 saveAll(); renderCalendar(); renderTable(); renderDashboard();
                 showNotification('Agendamento confirmado!', 'success');
-                if (selectedDayDate) {
+                if (selectedDayDate && tableView !== 'kanban') {
                     const [y, m, d] = selectedDayDate.split('-');
                     openDayModal(selectedDayDate, d, parseInt(m) - 1, y);
                 }
@@ -3974,10 +4216,24 @@
                     return a.nome.localeCompare(b.nome, 'pt-BR');
                 });
             sorted.forEach(v => {
-                let schema = v.doseUnica ? `${v.numDoses} Dose(s) (+ Dose Única)` : `${v.numDoses} Dose(s) ${v.reforco?' + Reforço':''}`;
-                
+                // Esquema a partir dos esquemas por faixa etária
+                let schema = '';
+                if (v.esquemas && v.esquemas.length) {
+                    schema = v.esquemas.map(esq => {
+                        const faixa = esq.minAnos != null ? formatFaixaEtaria(esq) : 'Qualquer idade';
+                        return `${faixa}: ${esq.numDoses || 1}D`;
+                    }).join('<br>');
+                    if (v.reforco) schema += ' + Reforço';
+                    if (v.doseUnica) schema += ' (+ D. Única)';
+                } else {
+                    schema = v.doseUnica ? `${v.numDoses} Dose(s) (+ Dose Única)` : `${v.numDoses} Dose(s)${v.reforco?' + Reforço':''}`;
+                }
+
                 let idadeMinStr = '';
-                if(v.idadeMinimaAnos > 0 || v.idadeMinimaMeses > 0) {
+                if (v.esquemas && v.esquemas.length > 0) {
+                    const faixas = v.esquemas.filter(esq => esq.minAnos != null).map(esq => formatFaixaEtaria(esq));
+                    idadeMinStr = faixas.length ? faixas.join('<br>') : 'Sem restrição';
+                } else if(v.idadeMinimaAnos > 0 || v.idadeMinimaMeses > 0) {
                     if(v.idadeMinimaAnos > 0 && v.idadeMinimaMeses > 0) {
                         idadeMinStr = `${v.idadeMinimaAnos} ano(s) ${v.idadeMinimaMeses} mês(es)`;
                     } else if(v.idadeMinimaAnos > 0) {
@@ -4012,49 +4268,158 @@
             populateVaccineSelects();
         }
 
-        function updateIntervalosUI(existingIntervalos) {
-            const doses = Number(document.getElementById('vac-doses').value);
-            const container = document.getElementById('container-intervalos');
-            if (doses <= 1) { container.innerHTML = ''; return; }
-            const prev = [];
-            for (let i = 1; i < doses; i++) {
-                const el = document.getElementById('vac-intervalo-' + i);
-                prev.push(el ? Number(el.value) : (existingIntervalos && existingIntervalos[i-1] != null ? existingIntervalos[i-1] : 30));
-            }
-            const cols = doses - 1 === 1 ? 'grid-cols-1' : doses - 1 === 2 ? 'grid-cols-2' : 'grid-cols-3';
-            let html = `<div class="border-2 border-blue-400 rounded-lg p-3"><p class="text-[10px] font-black text-slate-400 uppercase mb-2">Intervalo Entre Doses (Dias)</p><div class="grid ${cols} gap-3">`;
-            for (let i = 2; i <= doses; i++) {
-                const val = existingIntervalos ? (existingIntervalos[i-2] ?? 30) : (prev[i-2] ?? 30);
-                html += `<div><label class="block text-[10px] font-bold text-slate-500 mb-1">Dose ${i-1} → Dose ${i}</label><input type="number" id="vac-intervalo-${i-1}" required min="1" value="${val}" class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm"></div>`;
-            }
-            html += '</div></div>';
-            container.innerHTML = html;
+        // ─── ESQUEMAS VACINAIS POR FAIXA ETÁRIA ───────────────────────────────────
+        let _esquemas = []; // [{minAnos, minMeses, maxAnos, maxMeses, numDoses, intervalos}]
+
+        function formatFaixaEtaria(esq) {
+            const minStr = esq.minAnos > 0 && esq.minMeses > 0 ? `${esq.minAnos}a ${esq.minMeses}m`
+                : esq.minAnos > 0 ? `${esq.minAnos} ano(s)`
+                : esq.minMeses > 0 ? `${esq.minMeses} mês(es)`
+                : '0 meses';
+            const hasMax = esq.maxAnos != null && esq.maxAnos !== '' || esq.maxMeses != null && esq.maxMeses !== '';
+            if (!hasMax) return `A partir de ${minStr}`;
+            const maxStr = (esq.maxAnos > 0 && esq.maxMeses > 0) ? `${esq.maxAnos}a ${esq.maxMeses}m`
+                : esq.maxAnos > 0 ? `${esq.maxAnos} ano(s)`
+                : `${esq.maxMeses} mês(es)`;
+            return `${minStr} até ${maxStr}`;
         }
 
-        function openVaccineModal() { if (!checkPerm('vacinas_crud')) return; document.getElementById('vacina-form').reset(); document.getElementById('vac-id').value = ''; document.getElementById('container-intervalos').innerHTML = ''; document.getElementById('modal-vacina').classList.add('active'); }
+        function renderEsquemas() {
+            const container = document.getElementById('container-esquemas');
+            const hint = document.getElementById('esquemas-empty-hint');
+            if (!_esquemas.length) { container.innerHTML = ''; hint.classList.remove('hidden'); return; }
+            hint.classList.add('hidden');
+            container.innerHTML = _esquemas.map((esq, idx) => {
+                const faixaStr = esq.minAnos != null ? formatFaixaEtaria(esq) : 'Faixa não definida';
+                const hasFaixa = esq.minAnos != null;
+                const numD = esq.numDoses || 1;
+                let intervalosHtml = '';
+                if (numD > 1) {
+                    const cols = numD - 1 === 1 ? 'grid-cols-1' : numD - 1 === 2 ? 'grid-cols-2' : 'grid-cols-3';
+                    intervalosHtml = `<div class="grid ${cols} gap-2 mt-2">`;
+                    for (let i = 2; i <= numD; i++) {
+                        const val = esq.intervalos && esq.intervalos[i-2] != null ? esq.intervalos[i-2] : 30;
+                        intervalosHtml += `<div><label class="block text-[9px] font-bold text-slate-400 mb-0.5">D${i-1}→D${i}</label><input type="number" min="1" value="${val}" onchange="updateEsquemaIntervalo(${idx},${i-1},this.value)" class="w-full border border-slate-200 rounded py-1 px-2 text-xs focus:ring-1 focus:ring-clinic-500 outline-none"></div>`;
+                    }
+                    intervalosHtml += '</div>';
+                }
+                return `<div class="border-2 ${hasFaixa ? 'border-blue-300' : 'border-slate-200'} rounded-xl p-3 bg-white shadow-sm">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button type="button" onclick="openFaixaEtariaModal(${idx})" class="flex items-center gap-1.5 border-2 ${hasFaixa ? 'border-green-400 text-green-700 bg-green-50 hover:bg-green-100' : 'border-slate-300 text-slate-500 hover:bg-slate-50'} text-[10px] font-black uppercase px-2.5 py-1 rounded-lg transition">
+                                <i class="fas fa-child text-[9px]"></i>
+                                <span>${hasFaixa ? faixaStr : 'Faixa etária'}</span>
+                            </button>
+                            <div class="flex items-center gap-1">
+                                <label class="text-[10px] font-bold text-slate-400 uppercase">Doses:</label>
+                                <select onchange="updateEsquemaDoses(${idx},this.value)" class="border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-clinic-500 outline-none">
+                                    <option value="1" ${numD==1?'selected':''}>1</option>
+                                    <option value="2" ${numD==2?'selected':''}>2</option>
+                                    <option value="3" ${numD==3?'selected':''}>3</option>
+                                    <option value="4" ${numD==4?'selected':''}>4</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="button" onclick="removeEsquema(${idx})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition flex-shrink-0" title="Remover esquema"><i class="fas fa-trash text-[10px]"></i></button>
+                    </div>
+                    ${intervalosHtml}
+                </div>`;
+            }).join('');
+        }
+
+        function addEsquemaVacinal() {
+            _esquemas.push({ minAnos: null, minMeses: null, maxAnos: null, maxMeses: null, numDoses: 1, intervalos: [] });
+            renderEsquemas();
+        }
+
+        function removeEsquema(idx) {
+            _esquemas.splice(idx, 1);
+            renderEsquemas();
+        }
+
+        function updateEsquemaDoses(idx, val) {
+            _esquemas[idx].numDoses = Number(val);
+            if (!_esquemas[idx].intervalos) _esquemas[idx].intervalos = [];
+            renderEsquemas();
+        }
+
+        function updateEsquemaIntervalo(idx, posIdx, val) {
+            if (!_esquemas[idx].intervalos) _esquemas[idx].intervalos = [];
+            _esquemas[idx].intervalos[posIdx - 1] = Number(val);
+        }
+
+        function openFaixaEtariaModal(idx) {
+            const esq = _esquemas[idx];
+            document.getElementById('faixa-etaria-target-idx').value = idx;
+            document.getElementById('faixa-min-anos').value = esq.minAnos != null ? esq.minAnos : 0;
+            document.getElementById('faixa-min-meses').value = esq.minMeses != null ? esq.minMeses : 0;
+            document.getElementById('faixa-max-anos').value = esq.maxAnos != null ? esq.maxAnos : '';
+            document.getElementById('faixa-max-meses').value = esq.maxMeses != null ? esq.maxMeses : '';
+            document.getElementById('modal-faixa-etaria').classList.add('active');
+        }
+
+        function confirmarFaixaEtaria() {
+            const idx = Number(document.getElementById('faixa-etaria-target-idx').value);
+            const minAnos = Number(document.getElementById('faixa-min-anos').value) || 0;
+            const minMeses = Number(document.getElementById('faixa-min-meses').value) || 0;
+            const maxAnosRaw = document.getElementById('faixa-max-anos').value;
+            const maxMesesRaw = document.getElementById('faixa-max-meses').value;
+            _esquemas[idx].minAnos = minAnos;
+            _esquemas[idx].minMeses = minMeses;
+            _esquemas[idx].maxAnos = maxAnosRaw !== '' ? Number(maxAnosRaw) : null;
+            _esquemas[idx].maxMeses = maxMesesRaw !== '' ? Number(maxMesesRaw) : null;
+            document.getElementById('modal-faixa-etaria').classList.remove('active');
+            renderEsquemas();
+        }
+        // ──────────────────────────────────────────────────────────────────────────
+
+        function openVaccineModal() {
+            if (!checkPerm('vacinas_crud')) return;
+            document.getElementById('vacina-form').reset();
+            document.getElementById('vac-id').value = '';
+            _esquemas = [];
+            renderEsquemas();
+            document.getElementById('modal-vacina').classList.add('active');
+        }
         function editVaccine(id) {
             if (!checkPerm('vacinas_crud')) return;
             const v = vaccines.find(x=>x.id==id); if(!v) return;
-            document.getElementById('vac-id').value = v.id; document.getElementById('vac-nome').value = v.nome;
-            document.getElementById('vac-doses').value = v.numDoses;
-            const intervalos = v.intervalos && v.intervalos.length ? v.intervalos : (v.intervaloDias > 0 ? [v.intervaloDias] : [30]);
-            updateIntervalosUI(intervalos);
-            document.getElementById('vac-reforco').checked = v.reforco; document.getElementById('vac-unica').checked = v.doseUnica;
-            document.getElementById('vac-idade-min').value = v.idadeMinimaAnos; 
-            document.getElementById('vac-idade-min-meses').value = v.idadeMinimaMeses || 0;
+            document.getElementById('vac-id').value = v.id;
+            document.getElementById('vac-nome').value = v.nome;
+            document.getElementById('vac-reforco').checked = v.reforco;
+            document.getElementById('vac-unica').checked = v.doseUnica;
             document.getElementById('vac-valor').value = String(v.valor || '').replace('R$', '').trim();
+            // Migração: vacinas antigas sem esquemas recebem um esquema padrão derivado dos campos legados
+            if (v.esquemas && v.esquemas.length) {
+                _esquemas = JSON.parse(JSON.stringify(v.esquemas));
+            } else {
+                const intervalos = v.intervalos && v.intervalos.length ? v.intervalos : (v.intervaloDias > 0 ? [v.intervaloDias] : []);
+                _esquemas = [{ minAnos: v.idadeMinimaAnos || 0, minMeses: v.idadeMinimaMeses || 0, maxAnos: null, maxMeses: null, numDoses: v.numDoses || 1, intervalos }];
+            }
+            renderEsquemas();
             document.getElementById('modal-vacina').classList.add('active');
         }
 
         function saveVaccine(e) {
             e.preventDefault();
+            if (!_esquemas.length) { showNotification('Adicione ao menos um esquema vacinal antes de salvar.', 'error'); return; }
             const id = document.getElementById('vac-id').value;
             const existing = vaccines.find(x => x.id == id);
+            // numDoses e intervalos derivados do maior esquema (retrocompatibilidade com agendamentos)
+            const maiorEsquema = _esquemas.reduce((a, b) => (b.numDoses || 1) > (a.numDoses || 1) ? b : a, _esquemas[0]);
+            const n = maiorEsquema.numDoses || 1;
+            const intervalosBase = maiorEsquema.intervalos && maiorEsquema.intervalos.length ? maiorEsquema.intervalos : [];
+            // Retrocompatibilidade de idadeMinima
+            const primeiroEsquema = _esquemas.find(esq => esq.minAnos != null);
+            const idadeMinimaAnos = primeiroEsquema ? (primeiroEsquema.minAnos || 0) : 0;
+            const idadeMinimaMeses = primeiroEsquema ? (primeiroEsquema.minMeses || 0) : 0;
             const v = {
                 id: id ? Number(id) : Date.now(), nome: document.getElementById('vac-nome').value.toUpperCase(),
-                numDoses: Number(document.getElementById('vac-doses').value), intervalos: (function(){ const n=Number(document.getElementById('vac-doses').value); const arr=[]; for(let i=1;i<n;i++){const el=document.getElementById('vac-intervalo-'+i); arr.push(el?Number(el.value):30);} return arr; })(), intervaloDias: (function(){ const el=document.getElementById('vac-intervalo-1'); return el?Number(el.value):0; })(),
+                numDoses: n, intervalos: intervalosBase, intervaloDias: intervalosBase[0] || 0,
                 reforco: document.getElementById('vac-reforco').checked, doseUnica: document.getElementById('vac-unica').checked,
-                idadeMinimaAnos: Number(document.getElementById('vac-idade-min').value), idadeMinimaMeses: Number(document.getElementById('vac-idade-min-meses').value), valor: document.getElementById('vac-valor').value,
+                idadeMinimaAnos, idadeMinimaMeses,
+                esquemas: JSON.parse(JSON.stringify(_esquemas)),
+                valor: document.getElementById('vac-valor').value,
                 ativo: existing ? (existing.ativo !== false) : true
             };
             const isNewVac = !id;
@@ -4172,8 +4537,22 @@
 
         function toggleLoteStatus(loteId, newStatus) {
             if (!checkPerm('lotes_fechar_abrir')) return;
+            if (newStatus === 'fechado') {
+                const lote = vaccineLots.find(l => l.id == loteId);
+                const vac  = lote ? vaccines.find(v => v.id == lote.vaccineId) : null;
+                document.getElementById('fechar-lote-numero').textContent   = lote ? lote.numero : '—';
+                document.getElementById('fechar-lote-vacina').textContent   = vac  ? vac.nome   : '—';
+                document.getElementById('fechar-lote-validade').textContent = lote ? lote.validade.split('-').reverse().join('/') : '—';
+                document.getElementById('btn-confirmar-fechar-lote').onclick = () => {
+                    document.getElementById('modal-fechar-lote-aviso').classList.remove('active');
+                    const idx = vaccineLots.findIndex(l => l.id == loteId);
+                    if (idx > -1) { vaccineLots[idx].status = 'fechado'; saveAll(); renderLoteLists(); updateExpiryBadge(); showNotification('Lote fechado com sucesso!', 'success'); }
+                };
+                document.getElementById('modal-fechar-lote-aviso').classList.add('active');
+                return;
+            }
             const idx = vaccineLots.findIndex(l => l.id == loteId);
-            if (idx > -1) { vaccineLots[idx].status = newStatus; saveAll(); renderLoteLists(); updateExpiryBadge(); showNotification(`Lote ${newStatus === 'aberto' ? 'aberto' : 'fechado'} com sucesso!`, 'success'); }
+            if (idx > -1) { vaccineLots[idx].status = 'aberto'; saveAll(); renderLoteLists(); updateExpiryBadge(); showNotification('Lote aberto com sucesso!', 'success'); }
         }
 
         function deleteLote(loteId) {
@@ -4369,6 +4748,7 @@
         function openRecordModal() {
             if (!checkPerm('criar_agendamento')) return;
             document.getElementById('record-form').reset(); document.getElementById('reg-id').value = '';
+            resetDescontoUI();
             document.getElementById('hidden-patient-id').value = '';
             document.getElementById('div-responsavel').style.display = 'none';
             document.getElementById('div-responsavel-placeholder').style.display = 'block';
@@ -4508,6 +4888,21 @@
             }
         }
 
+        function getEsquemaPaciente(v, dtNasc) {
+            // Retorna o esquema que se encaixa na idade do paciente, ou null
+            if (!v.esquemas || !v.esquemas.length) return null;
+            if (!dtNasc) return v.esquemas[0]; // sem data de nascimento, usa o primeiro
+            const ageInfo = getAgeInMonths(dtNasc);
+            const totalMeses = ageInfo.years * 12 + ageInfo.months;
+            return v.esquemas.find(esq => {
+                if (esq.minAnos == null) return true;
+                const minTotal = (esq.minAnos || 0) * 12 + (esq.minMeses || 0);
+                const hasMax = esq.maxAnos != null || esq.maxMeses != null;
+                const maxTotal = hasMax ? ((esq.maxAnos || 0) * 12 + (esq.maxMeses || 0)) : Infinity;
+                return totalMeses >= minTotal && totalMeses <= maxTotal;
+            }) || null;
+        }
+
         function autoFillVaccine() {
             const vId = document.getElementById('reg-vacina').value;
             const doseSel = document.getElementById('reg-dose');
@@ -4515,28 +4910,29 @@
             document.getElementById('reg-idade-min').value = '';
             document.getElementById('reg-valor').value = '';
             populateLoteSelect(vId);
-            
-            if(vId) {
-                const v = vaccines.find(x=>x.id==vId);
-                if(v) {
-                    for(let i=1; i<=v.numDoses; i++) doseSel.innerHTML += `<option value="${i}ª Dose">${i}ª Dose</option>`;
-                    if(v.doseUnica) doseSel.innerHTML += `<option value="Dose Única">Dose Única</option>`;
-                    if(v.reforco) doseSel.innerHTML += `<option value="Reforço">Reforço</option>`;
-                    
+
+            if (vId) {
+                const v = vaccines.find(x => x.id == vId);
+                if (v) {
+                    // Determina número de doses do esquema adequado ao paciente
+                    const dtNasc = document.getElementById('reg-dtnasc').value;
+                    const esq = getEsquemaPaciente(v, dtNasc);
+                    const numDoses = esq ? (esq.numDoses || 1) : (v.numDoses || 1);
+                    for (let i = 1; i <= numDoses; i++) doseSel.innerHTML += `<option value="${i}ª Dose">${i}ª Dose</option>`;
+                    if (v.doseUnica) doseSel.innerHTML += `<option value="Dose Única">Dose Única</option>`;
+                    if (v.reforco) doseSel.innerHTML += `<option value="Reforço">Reforço</option>`;
+
+                    // Label de faixas etárias
                     let idadeMinStr = '';
-                    if(v.idadeMinimaAnos > 0 || v.idadeMinimaMeses > 0) {
-                        if(v.idadeMinimaAnos > 0 && v.idadeMinimaMeses > 0) {
-                            idadeMinStr = `${v.idadeMinimaAnos} ano(s) ${v.idadeMinimaMeses} mês(es)`;
-                        } else if(v.idadeMinimaAnos > 0) {
-                            idadeMinStr = `${v.idadeMinimaAnos} ano(s)`;
-                        } else {
-                            idadeMinStr = `${v.idadeMinimaMeses} mês(es)`;
-                        }
+                    if (v.esquemas && v.esquemas.length > 0) {
+                        const faixas = v.esquemas.filter(e => e.minAnos != null).map(e => formatFaixaEtaria(e));
+                        idadeMinStr = faixas.length ? faixas.join(' | ') : 'Sem restrição';
                     } else {
                         idadeMinStr = 'Sem restrição';
                     }
                     document.getElementById('reg-idade-min').value = idadeMinStr;
                     document.getElementById('reg-valor').value = String(v.valor || '').replace('R$', '').trim();
+                    resetDescontoUI();
                     checkAgeConstraint();
                 }
             }
@@ -4545,37 +4941,43 @@
         function checkAgeConstraint() {
             const vId = document.getElementById('reg-vacina').value;
             const dtNasc = document.getElementById('reg-dtnasc').value;
-            if(vId && dtNasc) {
-                const v = vaccines.find(x=>x.id==vId);
-                if(v) {
-                    const ageInfo = getAgeInMonths(dtNasc);
-                    const minAgeInMonths = v.idadeMinimaAnos * 12 + v.idadeMinimaMeses;
-                    const patientAgeInMonths = ageInfo.years * 12 + ageInfo.months;
-                    
-                    if(patientAgeInMonths < minAgeInMonths) {
-                        let minAgeStr = '';
-                        if(v.idadeMinimaAnos > 0 && v.idadeMinimaMeses > 0) {
-                            minAgeStr = `${v.idadeMinimaAnos} ano(s) e ${v.idadeMinimaMeses} mês(es)`;
-                        } else if(v.idadeMinimaAnos > 0) {
-                            minAgeStr = `${v.idadeMinimaAnos} ano(s)`;
-                        } else {
-                            minAgeStr = `${v.idadeMinimaMeses} mês(es)`;
-                        }
-                        
-                        let patientAgeStr = '';
-                        if(ageInfo.years > 0 && ageInfo.months > 0) {
-                            patientAgeStr = `${ageInfo.years} ano(s) e ${ageInfo.months} mês(es)`;
-                        } else if(ageInfo.years > 0) {
-                            patientAgeStr = `${ageInfo.years} ano(s)`;
-                        } else {
-                            patientAgeStr = `${ageInfo.months} mês(es)`;
-                        }
-                        
-                        document.getElementById('age-warning-msg').innerHTML = `O paciente possui <b>${patientAgeStr}</b>, porém a idade mínima recomendada para a vacina <b>${v.nome}</b> é de <b>${minAgeStr}</b>.<br><br>Essa notificação não bloqueia o agendamento, cabendo ao responsável técnico a decisão de prosseguir com base em orientação médica.`;
-                        document.getElementById('modal-age-warning').classList.add('active');
-                    }
+            if (!vId || !dtNasc) return false;
+            const v = vaccines.find(x => x.id == vId);
+            if (!v) return false;
+            const ageInfo = getAgeInMonths(dtNasc);
+            const patientTotalMeses = ageInfo.years * 12 + ageInfo.months;
+
+            // Se há esquemas por faixa etária, verifica se o paciente se encaixa em algum
+            if (v.esquemas && v.esquemas.length > 0) {
+                const encaixa = v.esquemas.some(esq => {
+                    if (esq.minAnos == null) return true;
+                    const minTotal = (esq.minAnos || 0) * 12 + (esq.minMeses || 0);
+                    const hasMax = esq.maxAnos != null || esq.maxMeses != null;
+                    const maxTotal = hasMax ? ((esq.maxAnos || 0) * 12 + (esq.maxMeses || 0)) : Infinity;
+                    return patientTotalMeses >= minTotal && patientTotalMeses <= maxTotal;
+                });
+                if (!encaixa) {
+                    const faixas = v.esquemas.filter(esq => esq.minAnos != null).map(esq => formatFaixaEtaria(esq)).join('; ');
+                    const patStr = ageInfo.years > 0 ? `${ageInfo.years} ano(s) e ${ageInfo.months} mês(es)` : `${ageInfo.months} mês(es)`;
+                    document.getElementById('age-warning-msg').innerHTML = `O paciente possui <b>${patStr}</b> e não se enquadra em nenhuma faixa etária cadastrada para a vacina <b>${v.nome}</b>.<br><br><span class="text-[11px] text-slate-500">Faixas permitidas: <b>${faixas || 'Não definidas'}</b></span><br><br>O agendamento desta vacina para este paciente <b>não é permitido</b>.`;
+                    document.getElementById('modal-age-warning').classList.add('active');
+                    return true;
                 }
+                return false;
             }
+
+            // Fallback: usa idadeMinimaAnos/Meses
+            const minAgeInMonths = (v.idadeMinimaAnos || 0) * 12 + (v.idadeMinimaMeses || 0);
+            if (patientTotalMeses < minAgeInMonths) {
+                const minStr = v.idadeMinimaAnos > 0 && v.idadeMinimaMeses > 0 ? `${v.idadeMinimaAnos} ano(s) e ${v.idadeMinimaMeses} mês(es)`
+                    : v.idadeMinimaAnos > 0 ? `${v.idadeMinimaAnos} ano(s)` : `${v.idadeMinimaMeses} mês(es)`;
+                const patStr = ageInfo.years > 0 && ageInfo.months > 0 ? `${ageInfo.years} ano(s) e ${ageInfo.months} mês(es)`
+                    : ageInfo.years > 0 ? `${ageInfo.years} ano(s)` : `${ageInfo.months} mês(es)`;
+                document.getElementById('age-warning-msg').innerHTML = `O paciente possui <b>${patStr}</b>, porém a idade mínima para a vacina <b>${v.nome}</b> é de <b>${minStr}</b>.<br><br>O agendamento desta vacina para este paciente <b>não é permitido</b>.`;
+                document.getElementById('modal-age-warning').classList.add('active');
+                return true;
+            }
+            return false;
         }
 
         function updateSuggestedDate() {
@@ -4583,24 +4985,29 @@
             const vId = document.getElementById('reg-vacina').value;
             const dose = document.getElementById('reg-dose').value;
             const sugDiv = document.getElementById('sugestao-data');
-            
+
             sugDiv.classList.add('hidden');
-            if(!patId || !vId || !dose || dose.includes('1ª') || dose === 'Dose Única') return;
-            
-            const v = vaccines.find(x=>x.id==vId);
-            const intervalos = v && v.intervalos && v.intervalos.length ? v.intervalos : (v && v.intervaloDias > 0 ? [v.intervaloDias] : []);
-            if(!v || !intervalos.length) return;
-            const doseMatch = dose.match(/(\d+)/);
-            const doseNum = doseMatch ? Number(doseMatch[1]) : 2;
+            if (!patId || !vId || !dose || dose.includes('1ª') || dose === 'Dose Única') return;
+
+            const v = vaccines.find(x => x.id == vId);
+            if (!v) return;
+
+            // Usa intervalos do esquema adequado ao paciente
+            const dtNasc = document.getElementById('reg-dtnasc').value;
+            const esq = getEsquemaPaciente(v, dtNasc);
+            const intervalos = esq && esq.intervalos && esq.intervalos.length ? esq.intervalos
+                : (v.intervalos && v.intervalos.length ? v.intervalos : (v.intervaloDias > 0 ? [v.intervaloDias] : []));
+            if (!intervalos.length) return;
+
+            const doseNum = Number((dose.match(/(\d+)/) || [])[1] || 2);
             const intervalo = intervalos[doseNum - 2] ?? intervalos[intervalos.length - 1];
-            if(!intervalo || intervalo <= 0) return;
+            if (!intervalo || intervalo <= 0) return;
 
-            const prevApps = appointments.filter(a => a.patientId==patId && a.vaccineId==vId).sort((a,b)=>new Date(b.data)-new Date(a.data));
-            let baseDate = prevApps.length > 0 ? new Date(prevApps[0].data) : new Date();
-
+            const prevApps = appointments.filter(a => a.patientId == patId && a.vaccineId == vId).sort((a, b) => new Date(b.data) - new Date(a.data));
+            const baseDate = prevApps.length > 0 ? new Date(prevApps[0].data + 'T00:00:00') : new Date();
             baseDate.setDate(baseDate.getDate() + intervalo);
             const isoDate = baseDate.toISOString().split('T')[0];
-            
+
             document.getElementById('span-sugestao-data').innerText = isoDate.split('-').reverse().join('/');
             document.getElementById('span-sugestao-data').setAttribute('data-iso', isoDate);
             sugDiv.classList.remove('hidden');
@@ -4613,7 +5020,123 @@
 
         function confirmarSalvarMesmoAssim() {
             document.getElementById('modal-aprazamento-aviso').classList.remove('active');
-            window._aprazamentoConfirmado = true;
+        }
+
+        // ─── DESCONTO NO AGENDAMENTO ──────────────────────────────────────────────
+        let _descontoAtivo = false;   // há desconto aplicado?
+        let _valorCheio = '';         // valor cheio sem desconto (string mascarada)
+        let _descontoTab = 'pct';     // aba ativa: 'pct' | 'val'
+
+        function openDescontoModal() {
+            const valorAtual = document.getElementById('reg-valor').value;
+            if (!valorAtual || valorAtual === '0,00') {
+                showNotification('Selecione uma vacina antes de aplicar desconto.', 'error');
+                return;
+            }
+            // Usa o valor cheio real (sem desconto anterior)
+            const base = _descontoAtivo ? _valorCheio : valorAtual;
+            document.getElementById('modal-desc-valor-cheio').textContent = 'R$ ' + base;
+            document.getElementById('desc-pct-input').value = '';
+            document.getElementById('desc-val-input').value = '';
+            document.getElementById('desc-preview').classList.add('hidden');
+            switchDescontoTab('pct');
+            document.getElementById('modal-desconto').classList.add('active');
+        }
+
+        function switchDescontoTab(tab) {
+            _descontoTab = tab;
+            const isPct = tab === 'pct';
+            document.getElementById('desc-pct-panel').classList.toggle('hidden', !isPct);
+            document.getElementById('desc-val-panel').classList.toggle('hidden', isPct);
+            document.getElementById('tab-desc-pct').className = `flex-1 py-2 transition text-[11px] font-black uppercase ${isPct ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400 hover:bg-slate-50'}`;
+            document.getElementById('tab-desc-val').className = `flex-1 py-2 transition text-[11px] font-black uppercase ${!isPct ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400 hover:bg-slate-50'}`;
+            document.getElementById('desc-preview').classList.add('hidden');
+        }
+
+        function setDescontoPct(pct) {
+            document.getElementById('desc-pct-input').value = pct;
+            calcDescontoPreview();
+        }
+
+        function parseBRL(str) {
+            return parseFloat(String(str || '0').replace(/\./g, '').replace(',', '.')) || 0;
+        }
+
+        function formatBRL(num) {
+            return num.toFixed(2).replace('.', ',');
+        }
+
+        function calcDescontoPreview() {
+            const base = _descontoAtivo ? _valorCheio : document.getElementById('reg-valor').value;
+            const baseNum = parseBRL(base);
+            if (!baseNum) return;
+
+            let finalNum = 0, pct = 0;
+            if (_descontoTab === 'pct') {
+                pct = parseFloat(document.getElementById('desc-pct-input').value) || 0;
+                if (pct < 0 || pct > 100) return;
+                finalNum = baseNum * (1 - pct / 100);
+            } else {
+                finalNum = parseBRL(document.getElementById('desc-val-input').value);
+                if (finalNum < 0 || finalNum > baseNum) return;
+                pct = baseNum > 0 ? ((baseNum - finalNum) / baseNum) * 100 : 0;
+            }
+
+            const economia = baseNum - finalNum;
+            document.getElementById('desc-preview-valor').textContent = 'R$ ' + formatBRL(finalNum);
+            document.getElementById('desc-preview-pct').textContent = pct.toFixed(1).replace('.', ',') + '% OFF';
+            document.getElementById('desc-preview-economia').textContent = 'R$ ' + formatBRL(economia);
+            document.getElementById('desc-preview').classList.remove('hidden');
+        }
+
+        function aplicarDesconto() {
+            const base = _descontoAtivo ? _valorCheio : document.getElementById('reg-valor').value;
+            const baseNum = parseBRL(base);
+            let finalNum = 0, pct = 0;
+
+            if (_descontoTab === 'pct') {
+                pct = parseFloat(document.getElementById('desc-pct-input').value) || 0;
+                if (pct <= 0 || pct > 100) { showNotification('Informe um percentual entre 0,1% e 100%.', 'error'); return; }
+                finalNum = baseNum * (1 - pct / 100);
+            } else {
+                finalNum = parseBRL(document.getElementById('desc-val-input').value);
+                if (finalNum <= 0 || finalNum > baseNum) { showNotification('Informe um valor final válido.', 'error'); return; }
+                pct = baseNum > 0 ? ((baseNum - finalNum) / baseNum) * 100 : 0;
+            }
+
+            _valorCheio = base;
+            _descontoAtivo = true;
+            document.getElementById('reg-valor').value = formatBRL(finalNum);
+            // Atualiza info abaixo do campo
+            document.getElementById('reg-valor-cheio-display').textContent = 'R$ ' + _valorCheio;
+            document.getElementById('reg-desconto-pct-display').textContent = pct.toFixed(1).replace('.', ',') + '% OFF';
+            document.getElementById('reg-desconto-info').classList.remove('hidden');
+            // Estilo do campo: destaque indigo
+            document.getElementById('btn-desconto').classList.add('ring-2', 'ring-indigo-400');
+            document.getElementById('modal-desconto').classList.remove('active');
+            showNotification('Desconto aplicado com sucesso!', 'success');
+        }
+
+        function removerDesconto() {
+            if (!_descontoAtivo) return;
+            document.getElementById('reg-valor').value = _valorCheio;
+            _descontoAtivo = false;
+            _valorCheio = '';
+            document.getElementById('reg-desconto-info').classList.add('hidden');
+            document.getElementById('btn-desconto').classList.remove('ring-2', 'ring-indigo-400');
+        }
+
+        function resetDescontoUI() {
+            _descontoAtivo = false;
+            _valorCheio = '';
+            document.getElementById('reg-desconto-info').classList.add('hidden');
+            document.getElementById('btn-desconto').classList.remove('ring-2', 'ring-indigo-400');
+        }
+        // ──────────────────────────────────────────────────────────────────────────
+
+        function confirmarDoseAnterior() {
+            document.getElementById('modal-dose-anterior-aviso').classList.remove('active');
+            window._doseAnteriorConfirmado = true;
             document.getElementById('record-form').requestSubmit();
         }
 
@@ -4698,6 +5221,17 @@
                 document.getElementById('reg-data').value = a.data;
                 document.getElementById('reg-hora').value = a.hora || '';
                 document.getElementById('reg-valor').value = String(a.valorAplicado || '').replace('R$', '').trim();
+                // Restaura estado de desconto
+                if (a.valorCheio && a.descontoPct) {
+                    _descontoAtivo = true;
+                    _valorCheio = String(a.valorCheio).replace('R$', '').trim();
+                    document.getElementById('reg-valor-cheio-display').textContent = 'R$ ' + _valorCheio;
+                    document.getElementById('reg-desconto-pct-display').textContent = String(a.descontoPct).replace('.', ',') + '% OFF';
+                    document.getElementById('reg-desconto-info').classList.remove('hidden');
+                    document.getElementById('btn-desconto').classList.add('ring-2', 'ring-indigo-400');
+                } else {
+                    resetDescontoUI();
+                }
                 document.getElementById('reg-status').value = a.status;
                 populateLoteSelect(a.vaccineId, a.loteId);
                 toggleCancelReason();
@@ -4709,14 +5243,16 @@
                     document.getElementById('modal-title-agenda').innerText = 'Editar Agendamento';
                     document.getElementById('btn-delete-record').classList.remove('hidden');
                     document.getElementById('btn-duplicar-record').classList.remove('hidden');
-                    document.querySelectorAll('#record-form input:not([type="hidden"]), #record-form select, #record-form textarea').forEach(el => { el.disabled = false; });
+                    document.querySelectorAll('#record-form input:not([type="hidden"]):not(#reg-valor), #record-form select, #record-form textarea').forEach(el => { el.disabled = false; });
+                    document.getElementById('btn-desconto').disabled = false;
                     const saveBtn = document.querySelector('#record-form button[type="submit"]');
                     if (saveBtn) saveBtn.style.display = '';
                 } else {
                     document.getElementById('modal-title-agenda').innerText = 'Visualizar Agendamento';
                     document.getElementById('btn-delete-record').classList.add('hidden');
                     document.getElementById('btn-duplicar-record').classList.add('hidden');
-                    document.querySelectorAll('#record-form input:not([type="hidden"]), #record-form select, #record-form textarea').forEach(el => { el.disabled = true; });
+                    document.querySelectorAll('#record-form input:not([type="hidden"]):not(#reg-valor), #record-form select, #record-form textarea').forEach(el => { el.disabled = true; });
+                    document.getElementById('btn-desconto').disabled = true;
                     const saveBtn = document.querySelector('#record-form button[type="submit"]');
                     if (saveBtn) saveBtn.style.display = 'none';
                 }
@@ -4789,13 +5325,32 @@
                 return;
             }
 
-            // Verificação de aprazamento: só avisa se houver doses retroativas da mesma vacina
-            if (!window._aprazamentoConfirmado) {
+            // Bloqueio de horário: se preenchido, deve ser entre 07:00 e 17:00
+            {
+                const horaAgend = document.getElementById('reg-hora').value;
+                if (horaAgend) {
+                    const [h, m] = horaAgend.split(':').map(Number);
+                    const totalMin = h * 60 + m;
+                    if (totalMin < 7 * 60 || totalMin > 17 * 60) {
+                        showNotification('Bloqueio: o horário deve estar entre 07:00 e 17:00.', 'error');
+                        return;
+                    }
+                }
+            }
+
+            // Verificação de faixa etária — bloqueante
+            if (checkAgeConstraint()) return;
+
+            // Verificação de aprazamento — bloqueante (sem opção de continuar)
+            {
                 const vIdApr = document.getElementById('reg-vacina').value;
                 const doseApr = document.getElementById('reg-dose').value;
                 if (vIdApr && doseApr && !doseApr.includes('1ª') && doseApr !== 'Dose Única') {
                     const vApr = vaccines.find(x => x.id == vIdApr);
-                    const intervalosApr = vApr && vApr.intervalos && vApr.intervalos.length ? vApr.intervalos : (vApr && vApr.intervaloDias > 0 ? [vApr.intervaloDias] : []);
+                    const dtNascApr = document.getElementById('reg-dtnasc').value;
+                    const esqApr = getEsquemaPaciente(vApr, dtNascApr);
+                    const intervalosApr = (esqApr && esqApr.intervalos && esqApr.intervalos.length) ? esqApr.intervalos
+                        : (vApr && vApr.intervalos && vApr.intervalos.length ? vApr.intervalos : (vApr && vApr.intervaloDias > 0 ? [vApr.intervaloDias] : []));
                     if (intervalosApr.length) {
                         const doseNumApr = (doseApr.match(/(\d+)/) || [])[1];
                         const dNum = doseNumApr ? Number(doseNumApr) : 2;
@@ -4816,9 +5371,8 @@
                                         `A data agendada é anterior ao prazo recomendado.<br><br>
                                         <span class="text-slate-500 text-xs">Última dose registrada: <b>${prevBr}</b></span><br>
                                         <span class="text-slate-500 text-xs">Intervalo recomendado: <b>${intervaloApr} dias</b></span><br>
-                                        <span class="text-slate-500 text-xs">Diferença de: <b class="text-red-600">${diffDias} dia${diffDias !== 1 ? 's' : ''}</b></span><br>
-                                        <span class="text-amber-600 font-black text-xs">Data mínima sugerida: ${minBr}</span>`;
-                                    window._pendingSaveEvent = e;
+                                        <span class="text-slate-500 text-xs">Diferença: <b class="text-red-600">${diffDias} dia${diffDias !== 1 ? 's' : ''} antes do permitido</b></span><br><br>
+                                        <span class="font-black text-red-600 text-xs">Data mínima: ${minBr}</span>`;
                                     document.getElementById('modal-aprazamento-aviso').classList.add('active');
                                     return;
                                 }
@@ -4827,18 +5381,37 @@
                     }
                 }
             }
-            window._aprazamentoConfirmado = false;
+
+            // Verificação de intervalo de 1 hora entre agendamentos no mesmo dia
+            {
+                const horaVal = document.getElementById('reg-hora') ? document.getElementById('reg-hora').value : null;
+                if (horaVal) {
+                    const conflito = appointments.find(a => a.id != id && a.data === dateVal && a.hora && Math.abs(
+                        (parseInt(horaVal.split(':')[0])*60 + parseInt(horaVal.split(':')[1])) -
+                        (parseInt(a.hora.split(':')[0])*60 + parseInt(a.hora.split(':')[1]))
+                    ) < 60);
+                    if (conflito) {
+                        const p2 = patients.find(x => x.id == conflito.patientId);
+                        const v2 = vaccines.find(x => x.id == conflito.vaccineId);
+                        showNotification(`Conflito de horário: já existe agendamento às ${conflito.hora} para ${p2 ? p2.nome : 'outro paciente'} (${v2 ? v2.nome : ''}). O intervalo mínimo entre agendamentos é de 1 hora.`, 'error');
+                        return;
+                    }
+                }
+            }
 
             const vId = document.getElementById('reg-vacina').value;
             const doseAtualStr = document.getElementById('reg-dose').value;
-            if(doseAtualStr.includes('ª Dose') && doseAtualStr !== '1ª Dose') {
+            if(doseAtualStr.includes('ª Dose') && doseAtualStr !== '1ª Dose' && !window._doseAnteriorConfirmado) {
                 const numAtual = parseInt(doseAtualStr);
                 const prevDoseStr = `${numAtual - 1}ª Dose`;
                 const hasPrev = appointments.some(x => x.patientId == patId && x.vaccineId == vId && x.doseAtual === prevDoseStr && x.id != id);
                 if(!hasPrev) {
-                    if(!confirm(`⚠️ ALERTA FARMACÊUTICO: Não foi encontrado registro da ${prevDoseStr} desta vacina no sistema para este paciente.\n\nDeseja ignorar o alerta e registrar a ${doseAtualStr} mesmo assim?`)) {
-                        return;
-                    }
+                    const vNome = vaccines.find(x => x.id == vId)?.nome || '';
+                    document.getElementById('dose-anterior-aviso-msg').innerHTML =
+                        `Não foi encontrado registro da <b>${prevDoseStr}</b> da vacina <b>${vNome}</b> no sistema para este paciente.<br><br>Deseja registrar a <b>${doseAtualStr}</b> mesmo assim?`;
+                    window._pendingDoseAnteriorEvent = e;
+                    document.getElementById('modal-dose-anterior-aviso').classList.add('active');
+                    return;
                 }
             }
 
@@ -4887,6 +5460,8 @@
                 hora: document.getElementById('reg-hora').value,
                 doseAtual: doseAtualStr,
                 valorAplicado: document.getElementById('reg-valor').value,
+                valorCheio: _descontoAtivo ? _valorCheio : null,
+                descontoPct: _descontoAtivo ? parseFloat((((parseBRL(_valorCheio) - parseBRL(document.getElementById('reg-valor').value)) / parseBRL(_valorCheio)) * 100).toFixed(1)) : null,
                 status: statusVal,
                 loteId: loteId,
                 lote: loteNumero,
@@ -4907,6 +5482,7 @@
             logAudit(isNew ? 'Criado' : 'Editado', 'agendamento', a.id,
                 `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a.doseAtual} | ${a.data ? a.data.split('-').reverse().join('/') : '—'}`,
                 isNew ? `Status: ${a.status}${a.vendedor ? ' | Vendedor: ' + a.vendedor : ''}` : null, appChanges);
+            window._doseAnteriorConfirmado = false;
             saveAll(); renderCalendar(); renderTable(); renderDashboard(); renderPatients(); closeModals();
             showNotification('Agendamento salvo com sucesso!', 'success');
         }
@@ -5323,9 +5899,9 @@
                     <td class="p-3 font-bold text-sm ${inativo ? 'text-slate-400' : 'text-navy-900'}">${u.nome}</td>
                     <td class="p-3 text-xs ${inativo ? 'text-slate-400' : 'text-slate-500'}">${u.cpf || '—'}</td>
                     <td class="p-3 text-xs font-bold">${u.login}</td>
-                    <td class="p-3 text-xs">${u.isAdmin ? '<span class="text-amber-600 font-black italic">Administrador Geral</span>' : (group ? group.nome : '<span class="text-red-400">Sem grupo</span>')}</td>
+                    <td class="p-3 text-xs">${u.isAdmin ? '<span class="text-navy-800 font-bold">Administrador Geral</span>' : (group ? group.nome : '<span class="text-red-400">Sem grupo</span>')}</td>
                     <td class="p-3 text-center">
-                        <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${u.isAdmin ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}">${u.isAdmin ? 'Admin' : 'Usuário'}</span>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${u.isAdmin ? 'bg-blue-100 text-navy-800' : 'bg-blue-100 text-blue-700'}">${u.isAdmin ? 'Admin' : 'Usuário'}</span>
                         ${isSelf ? '<span class="ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-green-100 text-green-700">Você</span>' : ''}
                     </td>
                     <td class="p-3 text-center text-xs">${funcoes}</td>
