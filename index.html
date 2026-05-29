@@ -451,10 +451,22 @@
         </section>
 
         <section id="tab-dados" class="tab-content container mx-auto">
+            <!-- View Toggle Bar -->
+            <div class="flex items-center gap-2 mb-4">
+                <button onclick="switchTableView('planilhas')" id="btn-view-planilhas"
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-navy-800 bg-navy-900 text-white">
+                    <i class="fas fa-table text-sm"></i> Planilhas
+                </button>
+                <button onclick="switchTableView('kanban')" id="btn-view-kanban"
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50">
+                    <i class="fas fa-columns text-sm"></i> Kanban
+                </button>
+            </div>
             <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-                <div class="p-6 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center">
+                <!-- Shared Filters Header -->
+                <div class="p-5 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center">
                     <h2 class="text-xl font-black text-navy-900 uppercase">Relação de Agendamentos</h2>
-                    <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                    <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
                         <input type="text" id="filter-search-agenda" onkeyup="renderTable()" placeholder="Buscar paciente ou CPF..." class="px-3 py-2 border border-slate-200 rounded-lg text-sm w-full md:w-48 focus:ring-2 focus:ring-clinic-500 outline-none">
                         <select id="filter-date-agenda" onchange="toggleMonthFilter()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
                             <option value="todos">Todas as Datas</option>
@@ -473,7 +485,8 @@
                         <button id="btn-novo-tabela" onclick="openRecordModal()" class="px-4 py-2 bg-clinic-600 text-white rounded-lg hover:bg-clinic-700 font-black text-xs shadow-md transition"><i class="fas fa-plus mr-2"></i>NOVO</button>
                     </div>
                 </div>
-                <div class="overflow-x-auto">
+                <!-- Planilhas View -->
+                <div id="view-planilhas" class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead class="bg-navy-900 text-white text-[10px] uppercase font-black">
                             <tr id="table-header-row">
@@ -486,6 +499,10 @@
                         </thead>
                         <tbody id="table-body" class="text-sm divide-y divide-slate-100"></tbody>
                     </table>
+                </div>
+                <!-- Kanban View -->
+                <div id="view-kanban" class="hidden p-5 bg-[#f1f5f9] min-h-[520px]">
+                    <div id="kanban-board" class="flex gap-4 overflow-x-auto pb-4 items-start" style="min-height:460px;"></div>
                 </div>
             </div>
         </section>
@@ -734,6 +751,37 @@
             </div>
         </div>
     </div>
+
+    <!-- ══════ MODAL KANBAN — MOTIVO DE CANCELAMENTO ══════ -->
+    <div id="modal-kanban-cancel" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[350] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="bg-gradient-to-br from-red-600 to-red-800 p-5 text-white flex items-center gap-3">
+                <div class="h-10 w-10 bg-white/15 rounded-xl flex items-center justify-center border border-white/20 shrink-0">
+                    <i class="fas fa-ban text-white text-base"></i>
+                </div>
+                <div>
+                    <h3 class="font-black uppercase tracking-tight text-base leading-tight">Cancelar Atendimento</h3>
+                    <p class="text-[10px] text-red-200 font-bold uppercase tracking-widest mt-0.5">Informe o motivo da perda</p>
+                </div>
+            </div>
+            <div class="h-1 w-full bg-gradient-to-r from-red-400 via-red-300 to-transparent"></div>
+            <div class="p-5 space-y-4">
+                <p id="kanban-cancel-info" class="text-sm font-bold text-slate-700 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200 truncate"></p>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Motivo da Perda *</label>
+                    <select id="kanban-cancel-reason" class="w-full border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-700 focus:ring-2 focus:ring-red-400 outline-none bg-white">
+                        <option value="">Selecione o motivo...</option>
+                    </select>
+                    <p id="kanban-cancel-err" class="hidden text-[11px] text-red-500 font-bold mt-1"><i class="fas fa-exclamation-circle mr-1"></i>Selecione um motivo para continuar</p>
+                </div>
+                <div class="flex gap-3 pt-1">
+                    <button onclick="closeKanbanCancelModal()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Voltar</button>
+                    <button onclick="confirmKanbanCancel()" class="flex-1 py-3 rounded-xl bg-red-600 text-white font-black text-xs uppercase tracking-wider hover:bg-red-700 transition shadow-md">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ════════════════════════════════════════════════════ -->
 
     <div id="modal-paciente" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[120] justify-center items-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
@@ -1762,6 +1810,10 @@
             renderDashboard();
         }
         let tableSortField = 'data', tableSortDir = 'asc';
+        let tableView = 'planilhas';
+        let _kanbanSortDir = 'asc';
+        let _kanbanDragId = null;
+        let _kanbanPendingCancelId = null;
         let selectedDayDate = null; 
 
         // ─── UTILITÁRIOS & NORMALIZADORES ────────────────────────────────
@@ -1815,10 +1867,13 @@
         let _auditCtx = { entityType: null, entityId: null, entityName: null };
         let _auditFilterMonth = null; // { year, month } ou null
         let _auditCalYear = new Date().getFullYear();
+        let _auditPage = 0;
+        const _AUDIT_PAGE_SIZE = 10;
 
         function openAuditModal(entityType, entityId, entityName) {
             _auditCtx = { entityType, entityId, entityName };
             _auditFilterMonth = null;
+            _auditPage = 0;
             document.getElementById('audit-filter-dot').classList.add('hidden');
             document.getElementById('audit-calendar-picker').classList.add('hidden');
             _auditCalYear = new Date().getFullYear();
@@ -1856,7 +1911,10 @@
                     <p class="text-xs text-slate-300 mt-1">${_auditFilterMonth ? 'Tente outro período ou limpe o filtro' : 'Alterações futuras aparecerão aqui'}</p>
                 </div>`;
             } else {
-                list.innerHTML = entries.map((e, i) => {
+                const totalPages = Math.ceil(entries.length / _AUDIT_PAGE_SIZE);
+                if (_auditPage >= totalPages) _auditPage = totalPages - 1;
+                const pageEntries = entries.slice(_auditPage * _AUDIT_PAGE_SIZE, (_auditPage + 1) * _AUDIT_PAGE_SIZE);
+                const timelineHtml = pageEntries.map((e, i) => {
                     const d = new Date(e.ts);
                     const dateStr = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
                     const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
@@ -1867,7 +1925,7 @@
                         'Excluído':{ bg: 'bg-red-100',     text: 'text-red-700',     border: 'border-red-300',     icon: 'fa-trash',         avatarBg: 'bg-red-500',    line: 'bg-red-200'     }
                     };
                     const c = actionColors[e.action] || actionColors['Editado'];
-                    const isLast = i === entries.length - 1;
+                    const isLast = i === pageEntries.length - 1;
                     const trashBtn = isAdmin ? `<button onclick="deleteAuditEntry('${e.id}')" title="Excluir registro" class="ml-1 h-7 w-7 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition shrink-0"><i class="fas fa-trash text-[11px]"></i></button>` : '';
                     return `<div class="flex gap-3 ${isLast ? '' : 'pb-4'}">
                         <div class="flex flex-col items-center shrink-0">
@@ -1892,7 +1950,27 @@
                         </div>
                     </div>`;
                 }).join('');
+                const paginationHtml = totalPages > 1 ? `
+                    <div class="flex items-center justify-between pt-4 mt-2 border-t border-slate-100 shrink-0">
+                        <button onclick="auditGoToPage(${_auditPage - 1})" ${_auditPage === 0 ? 'disabled' : ''} class="h-8 px-3 rounded-xl text-xs font-black flex items-center gap-1.5 transition ${_auditPage === 0 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-600 hover:bg-slate-100'}">
+                            <i class="fas fa-chevron-left text-[10px]"></i> Anterior
+                        </button>
+                        <span class="text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                            ${_auditPage + 1} / ${totalPages}
+                            <span class="text-slate-300 font-bold normal-case tracking-normal ml-1">(${entries.length} registros)</span>
+                        </span>
+                        <button onclick="auditGoToPage(${_auditPage + 1})" ${_auditPage >= totalPages - 1 ? 'disabled' : ''} class="h-8 px-3 rounded-xl text-xs font-black flex items-center gap-1.5 transition ${_auditPage >= totalPages - 1 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-600 hover:bg-slate-100'}">
+                            Próxima <i class="fas fa-chevron-right text-[10px]"></i>
+                        </button>
+                    </div>` : '';
+                list.innerHTML = `<div>${timelineHtml}</div>${paginationHtml}`;
+                list.scrollTop = 0;
             }
+        }
+
+        function auditGoToPage(page) {
+            _auditPage = page;
+            _renderAuditTimeline();
         }
 
         function toggleAuditCalendar() {
@@ -1917,6 +1995,7 @@
 
         function selectAuditMonth(year, month) {
             _auditFilterMonth = { year, month };
+            _auditPage = 0;
             document.getElementById('audit-filter-dot').classList.remove('hidden');
             document.getElementById('audit-calendar-picker').classList.add('hidden');
             _renderAuditTimeline();
@@ -1924,6 +2003,7 @@
 
         function clearAuditFilter() {
             _auditFilterMonth = null;
+            _auditPage = 0;
             document.getElementById('audit-filter-dot').classList.add('hidden');
             document.getElementById('audit-calendar-picker').classList.add('hidden');
             _renderAuditTimeline();
@@ -3091,6 +3171,260 @@
                     </td>
                 </tr>`;
             });
+            if (tableView === 'kanban') renderKanban();
+        }
+
+        // ─── KANBAN BOARD ─────────────────────────────────────────────────
+
+        function switchTableView(view) {
+            tableView = view;
+            const vPlan = document.getElementById('view-planilhas');
+            const vKan  = document.getElementById('view-kanban');
+            const btnPl = document.getElementById('btn-view-planilhas');
+            const btnKn = document.getElementById('btn-view-kanban');
+            const statusSel = document.getElementById('filter-status-agenda');
+
+            if (view === 'kanban') {
+                vPlan.classList.add('hidden');
+                vKan.classList.remove('hidden');
+                if (statusSel) statusSel.closest('select') && (statusSel.style.display = 'none');
+                btnPl.className = 'flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50';
+                btnKn.className = 'flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-navy-800 bg-navy-900 text-white';
+                renderKanban();
+            } else {
+                vPlan.classList.remove('hidden');
+                vKan.classList.add('hidden');
+                if (statusSel) statusSel.style.display = '';
+                btnPl.className = 'flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-navy-800 bg-navy-900 text-white';
+                btnKn.className = 'flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50';
+                renderTable();
+            }
+        }
+
+        function _getKanbanFiltered() {
+            const search = normalizeStr(document.getElementById('filter-search-agenda').value);
+            const dateFilter = document.getElementById('filter-date-agenda').value;
+            const monthFilter = document.getElementById('filter-month-agenda').value;
+            const todayObj = new Date();
+            const todayStr = todayObj.toISOString().split('T')[0];
+            const startOfWeek = getStartOfWeek(todayObj).toISOString().split('T')[0];
+            const endOfWeek = new Date(new Date(startOfWeek).setDate(new Date(startOfWeek).getDate()+6)).toISOString().split('T')[0];
+
+            return appointments.filter(a => {
+                const pat = patients.find(p=>p.id==a.patientId);
+                const vac = vaccines.find(v=>v.id==a.vaccineId);
+                if (!pat || !vac) return false;
+                const matchSearch = normalizeStr(pat.nome).includes(search) || normalizeStr(pat.cpf).includes(search);
+                let matchDate = true;
+                if (dateFilter === 'hoje') matchDate = a.data === todayStr;
+                else if (dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= endOfWeek;
+                else if (dateFilter === 'mes' && monthFilter) matchDate = a.data.startsWith(monthFilter);
+                return matchSearch && matchDate;
+            });
+        }
+
+        function renderKanban() {
+            const board = document.getElementById('kanban-board');
+            if (!board) return;
+            const todayStr = new Date().toISOString().split('T')[0];
+            const allFiltered = _getKanbanFiltered();
+            const dir = _kanbanSortDir === 'asc' ? 1 : -1;
+
+            const columns = [
+                { key: 'Em negociação', label: 'Em Negociação', icon: 'fa-comments', color: '#0891b2', light: '#ecfeff', border: '#a5f3fc', text: '#0e7490', gradFrom: '#0891b2', gradTo: '#0e7490' },
+                { key: 'Agendado',      label: 'Agendado',      icon: 'fa-calendar-check', color: '#2563eb', light: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', gradFrom: '#2563eb', gradTo: '#1d4ed8' },
+                { key: 'Aplicado',      label: 'Aplicado',      icon: 'fa-syringe', color: '#16a34a', light: '#f0fdf4', border: '#bbf7d0', text: '#15803d', gradFrom: '#16a34a', gradTo: '#15803d' },
+                { key: 'Cancelado',     label: 'Cancelado',     icon: 'fa-ban', color: '#dc2626', light: '#fff1f2', border: '#fecdd3', text: '#b91c1c', gradFrom: '#dc2626', gradTo: '#b91c1c' },
+            ];
+
+            board.innerHTML = columns.map(col => {
+                const cards = allFiltered
+                    .filter(a => a.status === col.key)
+                    .sort((a, b) => (new Date(a.data) - new Date(b.data)) * dir);
+
+                const cardsHtml = cards.map(a => {
+                    const pat = patients.find(p=>p.id==a.patientId);
+                    const vac = vaccines.find(v=>v.id==a.vaccineId);
+                    if (!pat || !vac) return '';
+                    const isDelayed = a.data < todayStr && a.status === 'Agendado';
+                    const dateLabel = a.data ? a.data.split('-').reverse().join('/') : '—';
+                    const waLink = `https://wa.me/55${formatWa(pat.contato)}`;
+                    return `<div
+                        draggable="true"
+                        ondragstart="kanbanDragStart(event,${a.id})"
+                        ondragend="kanbanDragEnd(event)"
+                        class="kanban-card group bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-lg transition-all duration-200 select-none"
+                        style="border-left:4px solid ${col.color};">
+                        <!-- Card header -->
+                        <div class="px-4 pt-3 pb-2 flex items-start justify-between gap-2">
+                            <div class="flex-1 min-w-0">
+                                <p class="font-black text-navy-900 text-sm leading-tight truncate" title="${pat.nome}">${pat.nome}</p>
+                                <p class="text-[10px] text-slate-400 font-bold mt-0.5 truncate">CPF: ${pat.cpf} · ${getAge(pat.dtNasc)} anos</p>
+                            </div>
+                            <div class="shrink-0 flex flex-col items-center gap-0.5 text-slate-200 group-hover:text-slate-400 transition pt-0.5">
+                                <i class="fas fa-grip-vertical text-xs"></i>
+                            </div>
+                        </div>
+                        <!-- Vaccine -->
+                        <div class="px-4 pb-2 flex items-center gap-2">
+                            <div class="h-7 w-7 rounded-lg flex items-center justify-center shrink-0" style="background:${col.light};border:1px solid ${col.border};">
+                                <i class="fas fa-syringe text-[10px]" style="color:${col.text};"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="font-black text-slate-700 text-xs truncate leading-tight">${vac.nome}</p>
+                                <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md" style="background:${col.light};color:${col.text};border:1px solid ${col.border};">${a.doseAtual}</span>
+                            </div>
+                        </div>
+                        <!-- Date -->
+                        <div class="px-4 pb-3 flex items-center gap-1.5">
+                            <i class="far fa-calendar text-[10px] text-slate-400"></i>
+                            <span class="text-[11px] font-bold text-slate-500">${dateLabel}${a.hora ? ' · '+a.hora : ''}</span>
+                            ${isDelayed ? '<span class="ml-1 text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full uppercase">Atrasado</span>' : ''}
+                        </div>
+                        <!-- Actions -->
+                        <div class="px-3 pb-3 flex items-center gap-1.5 border-t border-slate-100 pt-2 mt-0">
+                            <a href="${waLink}" target="_blank" onclick="event.stopPropagation()" class="h-7 w-7 rounded-lg bg-green-50 text-green-600 hover:bg-green-500 hover:text-white flex items-center justify-center transition text-xs shrink-0" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                            ${permBtn('agendar', `<button onclick="editRecord(${a.id})" class="h-7 w-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white flex items-center justify-center transition text-xs shrink-0" title="Abrir"><i class="fas fa-eye text-[11px]"></i></button>`)}
+                            ${a.status === 'Em negociação' ? permBtn('criar_agendamento', `<button onclick="openAgendarModal(${a.id})" class="h-7 w-7 rounded-lg bg-blue-500 text-white hover:bg-blue-600 flex items-center justify-center transition text-xs shrink-0" title="Agendar"><i class="fas fa-calendar-check text-[11px]"></i></button>`) : ''}
+                            ${a.status === 'Agendado' ? permBtn('aplicar', `<button onclick="openConcluirModal(${a.id})" class="h-7 w-7 rounded-lg bg-green-500 text-white hover:bg-green-600 flex items-center justify-center transition text-xs shrink-0" title="Aplicar"><i class="fas fa-syringe text-[11px]"></i></button>`) : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+
+                const emptyHtml = `<div class="flex flex-col items-center justify-center py-10 text-center opacity-60">
+                    <div class="h-12 w-12 rounded-full flex items-center justify-center mb-2" style="background:${col.light};">
+                        <i class="fas ${col.icon} text-lg" style="color:${col.color};"></i>
+                    </div>
+                    <p class="text-[11px] font-black uppercase tracking-wider" style="color:${col.text};">Sem registros</p>
+                </div>`;
+
+                const sortIconClass = _kanbanSortDir === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up-alt';
+
+                return `<div class="kanban-col flex flex-col rounded-2xl overflow-hidden shadow-md border border-slate-200/60 min-w-[280px] w-[280px] shrink-0 transition-all duration-200"
+                    ondragover="kanbanDragOver(event)"
+                    ondragleave="kanbanDragLeave(event)"
+                    ondrop="kanbanDrop(event,'${col.key}')"
+                    data-col="${col.key}">
+                    <!-- Column Header -->
+                    <div class="px-4 py-3 flex items-center justify-between shrink-0 cursor-pointer select-none" style="background:linear-gradient(135deg,${col.gradFrom},${col.gradTo});" onclick="kanbanToggleSort()">
+                        <div class="flex items-center gap-2">
+                            <div class="h-7 w-7 bg-white/20 rounded-lg flex items-center justify-center border border-white/30">
+                                <i class="fas ${col.icon} text-white text-xs"></i>
+                            </div>
+                            <span class="font-black text-white text-xs uppercase tracking-wider">${col.label}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="h-6 min-w-6 px-1.5 bg-white/25 text-white font-black text-xs rounded-full flex items-center justify-center border border-white/30">${cards.length}</span>
+                            <i class="fas ${sortIconClass} text-white/70 text-xs"></i>
+                        </div>
+                    </div>
+                    <!-- Drop zone body -->
+                    <div class="kanban-col-body flex-1 overflow-y-auto p-3 space-y-3 bg-white/70 backdrop-blur-sm" style="max-height:560px;">
+                        ${cards.length ? cardsHtml : emptyHtml}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function kanbanToggleSort() {
+            _kanbanSortDir = _kanbanSortDir === 'asc' ? 'desc' : 'asc';
+            renderKanban();
+        }
+
+        function kanbanDragStart(event, id) {
+            _kanbanDragId = id;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', id);
+            setTimeout(() => { event.target.style.opacity = '0.45'; event.target.style.transform = 'scale(0.97)'; }, 0);
+        }
+
+        function kanbanDragEnd(event) {
+            event.target.style.opacity = '';
+            event.target.style.transform = '';
+            document.querySelectorAll('.kanban-col').forEach(c => {
+                c.style.boxShadow = '';
+                c.style.borderColor = '';
+                c.style.background = '';
+            });
+        }
+
+        function kanbanDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            const col = event.currentTarget;
+            col.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.35)';
+        }
+
+        function kanbanDragLeave(event) {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+                event.currentTarget.style.boxShadow = '';
+            }
+        }
+
+        function kanbanDrop(event, targetStatus) {
+            event.preventDefault();
+            event.currentTarget.style.boxShadow = '';
+            const id = _kanbanDragId;
+            if (!id) return;
+            const a = appointments.find(x => x.id == id);
+            if (!a || a.status === targetStatus) return;
+
+            if (targetStatus === 'Agendado') {
+                if (!checkPerm('agendar')) return;
+                openAgendarModal(id);
+            } else if (targetStatus === 'Aplicado') {
+                if (!checkPerm('aplicar')) return;
+                openConcluirModal(id);
+            } else if (targetStatus === 'Cancelado') {
+                openKanbanCancelModal(id);
+            } else {
+                const idx = appointments.findIndex(x => x.id == id);
+                if (idx > -1) {
+                    appointments[idx].status = targetStatus;
+                    saveAll(); renderCalendar(); renderDashboard();
+                    renderKanban();
+                    showNotification('Status atualizado!', 'success');
+                }
+            }
+            _kanbanDragId = null;
+        }
+
+        // ─── KANBAN CANCEL MODAL ──────────────────────────────────────────
+
+        function openKanbanCancelModal(id) {
+            _kanbanPendingCancelId = id;
+            const a = appointments.find(x => x.id == id);
+            if (!a) return;
+            const pat = patients.find(p=>p.id==a.patientId);
+            const vac = vaccines.find(v=>v.id==a.vaccineId);
+            const info = document.getElementById('kanban-cancel-info');
+            if (info) info.textContent = pat && vac ? `${pat.nome} — ${vac.nome} (${a.doseAtual})` : '';
+            const sel = document.getElementById('kanban-cancel-reason');
+            sel.innerHTML = '<option value="">Selecione o motivo...</option>' + cancelReasons.map(r=>`<option value="${r}">${r}</option>`).join('');
+            document.getElementById('kanban-cancel-err').classList.add('hidden');
+            document.getElementById('modal-kanban-cancel').classList.add('active');
+        }
+
+        function closeKanbanCancelModal() {
+            _kanbanPendingCancelId = null;
+            document.getElementById('modal-kanban-cancel').classList.remove('active');
+        }
+
+        function confirmKanbanCancel() {
+            const reason = document.getElementById('kanban-cancel-reason').value;
+            if (!reason) {
+                document.getElementById('kanban-cancel-err').classList.remove('hidden');
+                return;
+            }
+            const idx = appointments.findIndex(x => x.id == _kanbanPendingCancelId);
+            if (idx > -1) {
+                appointments[idx].status = 'Cancelado';
+                appointments[idx].motivoCancelamento = reason;
+                closeKanbanCancelModal();
+                saveAll(); renderCalendar(); renderDashboard();
+                renderKanban();
+                showNotification('Atendimento cancelado.', 'info');
+            }
         }
 
         // ─── PACIENTES (CRUD) ─────────────────────────────────────────────
