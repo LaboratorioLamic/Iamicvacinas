@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -455,7 +455,7 @@
             <div class="flex items-center gap-2 mb-4">
                 <button onclick="switchTableView('planilhas')" id="btn-view-planilhas"
                     class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-navy-800 bg-navy-900 text-white">
-                    <i class="fas fa-table text-sm"></i> Planilhas
+                    <i class="fas fa-table text-sm"></i> Planilha
                 </button>
                 <button onclick="switchTableView('kanban')" id="btn-view-kanban"
                     class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50">
@@ -5227,6 +5227,7 @@
             const el = (id) => document.getElementById(id);
             if (el('btn-agendar-agenda')) el('btn-agendar-agenda').style.display = canAgendar ? '' : 'none';
             if (el('btn-novo-tabela'))    el('btn-novo-tabela').style.display    = canAgendar ? '' : 'none';
+            if (el('btn-view-kanban'))    el('btn-view-kanban').style.display    = canAgendar ? '' : 'none';
             if (el('btn-novo-paciente'))  el('btn-novo-paciente').style.display  = canPac     ? '' : 'none';
             if (el('btn-nova-vacina'))    el('btn-nova-vacina').style.display    = canVac     ? '' : 'none';
             if (el('btn-pdf-prontuario')) el('btn-pdf-prontuario').style.display = canPdf     ? '' : 'none';
