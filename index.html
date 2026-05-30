@@ -589,7 +589,10 @@
             <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
                 <div class="p-6 bg-slate-50 border-b border-slate-200 flex flex-wrap gap-4 justify-between items-center">
                     <h2 class="text-xl font-black text-navy-900 uppercase">Cadastro de Pacientes</h2>
-                    <div class="flex gap-4">
+                    <div class="flex gap-4 items-center">
+                        <button onclick="openAuditModal('paciente', null, 'Rastreabilidade de Pacientes')" class="h-9 w-9 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 transition shadow-sm flex items-center justify-center" title="Rastreabilidade de pacientes (criações e exclusões)">
+                            <i class="fas fa-history text-sm"></i>
+                        </button>
                         <input type="text" id="filter-patient" onkeyup="renderPatients()" placeholder="Buscar por Nome ou CPF..." class="px-3 py-2 border border-slate-200 rounded-lg text-sm w-64 focus:ring-2 focus:ring-clinic-500 outline-none">
                         <button id="btn-novo-paciente" onclick="openPatientModal()" class="px-4 py-2 bg-clinic-600 text-white rounded-xl hover:bg-clinic-700 font-black text-xs shadow-lg transition"><i class="fas fa-plus mr-2"></i>NOVO PACIENTE</button>
                     </div>
@@ -606,6 +609,9 @@
                         <div class="flex items-center gap-2 overflow-hidden transition-all duration-300" id="vaccine-search-wrapper" style="max-width:0;">
                             <input type="text" id="filter-vaccine" oninput="renderVaccines()" placeholder="Buscar vacina..." class="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-clinic-500 outline-none w-44">
                         </div>
+                        <button onclick="openAuditModal('vacina', null, 'Rastreabilidade de Vacinas')" class="h-9 w-9 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 transition shadow-sm flex items-center justify-center" title="Rastreabilidade de vacinas (criações e exclusões)">
+                            <i class="fas fa-history text-sm"></i>
+                        </button>
                         <button onclick="toggleVaccineSearch()" id="btn-vaccine-search" class="h-9 w-9 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 transition shadow-sm flex items-center justify-center" title="Buscar vacina">
                             <i class="fas fa-search text-sm"></i>
                         </button>
