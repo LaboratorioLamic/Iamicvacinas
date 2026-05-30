@@ -1034,6 +1034,34 @@
         </div>
     </div>
 
+    <div id="modal-delete-user" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[210] justify-center items-center p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="bg-gradient-to-br from-red-600 to-red-800 p-6 text-white text-center">
+                <div class="h-16 w-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                    <i class="fas fa-user-minus text-2xl text-white"></i>
+                </div>
+                <h3 class="font-black text-xl uppercase tracking-tight">Excluir Usuário</h3>
+                <p class="text-red-200 text-xs mt-1 font-bold uppercase tracking-widest">Ação irreversível</p>
+            </div>
+            <div class="p-6">
+                <p class="text-slate-600 text-sm text-center mb-1">Para confirmar a exclusão, digite <span class="font-black text-red-600">SIM</span> no campo abaixo:</p>
+                <p id="delete-user-info" class="text-[11px] text-slate-400 text-center mb-5 font-bold truncate"></p>
+                <input type="text" id="delete-user-input" placeholder="Digite SIM para confirmar..." oninput="checkDeleteUserConfirm()" autocomplete="off"
+                    class="w-full border-2 border-slate-200 rounded-xl py-3 px-4 text-center font-black text-sm tracking-widest focus:outline-none focus:border-red-400 transition uppercase mb-4">
+                <div class="flex gap-3">
+                    <button onclick="confirmDeleteUser()" id="btn-confirm-delete-user" disabled
+                        class="flex-1 bg-red-200 text-red-400 font-black py-3 rounded-xl uppercase text-xs transition cursor-not-allowed">
+                        <i class="fas fa-trash mr-1"></i> Excluir
+                    </button>
+                    <button onclick="document.getElementById('modal-delete-user').classList.remove('active'); document.getElementById('delete-user-input').value=''; checkDeleteUserConfirm();"
+                        class="flex-1 border border-slate-200 text-slate-500 font-black py-3 rounded-xl hover:bg-slate-50 uppercase text-xs transition">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-delete-patient" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[150] justify-center items-center p-4">
         <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden">
             <div class="bg-gradient-to-br from-red-600 to-red-800 p-6 text-white text-center">
@@ -6375,11 +6403,36 @@
             switchUsersSubTab('lista');
         }
 
+        let _pendingDeleteUserId = null;
+
         function deleteUser(id) {
-            if (!confirm('Excluir este usuário definitivamente?')) return;
-            appUsers = appUsers.filter(u => String(u.id) !== String(id));
+            const u = appUsers.find(x => String(x.id) === String(id));
+            if (!u) return;
+            _pendingDeleteUserId = id;
+            document.getElementById('delete-user-info').textContent = u.nome + (u.login ? ' · @' + u.login : '');
+            document.getElementById('delete-user-input').value = '';
+            checkDeleteUserConfirm();
+            document.getElementById('modal-delete-user').classList.add('active');
+        }
+
+        function checkDeleteUserConfirm() {
+            const val = (document.getElementById('delete-user-input').value || '').trim().toUpperCase();
+            const btn = document.getElementById('btn-confirm-delete-user');
+            const ok = val === 'SIM';
+            btn.disabled = !ok;
+            btn.className = ok
+                ? 'flex-1 bg-red-600 hover:bg-red-700 text-white font-black py-3 rounded-xl uppercase text-xs transition cursor-pointer'
+                : 'flex-1 bg-red-200 text-red-400 font-black py-3 rounded-xl uppercase text-xs transition cursor-not-allowed';
+        }
+
+        function confirmDeleteUser() {
+            if (!_pendingDeleteUserId) return;
+            appUsers = appUsers.filter(u => String(u.id) !== String(_pendingDeleteUserId));
+            _pendingDeleteUserId = null;
             saveUsersData();
             renderUsersList();
+            document.getElementById('modal-delete-user').classList.remove('active');
+            document.getElementById('delete-user-input').value = '';
             showNotification('Usuário excluído.', 'success');
         }
 
