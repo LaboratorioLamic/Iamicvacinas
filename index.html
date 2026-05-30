@@ -203,9 +203,9 @@
                         </select>
                     </div>
 
-                    <!-- Colaborador -->
+                    <!-- Vendedor -->
                     <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Colaborador</label>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Vendedor</label>
                         <select id="dash-filter-colaborador" onchange="renderDashboard()"
                             class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-clinic-500 outline-none shadow-sm min-w-[170px]">
                             <option value="">Todos</option>
@@ -316,7 +316,21 @@
                     </div>
                 </div>
 
-                <!-- Linha 2: 4 tabelas de ranking -->
+                <!-- Linha 2: Faixa Etária + Gênero -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- Gráfico de barras: Faixa Etária -->
+                    <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold text-sm text-slate-500 mb-4 uppercase tracking-widest">Pacientes por Faixa Etária</h3>
+                        <div class="chart-container" style="height:240px;"><canvas id="ageChart"></canvas></div>
+                    </div>
+                    <!-- Donut: Gênero -->
+                    <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+                        <h3 class="font-bold text-sm text-slate-500 mb-4 uppercase tracking-widest">Pacientes por Gênero</h3>
+                        <div class="flex-1 chart-container" style="height:240px;"><canvas id="genderChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Linha 3: 4 tabelas de ranking -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Vacinas Mais Aplicadas -->
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
@@ -491,7 +505,47 @@
                 <div class="p-5 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center">
                     <h2 class="text-xl font-black text-navy-900 uppercase">Relação de Agendamentos</h2>
                     <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
-                        <input type="text" id="filter-search-agenda" onkeyup="renderTable()" placeholder="Buscar paciente ou CPF..." class="px-3 py-2 border border-slate-200 rounded-lg text-sm w-full md:w-48 focus:ring-2 focus:ring-clinic-500 outline-none">
+
+                        <!-- Busca -->
+                        <div class="relative flex items-center">
+                            <button onclick="toggleTableFilter('wrap-search-agenda', 'filter-search-agenda')" title="Buscar paciente" id="btn-icon-search-agenda"
+                                class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 flex items-center justify-center transition shadow-sm">
+                                <i class="fas fa-search text-sm"></i>
+                            </button>
+                            <div id="wrap-search-agenda" class="overflow-hidden transition-all duration-300 ease-in-out" style="max-width:0;opacity:0;">
+                                <input type="text" id="filter-search-agenda" onkeyup="renderTable()" placeholder="Paciente ou CPF..."
+                                    class="ml-1 px-3 py-2 border border-slate-200 rounded-lg text-sm w-44 focus:ring-2 focus:ring-clinic-500 outline-none">
+                            </div>
+                        </div>
+
+                        <!-- Vendedor -->
+                        <div class="relative flex items-center">
+                            <button onclick="toggleTableFilter('wrap-vendedor-agenda', null, true)" title="Filtrar vendedor" id="btn-icon-vendedor-agenda"
+                                class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 flex items-center justify-center transition shadow-sm">
+                                <i class="fas fa-handshake text-sm"></i>
+                            </button>
+                            <div id="wrap-vendedor-agenda" class="overflow-hidden transition-all duration-300 ease-in-out" style="max-width:0;opacity:0;">
+                                <select id="filter-vendedor-agenda" onchange="renderTable()"
+                                    class="ml-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
+                                    <option value="">Todos os Vendedores</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Aplicador -->
+                        <div class="relative flex items-center">
+                            <button onclick="toggleTableFilter('wrap-aplicador-agenda', null, true)" title="Filtrar aplicador" id="btn-icon-aplicador-agenda"
+                                class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 flex items-center justify-center transition shadow-sm">
+                                <i class="fas fa-user-nurse text-sm"></i>
+                            </button>
+                            <div id="wrap-aplicador-agenda" class="overflow-hidden transition-all duration-300 ease-in-out" style="max-width:0;opacity:0;">
+                                <select id="filter-aplicador-agenda" onchange="renderTable()"
+                                    class="ml-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
+                                    <option value="">Todos os Aplicadores</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <select id="filter-date-agenda" onchange="toggleMonthFilter()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
                             <option value="todos">Todas as Datas</option>
                             <option value="hoje">Hoje</option>
@@ -844,7 +898,15 @@
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Data de Nasc. *</label>
                     <input type="date" id="pac-dtnasc" required onchange="checkUnderage()" class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
                 </div>
-                <div class="col-span-1 md:col-span-2">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Gênero *</label>
+                    <select id="pac-genero" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
+                        <option value="">Selecione...</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="Feminino">Feminino</option>
+                    </select>
+                </div>
+                <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Contato (WhatsApp) *</label>
                     <input type="text" id="pac-contato" required placeholder="(00) 90000-0000" maxlength="15" oninput="maskPhone(this)" class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
                 </div>
@@ -1214,60 +1276,61 @@
     </div>
 
     <!-- ══════════════════ MODAL FECHAR LOTE — AVISO REDE FRIO ══════════════════ -->
-    <div id="modal-fechar-lote-aviso" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[180] justify-center items-center p-4">
+    <div id="modal-fechar-lote-aviso" class="modal fixed inset-0 bg-cyan-950/80 backdrop-blur-md z-[180] justify-center items-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
             <!-- Header -->
-            <div class="bg-gradient-to-br from-amber-500 to-orange-600 p-5 text-white">
+            <div class="p-5 text-white" style="background: linear-gradient(135deg, #0369a1 0%, #0891b2 60%, #06b6d4 100%);">
                 <div class="flex items-center gap-3">
-                    <div class="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center shadow shrink-0">
-                        <i class="fas fa-temperature-low text-xl text-white"></i>
+                    <div class="h-12 w-12 rounded-xl flex items-center justify-center shadow shrink-0" style="background:rgba(255,255,255,0.15);">
+                        <i class="fas fa-snowflake text-xl text-white" style="filter:drop-shadow(0 0 6px #7dd3fc);"></i>
                     </div>
                     <div>
                         <h3 class="font-black text-base uppercase tracking-tight leading-tight">Verificação de Rede Frio</h3>
-                        <p class="text-amber-100 text-[10px] font-bold uppercase tracking-widest mt-0.5">Antes de fechar o lote</p>
+                        <p class="text-cyan-100 text-[10px] font-bold uppercase tracking-widest mt-0.5">Antes de fechar o lote</p>
                     </div>
                 </div>
                 <!-- Info do lote -->
-                <div class="mt-4 bg-white/15 rounded-xl px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    <span class="text-amber-200 font-bold uppercase text-[10px]">Lote</span>
-                    <span class="text-amber-200 font-bold uppercase text-[10px]">Vacina</span>
+                <div class="mt-4 rounded-xl px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs" style="background:rgba(255,255,255,0.12);">
+                    <span class="text-cyan-200 font-bold uppercase text-[10px]">Lote</span>
+                    <span class="text-cyan-200 font-bold uppercase text-[10px]">Vacina</span>
                     <span class="text-white font-black" id="fechar-lote-numero">—</span>
                     <span class="text-white font-black truncate" id="fechar-lote-vacina">—</span>
-                    <span class="text-amber-200 font-bold uppercase text-[10px] mt-1">Validade</span>
+                    <span class="text-cyan-200 font-bold uppercase text-[10px] mt-1">Validade</span>
                     <span></span>
                     <span class="text-white font-black" id="fechar-lote-validade">—</span>
                 </div>
             </div>
             <!-- Body -->
-            <div class="p-5">
-                <p class="text-sm font-bold text-slate-700 mb-4">Antes de confirmar o fechamento, certifique-se de que:</p>
+            <div class="p-5 bg-sky-50">
+                <p class="text-sm font-bold text-sky-900 mb-4">Antes de confirmar o fechamento, certifique-se de que:</p>
                 <ul class="space-y-3 mb-5">
                     <li class="flex items-start gap-3">
-                        <div class="h-6 w-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
-                            <i class="fas fa-snowflake text-amber-500 text-[10px]"></i>
+                        <div class="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style="background:#e0f2fe;">
+                            <i class="fas fa-snowflake text-[10px]" style="color:#0284c7;"></i>
                         </div>
                         <span class="text-sm text-slate-600">Todos os imunobiológicos deste lote foram <b>recolhidos da rede frio</b> (geladeiras, caixas térmicas e isopores).</span>
                     </li>
                     <li class="flex items-start gap-3">
-                        <div class="h-6 w-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
-                            <i class="fas fa-clipboard-check text-amber-500 text-[10px]"></i>
+                        <div class="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style="background:#e0f2fe;">
+                            <i class="fas fa-clipboard-check text-[10px]" style="color:#0284c7;"></i>
                         </div>
                         <span class="text-sm text-slate-600">O <b>estoque físico</b> foi conferido e está zerado para este lote.</span>
                     </li>
                     <li class="flex items-start gap-3">
-                        <div class="h-6 w-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
-                            <i class="fas fa-box-open text-amber-500 text-[10px]"></i>
+                        <div class="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style="background:#e0f2fe;">
+                            <i class="fas fa-box-open text-[10px]" style="color:#0284c7;"></i>
                         </div>
                         <span class="text-sm text-slate-600">Não há doses pendentes de aplicação vinculadas a este lote que ainda não foram administradas.</span>
                     </li>
                 </ul>
                 <div class="flex gap-3">
                     <button type="button" id="btn-confirmar-fechar-lote"
-                        class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-black py-2.5 rounded-xl transition text-xs uppercase shadow-sm">
+                        class="flex-1 text-white font-black py-2.5 rounded-xl transition text-xs uppercase shadow-sm"
+                        style="background:linear-gradient(135deg,#0369a1,#0891b2);">
                         <i class="fas fa-lock mr-1.5"></i>Confirmar Fechamento
                     </button>
                     <button type="button" onclick="document.getElementById('modal-fechar-lote-aviso').classList.remove('active')"
-                        class="flex-1 border border-slate-200 text-slate-500 font-black py-2.5 rounded-xl hover:bg-slate-50 transition text-xs uppercase">
+                        class="flex-1 border border-sky-200 text-sky-700 font-black py-2.5 rounded-xl hover:bg-sky-100 transition text-xs uppercase">
                         Cancelar
                     </button>
                 </div>
@@ -1460,6 +1523,17 @@
 
                     <!-- SUB: LISTA DE USUÁRIOS -->
                     <div id="users-sub-lista">
+                        <!-- Filtro Ativo/Inativo -->
+                        <div class="flex gap-1 mb-4 bg-slate-100 rounded-xl p-1 w-fit">
+                            <button id="btn-users-ativos" onclick="setUserStatusFilter('ativos')"
+                                class="px-4 py-1.5 rounded-lg text-xs font-black uppercase transition bg-navy-900 text-white shadow">
+                                <i class="fas fa-circle text-green-400 text-[8px] mr-1"></i> Ativos
+                            </button>
+                            <button id="btn-users-inativos" onclick="setUserStatusFilter('inativos')"
+                                class="px-4 py-1.5 rounded-lg text-xs font-black uppercase transition text-slate-500 hover:bg-slate-200">
+                                <i class="fas fa-circle text-red-400 text-[8px] mr-1"></i> Inativos
+                            </button>
+                        </div>
                         <div class="overflow-x-auto rounded-xl border border-slate-100 shadow-sm">
                             <table class="w-full text-left border-collapse">
                                 <thead class="bg-navy-900 text-white text-[10px] uppercase font-black">
@@ -1628,8 +1702,13 @@
                                             <p class="text-[9px] font-black text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-1.5 bg-amber-50 rounded-lg px-2 py-1"><i class="fas fa-eye"></i> Visualização</p>
                                             <div class="space-y-2 pl-2">
                                                 <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-amber-600" value="ver_dashboard"> Visualizar Aba Dashboard
+                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-amber-600" value="ver_dashboard" onchange="toggleSubPerm('sub-perm-dash-financeiro', this)"> Visualizar Aba Dashboard
                                                 </label>
+                                                <div id="sub-perm-dash-financeiro" class="pl-6 space-y-1.5 hidden">
+                                                    <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer hover:text-navy-900 select-none">
+                                                        <input type="checkbox" class="perm-check h-3.5 w-3.5 rounded accent-emerald-600" value="ver_dash_financeiro"> <i class="fas fa-dollar-sign text-emerald-500 text-[10px]"></i> Painel Financeiro
+                                                    </label>
+                                                </div>
                                                 <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
                                                     <input type="checkbox" class="perm-check h-4 w-4 rounded accent-amber-600" value="ver_agenda"> Visualizar Aba Agenda
                                                 </label>
@@ -2016,7 +2095,7 @@
         }
 
         let currentDate = new Date();
-        let chartStatus, chartVaccine, chartLineVaccine, chartFinVaccine, chartFinMonth;
+        let chartStatus, chartVaccine, chartLineVaccine, chartFinVaccine, chartFinMonth, chartAge, chartGender;
         let dashView = 'analitico';
 
         function switchDashView(view) {
@@ -2036,6 +2115,7 @@
         }
         let tableSortField = 'data', tableSortDir = 'asc';
         let tableView = 'planilhas';
+        let userStatusFilter = 'ativos';
         let _kanbanSortDir = 'asc';
         let _kanbanDragId = null;
         let _kanbanPendingCancelId = null;
@@ -2406,44 +2486,9 @@
             renderDashboard();
         }
 
-        function populateDashDropdowns() {
-            const vacSel = document.getElementById('dash-filter-vacina');
-            const curVac = vacSel.value;
-            vacSel.innerHTML = '<option value="">Todas</option>';
-            vaccines.forEach(v => {
-                const opt = document.createElement('option');
-                opt.value = v.id;
-                opt.textContent = v.nome;
-                if (String(v.id) === curVac) opt.selected = true;
-                vacSel.appendChild(opt);
-            });
-
-            const colSel = document.getElementById('dash-filter-colaborador');
-            const curCol = colSel.value;
-            colSel.innerHTML = '<option value="">Todos</option>';
-            const nomes = new Set();
-            appointments.forEach(a => {
-                if (a.vendedor) nomes.add(a.vendedor);
-                if (a.aplicador) nomes.add(a.aplicador);
-            });
-            [...nomes].sort().forEach(nome => {
-                const opt = document.createElement('option');
-                opt.value = nome;
-                opt.textContent = nome;
-                if (nome === curCol) opt.selected = true;
-                colSel.appendChild(opt);
-            });
-        }
-
-        function renderDashboard() {
-            populateDashDropdowns();
-
+        function getAppsByPeriodo() {
             const periodo = document.getElementById('dash-periodo').value;
-            const filterVacina = document.getElementById('dash-filter-vacina').value;
-            const filterColab = document.getElementById('dash-filter-colaborador').value;
-
             let apps = appointments;
-
             if (periodo === 'ano') {
                 const ano = document.getElementById('dash-ano-base').value;
                 if (ano) apps = apps.filter(a => a.data && a.data.startsWith(ano));
@@ -2456,9 +2501,58 @@
                 if (inicio) apps = apps.filter(a => a.data >= inicio);
                 if (fim) apps = apps.filter(a => a.data <= fim);
             }
+            return apps;
+        }
+
+        function populateDashDropdowns() {
+            const appsPeriodo = getAppsByPeriodo();
+
+            // Vacinas presentes no período
+            const vacSel = document.getElementById('dash-filter-vacina');
+            const curVac = vacSel.value;
+            vacSel.innerHTML = '<option value="">Todas</option>';
+            const vacIdsNoPeriodo = new Set(appsPeriodo.map(a => String(a.vaccineId)));
+            vaccines
+                .filter(v => vacIdsNoPeriodo.has(String(v.id)))
+                .sort((a, b) => a.nome.localeCompare(b.nome))
+                .forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v.id;
+                    opt.textContent = v.nome;
+                    if (String(v.id) === curVac) opt.selected = true;
+                    vacSel.appendChild(opt);
+                });
+            if (curVac && !vacIdsNoPeriodo.has(curVac)) vacSel.value = '';
+
+            // Vendedores presentes no período
+            const colSel = document.getElementById('dash-filter-colaborador');
+            const curCol = colSel.value;
+            colSel.innerHTML = '<option value="">Todos</option>';
+            const vendedoresNoPeriodo = new Set(appsPeriodo.filter(a => a.vendedor).map(a => a.vendedor));
+            appUsers
+                .filter(u => u.isVendedor && u.ativo !== false && vendedoresNoPeriodo.has(u.nome))
+                .map(u => u.nome)
+                .sort()
+                .forEach(nome => {
+                    const opt = document.createElement('option');
+                    opt.value = nome;
+                    opt.textContent = nome;
+                    if (nome === curCol) opt.selected = true;
+                    colSel.appendChild(opt);
+                });
+            if (curCol && !vendedoresNoPeriodo.has(curCol)) colSel.value = '';
+        }
+
+        function renderDashboard() {
+            populateDashDropdowns();
+
+            const filterVacina = document.getElementById('dash-filter-vacina').value;
+            const filterColab = document.getElementById('dash-filter-colaborador').value;
+
+            let apps = getAppsByPeriodo();
 
             if (filterVacina) apps = apps.filter(a => String(a.vaccineId) === filterVacina);
-            if (filterColab) apps = apps.filter(a => a.vendedor === filterColab || a.aplicador === filterColab);
+            if (filterColab) apps = apps.filter(a => a.vendedor === filterColab);
 
             if (dashView === 'analitico') {
                 renderDashAnalitico(apps);
@@ -2750,6 +2844,106 @@
                     scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
                     plugins: { legend: { position: 'bottom', labels: { font:{size:10}, padding:10 } } }
                 }
+            });
+
+            // ── Barras: Faixa Etária (pacientes únicos dos agendamentos filtrados) ──
+            const today = new Date();
+            const ageBuckets = {'0-1':0,'2-5':0,'6-9':0,'10-19':0,'20-29':0,'30-39':0,'40-49':0,'50-59':0,'60-69':0,'70-79':0,'80+':0};
+            const seenPacAge = new Set();
+            apps.forEach(a => {
+                if (seenPacAge.has(a.patientId)) return;
+                const pac = patients.find(x => x.id == a.patientId);
+                if (!pac || !pac.dtNasc) return;
+                seenPacAge.add(a.patientId);
+                const birth = new Date(pac.dtNasc + 'T00:00:00');
+                let age = today.getFullYear() - birth.getFullYear();
+                const m = today.getMonth() - birth.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+                if (age <= 1) ageBuckets['0-1']++;
+                else if (age <= 5) ageBuckets['2-5']++;
+                else if (age <= 9) ageBuckets['6-9']++;
+                else if (age < 20) ageBuckets['10-19']++;
+                else if (age < 30) ageBuckets['20-29']++;
+                else if (age < 40) ageBuckets['30-39']++;
+                else if (age < 50) ageBuckets['40-49']++;
+                else if (age < 60) ageBuckets['50-59']++;
+                else if (age < 70) ageBuckets['60-69']++;
+                else if (age < 80) ageBuckets['70-79']++;
+                else ageBuckets['80+']++;
+            });
+            const ctxAge = document.getElementById('ageChart').getContext('2d');
+            if (chartAge) chartAge.destroy();
+            chartAge = new Chart(ctxAge, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(ageBuckets),
+                    datasets: [{ label: 'Pacientes', data: Object.values(ageBuckets), backgroundColor: '#3b82f6', borderRadius: 6, borderSkipped: false }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw} paciente${ctx.raw !== 1 ? 's' : ''}` } } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } }
+                }
+            });
+
+            // ── Donut: Gênero (pacientes únicos dos agendamentos filtrados) ──
+            const genderCounts = { 'Masculino': 0, 'Feminino': 0, 'Não informado': 0 };
+            const seenPacGen = new Set();
+            apps.forEach(a => {
+                if (seenPacGen.has(a.patientId)) return;
+                const pac = patients.find(x => x.id == a.patientId);
+                if (!pac) return;
+                seenPacGen.add(a.patientId);
+                const g = pac.genero || '';
+                if (g === 'Masculino') genderCounts['Masculino']++;
+                else if (g === 'Feminino') genderCounts['Feminino']++;
+                else genderCounts['Não informado']++;
+            });
+            const genderTotal = Object.values(genderCounts).reduce((s, v) => s + v, 0);
+            const ctxGender = document.getElementById('genderChart').getContext('2d');
+            if (chartGender) chartGender.destroy();
+            chartGender = new Chart(ctxGender, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(genderCounts),
+                    datasets: [{ data: Object.values(genderCounts), backgroundColor: ['#3b82f6', '#ec4899', '#94a3b8'], borderWidth: 2 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { font: { size: 10 }, padding: 12 } },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => {
+                                    const val = ctx.raw;
+                                    const pct = genderTotal > 0 ? ((val / genderTotal) * 100).toFixed(1) : 0;
+                                    return ` ${ctx.label}: ${val} (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'genderPctLabel',
+                    afterDraw(chart) {
+                        if (genderTotal === 0) return;
+                        const { ctx: c } = chart;
+                        chart.data.datasets[0].data.forEach((val, i) => {
+                            if (!val) return;
+                            const meta = chart.getDatasetMeta(0);
+                            const arc = meta.data[i];
+                            const { x, y } = arc.tooltipPosition();
+                            const pct = ((val / genderTotal) * 100).toFixed(0) + '%';
+                            c.save();
+                            c.font = 'bold 10px sans-serif';
+                            c.fillStyle = '#fff';
+                            c.textAlign = 'center';
+                            c.textBaseline = 'middle';
+                            if (val / genderTotal > 0.05) c.fillText(pct, x, y);
+                            c.restore();
+                        });
+                    }
+                }]
             });
         }
 
@@ -3324,6 +3518,24 @@
             renderTable();
         }
 
+        function toggleTableFilter(wrapId, focusId, isSelect) {
+            const wrap = document.getElementById(wrapId);
+            const isOpen = wrap.style.maxWidth !== '0px' && wrap.style.maxWidth !== '0';
+            if (isOpen) {
+                wrap.style.maxWidth = '0';
+                wrap.style.opacity = '0';
+                if (focusId) { document.getElementById(focusId).value = ''; renderTable(); }
+                if (isSelect) {
+                    const sel = wrap.querySelector('select');
+                    if (sel) { sel.value = ''; renderTable(); }
+                }
+            } else {
+                wrap.style.maxWidth = '240px';
+                wrap.style.opacity = '1';
+                if (focusId) setTimeout(() => document.getElementById(focusId).focus(), 310);
+            }
+        }
+
         function toggleMonthFilter() {
             const sel = document.getElementById('filter-date-agenda').value;
             const mInput = document.getElementById('filter-month-agenda');
@@ -3341,15 +3553,60 @@
 
         function getStartOfWeek(date) { const d = new Date(date); const day = d.getDay(); const diff = d.getDate() - day; return new Date(d.setDate(diff)); }
 
+        function _populateTableColabDropdowns() {
+            const dateFilter = document.getElementById('filter-date-agenda').value;
+            const monthFilter = document.getElementById('filter-month-agenda').value;
+            const todayStr = new Date().toISOString().split('T')[0];
+            const startOfWeek = getStartOfWeek(new Date()).toISOString().split('T')[0];
+            const endOfWeek = new Date(new Date(startOfWeek).setDate(new Date(startOfWeek).getDate()+6)).toISOString().split('T')[0];
+
+            const byDate = appointments.filter(a => {
+                let matchDate = true;
+                if (dateFilter === 'hoje') matchDate = a.data === todayStr;
+                else if (dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= endOfWeek;
+                else if (dateFilter === 'mes' && monthFilter) matchDate = a.data.startsWith(monthFilter);
+                return matchDate;
+            });
+
+            const vendedorSel = document.getElementById('filter-vendedor-agenda');
+            const curVend = vendedorSel.value;
+            vendedorSel.innerHTML = '<option value="">Todos os Vendedores</option>';
+            const vendedoresNoPeriodo = [...new Set(byDate.filter(a => a.vendedor).map(a => a.vendedor))].sort();
+            vendedoresNoPeriodo.forEach(nome => {
+                const opt = document.createElement('option');
+                opt.value = nome; opt.textContent = nome;
+                if (nome === curVend) opt.selected = true;
+                vendedorSel.appendChild(opt);
+            });
+            if (curVend && !vendedoresNoPeriodo.includes(curVend)) vendedorSel.value = '';
+
+            const aplicadorSel = document.getElementById('filter-aplicador-agenda');
+            const curApl = aplicadorSel.value;
+            aplicadorSel.innerHTML = '<option value="">Todos os Aplicadores</option>';
+            const aplicadoresNoPeriodo = [...new Set(byDate.filter(a => a.aplicador).map(a => a.aplicador))].sort();
+            aplicadoresNoPeriodo.forEach(nome => {
+                const opt = document.createElement('option');
+                opt.value = nome; opt.textContent = nome;
+                if (nome === curApl) opt.selected = true;
+                aplicadorSel.appendChild(opt);
+            });
+            if (curApl && !aplicadoresNoPeriodo.includes(curApl)) aplicadorSel.value = '';
+        }
+
         function renderTable() {
+            _populateTableColabDropdowns();
+
             const search = normalizeStr(document.getElementById('filter-search-agenda').value);
             const status = document.getElementById('filter-status-agenda').value;
             const dateFilter = document.getElementById('filter-date-agenda').value;
             const monthFilter = document.getElementById('filter-month-agenda').value;
-            
+            const filterVendedor = document.getElementById('filter-vendedor-agenda').value;
+            const filterAplicador = document.getElementById('filter-aplicador-agenda').value;
+
             const todayObj = new Date();
             const todayStr = todayObj.toISOString().split('T')[0];
             const startOfWeek = getStartOfWeek(todayObj).toISOString().split('T')[0];
+            const endOfWeek = new Date(new Date(startOfWeek).setDate(new Date(startOfWeek).getDate()+6)).toISOString().split('T')[0];
 
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
@@ -3358,16 +3615,17 @@
                 const pat = patients.find(p=>p.id==a.patientId);
                 const vac = vaccines.find(v=>v.id==a.vaccineId);
                 if(!pat || !vac) return false;
-                // Busca insensível a acentos, traços, pontos e caracteres especiais
                 const nomeNorm = normalizeStr(pat.nome);
                 const cpfNorm = normalizeStr(pat.cpf);
                 const matchSearch = nomeNorm.includes(search) || cpfNorm.includes(search);
                 const matchStatus = status === '' || a.status === status;
+                const matchVendedor = !filterVendedor || a.vendedor === filterVendedor;
+                const matchAplicador = !filterAplicador || a.aplicador === filterAplicador;
                 let matchDate = true;
                 if(dateFilter === 'hoje') matchDate = a.data === todayStr;
-                else if(dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= new Date(new Date(startOfWeek).setDate(new Date(startOfWeek).getDate()+6)).toISOString().split('T')[0];
+                else if(dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= endOfWeek;
                 else if(dateFilter === 'mes' && monthFilter) matchDate = a.data.startsWith(monthFilter);
-                return matchSearch && matchStatus && matchDate;
+                return matchSearch && matchStatus && matchDate && matchVendedor && matchAplicador;
             }).sort((a, b) => {
                 const dir = tableSortDir === 'asc' ? 1 : -1;
                 if(tableSortField === 'data') return (new Date(a.data) - new Date(b.data)) * dir;
@@ -3447,6 +3705,8 @@
             const search = normalizeStr(document.getElementById('filter-search-agenda').value);
             const dateFilter = document.getElementById('filter-date-agenda').value;
             const monthFilter = document.getElementById('filter-month-agenda').value;
+            const filterVendedor = document.getElementById('filter-vendedor-agenda').value;
+            const filterAplicador = document.getElementById('filter-aplicador-agenda').value;
             const todayObj = new Date();
             const todayStr = todayObj.toISOString().split('T')[0];
             const startOfWeek = getStartOfWeek(todayObj).toISOString().split('T')[0];
@@ -3457,17 +3717,20 @@
                 const vac = vaccines.find(v=>v.id==a.vaccineId);
                 if (!pat || !vac) return false;
                 const matchSearch = normalizeStr(pat.nome).includes(search) || normalizeStr(pat.cpf).includes(search);
+                const matchVendedor = !filterVendedor || a.vendedor === filterVendedor;
+                const matchAplicador = !filterAplicador || a.aplicador === filterAplicador;
                 let matchDate = true;
                 if (dateFilter === 'hoje') matchDate = a.data === todayStr;
                 else if (dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= endOfWeek;
                 else if (dateFilter === 'mes' && monthFilter) matchDate = a.data.startsWith(monthFilter);
-                return matchSearch && matchDate;
+                return matchSearch && matchDate && matchVendedor && matchAplicador;
             });
         }
 
         function renderKanban() {
             const board = document.getElementById('kanban-board');
             if (!board) return;
+            _populateTableColabDropdowns();
             const todayStr = new Date().toISOString().split('T')[0];
             const allFiltered = _getKanbanFiltered();
             const dir = _kanbanSortDir === 'asc' ? 1 : -1;
@@ -3724,6 +3987,7 @@
                     document.getElementById('pac-contato').value = formatPhone(p.contato); document.getElementById('pac-responsavel').value = p.responsavel || '';
                     document.getElementById('pac-resp-cpf').value = p.responsavelCPF || '';
                     document.getElementById('pac-resp-parentesco').value = p.responsavelParentesco || '';
+                    document.getElementById('pac-genero').value = p.genero || '';
                     checkUnderage();
                 }
             }
@@ -4175,6 +4439,7 @@
             const p = {
                 id: id ? Number(id) : Date.now(), nome: document.getElementById('pac-nome').value.toUpperCase(),
                 cpf: document.getElementById('pac-cpf').value, dtNasc: document.getElementById('pac-dtnasc').value,
+                genero: document.getElementById('pac-genero').value,
                 contato: document.getElementById('pac-contato').value.replace(/\D/g,''), responsavel: document.getElementById('pac-responsavel').value.toUpperCase(),
                 responsavelCPF: document.getElementById('pac-resp-cpf').value,
                 responsavelParentesco: document.getElementById('pac-resp-parentesco').value
@@ -4182,7 +4447,7 @@
             const isNewPac = !id;
             const oldPac = isNewPac ? null : patients.find(x => x.id == p.id);
             if(id) patients = patients.map(x=>x.id==p.id?p:x); else patients.push(p);
-            const pacChanges = isNewPac ? null : computeChanges(oldPac, p, {nome:'Nome', cpf:'CPF', dtNasc:'Data Nasc.', contato:'Contato', responsavel:'Responsável', responsavelCPF:'CPF Resp.', responsavelParentesco:'Parentesco'});
+            const pacChanges = isNewPac ? null : computeChanges(oldPac, p, {nome:'Nome', cpf:'CPF', dtNasc:'Data Nasc.', genero:'Gênero', contato:'Contato', responsavel:'Responsável', responsavelCPF:'CPF Resp.', responsavelParentesco:'Parentesco'});
             logAudit(isNewPac ? 'Criado' : 'Editado', 'paciente', p.id, p.nome, isNewPac ? `CPF: ${p.cpf}` : null, pacChanges);
             const reopenRecord = _patientModalOpenedFromRecord;
             saveAll(); renderPatients(); closeModals(); showNotification('Paciente salvo com sucesso!','success');
@@ -5739,6 +6004,7 @@
 
             const admin      = isCurrentUserAdmin();
             const canDash    = admin || hasPerm('ver_dashboard');
+            const canFinanc  = admin || hasPerm('ver_dash_financeiro');
             const canAgenda  = admin || hasPerm('ver_agenda');
             const canTabela  = admin || hasPerm('ver_tabela');
             const canPacTab  = admin || hasPerm('ver_pacientes');
@@ -5760,6 +6026,13 @@
             for (const [id, can] of Object.entries(tabVisibility)) {
                 const btn = document.getElementById(id);
                 if (btn) btn.style.display = can ? '' : 'none';
+            }
+
+            // Botão Financeiro no dashboard
+            const btnFinanceiro = document.getElementById('dash-tab-btn-financeiro');
+            if (btnFinanceiro) {
+                btnFinanceiro.style.display = canFinanc ? '' : 'none';
+                if (!canFinanc && dashView === 'financeiro') switchDashView('analitico');
             }
 
             // Redireciona se a aba atual não é permitida
@@ -5867,6 +6140,19 @@
         }
 
         // ─── CRUD USUÁRIOS ────────────────────────────────────────────────
+        function setUserStatusFilter(filter) {
+            userStatusFilter = filter;
+            const btnA = document.getElementById('btn-users-ativos');
+            const btnI = document.getElementById('btn-users-inativos');
+            if (btnA && btnI) {
+                const activeClass = 'px-4 py-1.5 rounded-lg text-xs font-black uppercase transition bg-navy-900 text-white shadow';
+                const inactiveClass = 'px-4 py-1.5 rounded-lg text-xs font-black uppercase transition text-slate-500 hover:bg-slate-200';
+                btnA.className = filter === 'ativos' ? activeClass : inactiveClass;
+                btnI.className = filter === 'inativos' ? activeClass : inactiveClass;
+            }
+            renderUsersList();
+        }
+
         function renderUsersList() {
             const tbody = document.getElementById('users-table-body');
             if (!tbody) return;
@@ -5876,23 +6162,26 @@
                 return;
             }
             const canEditUsers = isCurrentUserAdmin() || hasPerm('criar_editar_usuarios');
-            const sortedUsers = [...appUsers].sort((a, b) => {
-                // Inativos sempre por último
-                const aInativo = a.ativo === false ? 1 : 0;
-                const bInativo = b.ativo === false ? 1 : 0;
-                if (aInativo !== bInativo) return aInativo - bInativo;
+            const filteredUsers = appUsers.filter(u =>
+                userStatusFilter === 'inativos' ? u.ativo === false : u.ativo !== false
+            );
+            const sortedUsers = [...filteredUsers].sort((a, b) => {
                 const gA = appGroups.find(g => g.id == a.grupoId)?.nome || (a.isAdmin ? '\x00' : '\xFF');
                 const gB = appGroups.find(g => g.id == b.grupoId)?.nome || (b.isAdmin ? '\x00' : '\xFF');
                 if (gA < gB) return -1;
                 if (gA > gB) return 1;
                 return a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' });
             });
+            if (sortedUsers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400 text-sm font-bold">Nenhum usuário ${userStatusFilter === 'inativos' ? 'inativo' : 'ativo'}.</td></tr>`;
+                return;
+            }
             sortedUsers.forEach(u => {
                 const group    = appGroups.find(g => g.id == u.grupoId);
                 const isSelf   = currentUser && u.id == currentUser.id;
                 const inativo  = u.ativo === false;
                 const hasAppts = appointments.some(a => a.vendedor === u.nome || a.aplicador === u.nome || a.patientId == u.id);
-                const canDel   = canEditUsers && !u.isAdmin && !isSelf && !hasAppts;
+                const canDel   = !isSelf && !hasAppts && (isCurrentUserAdmin() || (canEditUsers && !u.isAdmin));
                 const funcoes  = [u.isVendedor ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-100 text-blue-700">Vendedor</span>' : '', u.isAplicador ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-green-100 text-green-700">Aplicador</span>' : ''].filter(Boolean).join(' ') || '—';
                 const rowClass = inativo ? 'bg-slate-100 text-slate-400 opacity-70' : 'hover:bg-slate-50';
                 tbody.innerHTML += `<tr class="${rowClass} transition">
@@ -5995,6 +6284,8 @@
                     grupoDiv.style.display = 'none';
                     grupoSel.required = false;
                     grupoSel.value = '';
+                    // Popula o select mesmo oculto para que ao desmarcar admin as opções já estejam disponíveis
+                    populateGroupSelect();
                 } else {
                     grupoDiv.style.display = '';
                     grupoSel.required = true;
@@ -6027,8 +6318,7 @@
             const newIsAdmin = isCurrentUserAdmin() && document.getElementById('new-user-is-admin').checked;
 
             const editingUser = id ? appUsers.find(u => String(u.id) === String(id)) : null;
-            const editingAdmin = editingUser && editingUser.isAdmin;
-            const isAdminUser = newIsAdmin || editingAdmin;
+            const isAdminUser = newIsAdmin;
 
             const grupoId = (!isAdminUser && grupoEl.value) ? Number(grupoEl.value) : null;
             if (!isAdminUser && !grupoId) { showNotification('Selecione um grupo para o usuário.', 'error'); return; }
@@ -6050,7 +6340,7 @@
                     appUsers[idx].login      = login;
                     appUsers[idx].isVendedor = isVendedor;
                     appUsers[idx].isAplicador= isAplicador;
-                    if (!editingAdmin) { appUsers[idx].grupoId = grupoId; if (isCurrentUserAdmin()) appUsers[idx].isAdmin = newIsAdmin; }
+                    if (isCurrentUserAdmin()) { appUsers[idx].isAdmin = newIsAdmin; appUsers[idx].grupoId = isAdminUser ? null : grupoId; }
                     if (senha) appUsers[idx].senhaHash = hashPwd(senha);
                     const newGrpName = (appGroups.find(g => g.id == appUsers[idx].grupoId) || {}).nome || '—';
                     const oldFlat = {...oldUser, grupoNome: oldGrpName, isVendedorStr: oldUser.isVendedor ? 'Sim' : 'Não', isAplicadorStr: oldUser.isAplicador ? 'Sim' : 'Não', isAdminStr: oldUser.isAdmin ? 'Sim' : 'Não'};
@@ -6062,6 +6352,15 @@
                         currentUser.login = login;
                         localStorage.setItem('ig_session', JSON.stringify(currentUser));
                         updateUserUI();
+                    }
+                    // Propaga renomeação nos agendamentos
+                    if (oldUser.nome !== nome) {
+                        let renamed = false;
+                        appointments.forEach(a => {
+                            if (a.vendedor === oldUser.nome) { a.vendedor = nome; renamed = true; }
+                            if (a.aplicador === oldUser.nome) { a.aplicador = nome; renamed = true; }
+                        });
+                        if (renamed) saveAll();
                     }
                 }
             } else {
@@ -6090,7 +6389,7 @@
             adicionar_paciente: 'Adicionar Paciente', editar_paciente: 'Editar Paciente',
             vacinas_crud: 'Adicionar/Editar Vacinas', lotes_fechar_abrir: 'Fechar/Abrir Lotes',
             vacinas_ativar: 'Ativar/Desativar Vacinas', baixar_pdf: 'Baixar PDF',
-            ver_dashboard: 'Ver Dashboard', ver_agenda: 'Ver Agenda', ver_tabela: 'Ver Tabela', ver_pacientes: 'Ver Pacientes', ver_vacinas: 'Ver Vacinas', ver_configuracoes: 'Ver Configurações',
+            ver_dashboard: 'Ver Dashboard', ver_dash_financeiro: 'Painel Financeiro', ver_agenda: 'Ver Agenda', ver_tabela: 'Ver Tabela', ver_pacientes: 'Ver Pacientes', ver_vacinas: 'Ver Vacinas', ver_configuracoes: 'Ver Configurações',
             excluir_agendamento: 'Excluir Agendamento', excluir_paciente: 'Excluir Paciente',
             excluir_vacina: 'Excluir Vacina', excluir_lote: 'Excluir Lote',
             criar_editar_usuarios: 'Criar/Editar Usuários', criar_editar_grupos: 'Criar/Editar Grupos',
@@ -6131,6 +6430,23 @@
             document.getElementById('edit-group-id').value = '';
             document.getElementById('grupo-form-title').textContent = 'Novo Grupo';
             document.querySelectorAll('.perm-check').forEach(c => c.checked = false);
+            _syncSubPerms();
+        }
+
+        function toggleSubPerm(subId, parentChk) {
+            const sub = document.getElementById(subId);
+            if (!sub) return;
+            if (parentChk.checked) {
+                sub.classList.remove('hidden');
+            } else {
+                sub.classList.add('hidden');
+                sub.querySelectorAll('.perm-check').forEach(c => c.checked = false);
+            }
+        }
+
+        function _syncSubPerms() {
+            const dashChk = document.querySelector('.perm-check[value="ver_dashboard"]');
+            if (dashChk) toggleSubPerm('sub-perm-dash-financeiro', dashChk);
         }
 
         function editGroup(id) {
@@ -6140,6 +6456,7 @@
             document.getElementById('new-group-nome').value = g.nome;
             document.getElementById('grupo-form-title').textContent = 'Editar Grupo';
             document.querySelectorAll('.perm-check').forEach(c => { c.checked = (g.permissions || []).includes(c.value); });
+            _syncSubPerms();
             document.getElementById('new-group-nome').focus();
         }
 
