@@ -5,7 +5,7 @@ function downloadBackup() {
     const data = {
         version: 2,
         exportedAt: new Date().toISOString(),
-        patients, vaccines, appointments, cancelReasons, holidays, vaccineLots,
+        patients, vaccines, appointments, cancelReasons, holidays, vaccineLots, stockMovements,
         appUsers, appGroups
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -62,6 +62,7 @@ function doBackupUpload() {
     cancelReasons = d.cancelReasons || [];
     holidays      = d.holidays      || [];
     vaccineLots   = d.vaccineLots   || [];
+    stockMovements = d.stockMovements || [];
     if (d.appUsers)  appUsers  = d.appUsers;
     if (d.appGroups) appGroups = d.appGroups;
     saveAll();

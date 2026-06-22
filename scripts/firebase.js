@@ -27,7 +27,11 @@ function setupRealtimeSync() {
     });
     db.ref('vaccineLots').on('value', snap => {
         vaccineLots = _fbToArr(snap.val());
-        if (_appReady) updateExpiryBadge();
+        if (_appReady) { updateExpiryBadge(); refreshAlmoxIfActive(); }
+    });
+    db.ref('stockMovements').on('value', snap => {
+        stockMovements = _fbToArr(snap.val());
+        if (_appReady) refreshAlmoxIfActive();
     });
     db.ref('auditLog').on('value', snap => {
         auditLog = _fbToArr(snap.val()).sort((a, b) => new Date(b.ts) - new Date(a.ts));
@@ -52,6 +56,7 @@ function initFromFirebase() {
         if (!cancelReasons.length) cancelReasons = ['Paciente desistiu','Contraindicação médica','Falta de estoque','Não compareceu','Aplicou em outro local'];
         holidays      = _normalizeSimpleArr(data.holidays);
         vaccineLots   = _fbToArr(data.vaccineLots);
+        stockMovements = _fbToArr(data.stockMovements);
         auditLog      = _fbToArr(data.auditLog).sort((a, b) => new Date(b.ts) - new Date(a.ts));
         appUsers      = _fbToArr(data.appUsers);
         appGroups     = _fbToArr(data.appGroups);
@@ -83,7 +88,8 @@ function saveAll() {
             appointments:  _arrToFbObj(appointments),
             cancelReasons: cancelReasons,
             holidays:      holidays,
-            vaccineLots:   _arrToFbObj(vaccineLots)
+            vaccineLots:   _arrToFbObj(vaccineLots),
+            stockMovements: _arrToFbObj(stockMovements)
         }).catch(err => console.error('[FB] saveAll:', err));
     }, 300);
 }

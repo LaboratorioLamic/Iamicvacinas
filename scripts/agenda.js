@@ -192,11 +192,23 @@ function confirmAgendar() {
     if (!pendingAgendarId) return;
     const idx = appointments.findIndex(a => a.id == pendingAgendarId);
     if (idx > -1) {
+        // Se o agendamento já tem lote vinculado, a reserva precisa de disponível > 0
+        const apt = appointments[idx];
+        if (apt.loteId && typeof getLoteDisponivelParaAgendamento === 'function') {
+            const dispLivre = getLoteDisponivelParaAgendamento(Number(apt.loteId), Number(pendingAgendarId));
+            if (dispLivre <= 0) {
+                const loteRef = vaccineLots.find(l => l.id == apt.loteId);
+                showNotification(`Não é possível reservar: o lote ${loteRef ? loteRef.numero : ''} está sem estoque disponível.`, 'error');
+                return;
+            }
+        }
         appointments[idx].status = 'Agendado';
         appointments[idx].data = data;
         pendingAgendarId = null;
         document.getElementById('modal-agendar').classList.remove('active');
+        if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
         saveAll(); renderCalendar(); renderTable(); renderDashboard();
+        if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
         showNotification('Agendamento confirmado!', 'success');
         if (selectedDayDate && tableView !== 'kanban') {
             const [y, m, d] = selectedDayDate.split('-');
@@ -220,13 +232,16 @@ function openConcluirModal(id) {
     // Populate lote select with open lots for this vaccine
     const loteSel = document.getElementById('concluir-lote');
     loteSel.innerHTML = '<option value="">Selecione o lote...</option>';
-    const openLots = vaccineLots.filter(l => l.vaccineId == a.vaccineId && l.status === 'aberto').sort((a, b) => new Date(a.validade) - new Date(b.validade));
+    const openLots = vaccineLots.filter(l => l.vaccineId == a.vaccineId && (l.status === 'aberto' || l.id == a.loteId)).sort((a, b) => new Date(a.validade) - new Date(b.validade));
     openLots.forEach(l => {
+        const disp = (typeof getLoteDisponivelParaAgendamento === 'function') ? getLoteDisponivelParaAgendamento(l.id, a.id) : null;
         const opt = document.createElement('option');
         opt.value = l.id;
-        opt.textContent = `Lote ${l.numero} — Val: ${l.validade.split('-').reverse().join('/')}`;
+        const dispStr = disp != null ? ` (disp: ${Math.max(0, disp)})` : '';
+        opt.textContent = `Lote ${l.numero} — Val: ${l.validade.split('-').reverse().join('/')}${dispStr}`;
         opt.dataset.numero = l.numero;
         opt.dataset.validade = l.validade;
+        if (disp != null && disp <= 0 && l.id != a.loteId) { opt.disabled = true; opt.textContent += ' — sem estoque'; }
         if (l.id == a.loteId) opt.selected = true;
         loteSel.appendChild(opt);
     });
@@ -292,6 +307,15 @@ function confirmConcluir() {
     if (!pendingConcluirId) return;
     const idx = appointments.findIndex(a => a.id == pendingConcluirId);
     if (idx > -1) {
+        // Bloqueio de estoque: o lote precisa de disponível > 0 (desconsiderando este próprio agendamento)
+        if (typeof getLoteDisponivelParaAgendamento === 'function') {
+            const dispLivre = getLoteDisponivelParaAgendamento(Number(loteId), Number(pendingConcluirId));
+            if (dispLivre <= 0) {
+                const loteRef = vaccineLots.find(l => l.id == loteId);
+                showNotification(`Estoque insuficiente no lote ${loteRef ? loteRef.numero : ''}. Registre uma entrada ou selecione outro lote.`, 'error');
+                return;
+            }
+        }
         const lot = vaccineLots.find(l => l.id == loteId);
         appointments[idx].status = 'Aplicado';
         appointments[idx].loteId = Number(loteId);
@@ -299,7 +323,10 @@ function confirmConcluir() {
         appointments[idx].aplicador = aplicador.toUpperCase();
         pendingConcluirId = null;
         document.getElementById('modal-concluir').classList.remove('active');
+        if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
         saveAll(); renderCalendar(); renderTable(); renderDashboard();
+        if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+        if (typeof updateExpiryBadge === 'function') updateExpiryBadge();
         showNotification('Vacinação concluída com sucesso!', 'success');
         if (selectedDayDate) {
             const [y, m, d] = selectedDayDate.split('-');
@@ -519,8 +546,10 @@ function kanbanDrop(event, targetStatus) {
         const idx = appointments.findIndex(x => x.id == id);
         if (idx > -1) {
             appointments[idx].status = targetStatus;
+            if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
             saveAll(); renderCalendar(); renderDashboard();
             renderKanban();
+            if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
             showNotification('Status atualizado!', 'success');
         }
     }
@@ -558,8 +587,10 @@ function confirmKanbanCancel() {
         appointments[idx].status = 'Cancelado';
         appointments[idx].motivoCancelamento = reason;
         closeKanbanCancelModal();
+        if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
         saveAll(); renderCalendar(); renderDashboard();
         renderKanban();
+        if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
         showNotification('Atendimento cancelado.', 'info');
     }
 }

@@ -14,9 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (loadingEl) loadingEl.style.display = 'none';
         document.addEventListener('click', (e) => {
             const panel = document.getElementById('expiry-panel');
-            const bell  = document.getElementById('btn-expiry-bell');
-            if (!panel || !bell) return;
-            if (!panel.classList.contains('hidden') && !panel.contains(e.target) && !bell.contains(e.target)) {
+            if (!panel) return;
+            // Protege todos os sinos de vencimento (Produtos, Estoque, Lotes, Movimentação)
+            const clickedBell = e.target.closest('[title="Alertas de vencimento de lotes"]');
+            if (!panel.classList.contains('hidden') && !panel.contains(e.target) && !clickedBell) {
                 panel.classList.add('hidden');
                 panel.classList.remove('flex');
             }

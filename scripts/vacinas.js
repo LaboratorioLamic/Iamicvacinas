@@ -1,15 +1,35 @@
-// ─── VACCINE MANAGEMENT (from index.html lines ~4492-4970) ───────────────────
+// ─── VACCINE MANAGEMENT ───────────────────────────────────────────────────────
+
+// ── Almoxarifado: estado dos filtros ──
+let vaccineFilter = 'ativos'; // ativos | inativos | ambos
+let loteFilter = 'ativos';    // ativos | inativos | ambos
+// switchAlmoxModulo / setLoteFilter / renderAlmoxLotes vivem em almoxarifado.js
+
+function setVaccineFilter(tipo) {
+    vaccineFilter = tipo;
+    document.querySelectorAll('.vf-btn').forEach(b => {
+        b.classList.remove('bg-green-600', 'text-white', 'shadow');
+        b.classList.add('text-slate-500', 'hover:bg-white');
+    });
+    const active = document.getElementById('vf-btn-' + tipo);
+    if (active) { active.classList.add('bg-green-600', 'text-white', 'shadow'); active.classList.remove('text-slate-500', 'hover:bg-white'); }
+    renderVaccines();
+}
 
 function renderVaccines() {
     const search = normalizeStr(document.getElementById('filter-vaccine')?.value || '');
     const tbody = document.getElementById('vaccines-body'); tbody.innerHTML = '';
     const sorted = [...vaccines]
-        .filter(v => !search || normalizeStr(v.nome).includes(search))
-        .sort((a, b) => {
-            const aAtivo = a.ativo !== false, bAtivo = b.ativo !== false;
-            if(aAtivo !== bAtivo) return aAtivo ? -1 : 1;
-            return a.nome.localeCompare(b.nome, 'pt-BR');
-        });
+        .filter(v => {
+            if (!search || normalizeStr(v.nome).includes(search)) {
+                const ativo = v.ativo !== false;
+                if (vaccineFilter === 'ativos') return ativo;
+                if (vaccineFilter === 'inativos') return !ativo;
+                return true;
+            }
+            return false;
+        })
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     sorted.forEach(v => {
         // Esquema a partir dos esquemas por faixa etária
         let schema = '';
@@ -42,11 +62,17 @@ function renderVaccines() {
 
         const ativo = v.ativo !== false;
         const hasAppointments = appointments.some(a => a.vaccineId == v.id);
+        const est = (typeof getVaccineEstoque === 'function') ? getVaccineEstoque(v.id) : { disponivel:0, reservado:0 };
+        const estCls = est.disponivel <= 0 ? 'bg-red-100 text-red-700' : est.disponivel <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
         tbody.innerHTML += `<tr class="hover:bg-slate-50 transition ${!ativo ? 'opacity-50' : ''}">
             <td class="p-3 font-bold text-slate-700">${v.nome}</td><td class="p-3 text-xs">${schema}</td>
             <td class="p-3 text-xs">${(v.intervalos && v.intervalos.length ? v.intervalos.map((x,i)=>`D${i+1}→D${i+2}: ${x}d`).join(', ') : (v.intervaloDias > 0 ? v.intervaloDias + ' dias' : '-'))}</td>
             <td class="p-3 text-xs">${idadeMinStr}</td>
             <td class="p-3 text-xs font-bold text-green-600">${formatCurrency(v.valor)}</td>
+            <td class="p-3 text-center">
+                <span class="px-2.5 py-1 rounded-full text-xs font-black ${estCls}">${est.disponivel}</span>
+                ${est.reservado > 0 ? `<span class="block text-[9px] text-indigo-500 font-bold mt-0.5">${est.reservado} reserv.</span>` : ''}
+            </td>
             <td class="p-3 text-center">
                 <span class="px-2 py-1 rounded-full text-[10px] font-black uppercase ${ativo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${ativo ? 'Ativa' : 'Inativa'}</span>
             </td>
@@ -286,6 +312,7 @@ function renderLoteLists() {
         const expired = exp < today;
         const nearExpiry = !expired && exp <= twoMonths;
         const emUso = appointments.some(a => a.loteId == l.id || a.loteNumero === l.numero);
+        const est = (typeof getLoteEstoque === 'function') ? getLoteEstoque(l.id) : { disponivel:'—', reservado:'—', total:'—' };
         let badgeHtml = '';
         if (expired) badgeHtml = `<span class="px-2 py-0.5 rounded text-[9px] font-black bg-red-100 text-red-600">VENCIDO</span>`;
         else if (nearExpiry) badgeHtml = `<span class="px-2 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-600">VENCENDO</span>`;
@@ -294,6 +321,11 @@ function renderLoteLists() {
             <div>
                 <p class="font-black text-navy-900 text-sm">Lote: ${l.numero}</p>
                 <p class="text-[10px] text-slate-500 font-bold">Validade: ${l.validade.split('-').reverse().join('/')} ${badgeHtml}</p>
+                <p class="text-[10px] font-bold mt-1 flex gap-2">
+                    <span class="text-green-600"><i class="fas fa-box-open mr-0.5"></i>Disp: ${est.disponivel}</span>
+                    <span class="text-indigo-600"><i class="fas fa-lock mr-0.5"></i>Reserv: ${est.reservado}</span>
+                    <span class="text-slate-400"><i class="fas fa-layer-group mr-0.5"></i>Total: ${est.total}</span>
+                </p>
                 ${emUso ? '<p class="text-[9px] text-slate-400 font-bold mt-0.5"><i class="fas fa-link mr-1"></i>Em uso em agendamentos</p>' : ''}
             </div>
             <div class="flex gap-2">
@@ -317,15 +349,20 @@ function addLote() {
     if (!checkPerm('lotes_fechar_abrir')) return;
     const numero = document.getElementById('novo-lote-numero').value.trim().toUpperCase();
     const validade = document.getElementById('novo-lote-validade').value;
+    const quantidade = parseInt(document.getElementById('novo-lote-qtd').value, 10) || 0;
     if (!numero || !validade) { showNotification('Informe o número do lote e a validade.', 'error'); return; }
+    if (quantidade <= 0) { showNotification('Informe a quantidade inicial do lote (maior que zero).', 'error'); return; }
     if (!currentLoteModalVaccineId) return;
-    const novoLote = { id: Date.now(), vaccineId: currentLoteModalVaccineId, numero, validade, status: 'aberto' };
+    const novoLote = { id: Date.now(), vaccineId: currentLoteModalVaccineId, numero, validade, quantidade, status: 'aberto' };
     vaccineLots.push(novoLote);
     const vacLote = vaccines.find(v => v.id == currentLoteModalVaccineId);
-    logAudit('Criado', 'lote', String(currentLoteModalVaccineId), `Lote ${numero}`, `Vacina: ${vacLote ? vacLote.nome : '—'} | Validade: ${validade}`);
+    logAudit('Criado', 'lote', String(currentLoteModalVaccineId), `Lote ${numero}`, `Vacina: ${vacLote ? vacLote.nome : '—'} | Validade: ${validade} | Qtd inicial: ${quantidade}`);
     document.getElementById('novo-lote-numero').value = '';
     document.getElementById('novo-lote-validade').value = '';
-    saveAll(); renderLoteLists(); updateExpiryBadge(); showNotification('Lote cadastrado com sucesso!', 'success');
+    document.getElementById('novo-lote-qtd').value = '';
+    saveAll(); renderLoteLists(); updateExpiryBadge();
+    if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+    showNotification('Lote cadastrado com sucesso!', 'success');
 }
 
 function toggleLoteStatus(loteId, newStatus) {

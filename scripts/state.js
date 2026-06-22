@@ -3,7 +3,11 @@
 // Data arrays
 let patients = [], vaccines = [], appointments = [], cancelReasons = [];
 let holidays = [], vaccineLots = [], auditLog = [];
+let stockMovements = []; // [{id, loteId, vaccineId, tipo:'entrada'|'saida', qtd, motivo, descarte, data, usuario}]
 let currentLoteModalVaccineId = null;
+
+// Almoxarifado state
+let almoxModulo = 'estoque'; // estoque | produtos | lotes | movimentacao
 
 // App readiness
 let _appReady = false;

@@ -140,13 +140,23 @@ function populateLoteSelect(vaccineId, selectedLoteId) {
     sel.innerHTML = '<option value="">Selecione o lote...</option>';
     document.getElementById('reg-lote-validade-hint').classList.add('hidden');
     if (!vaccineId) return;
-    const openLots = vaccineLots.filter(l => l.vaccineId == vaccineId && l.status === 'aberto').sort((a, b) => new Date(a.validade) - new Date(b.validade));
+    const editingId = document.getElementById('reg-id')?.value;
+    // Lotes abertos + o lote já vinculado a este agendamento (mesmo que tenha sido auto-fechado)
+    const openLots = vaccineLots.filter(l =>
+        l.vaccineId == vaccineId && (l.status === 'aberto' || l.id == selectedLoteId)
+    ).sort((a, b) => new Date(a.validade) - new Date(b.validade));
     openLots.forEach(l => {
+        const disp = (typeof getLoteDisponivelParaAgendamento === 'function')
+            ? getLoteDisponivelParaAgendamento(l.id, editingId ? Number(editingId) : null) : null;
         const opt = document.createElement('option');
         opt.value = l.id;
-        opt.textContent = `Lote ${l.numero} — Val: ${l.validade.split('-').reverse().join('/')}`;
+        const dispStr = disp != null ? ` (disp: ${Math.max(0, disp)})` : '';
+        opt.textContent = `Lote ${l.numero} — Val: ${l.validade.split('-').reverse().join('/')}${dispStr}`;
         opt.dataset.numero = l.numero;
         opt.dataset.validade = l.validade;
+        if (disp != null) opt.dataset.disponivel = disp;
+        // Lote sem estoque livre fica desabilitado (a menos que seja o lote já vinculado a este agendamento)
+        if (disp != null && disp <= 0 && l.id != selectedLoteId) { opt.disabled = true; opt.textContent += ' — sem estoque'; }
         sel.appendChild(opt);
     });
     if (selectedLoteId) {
@@ -172,6 +182,24 @@ function onLoteChange() {
     hintEl.style.color = '';
     sel.classList.remove('border-red-400');
     if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove('opacity-50', 'cursor-not-allowed'); }
+
+    // Mostra disponibilidade de estoque do lote selecionado
+    const estoqueHint = document.getElementById('reg-lote-estoque-hint');
+    if (estoqueHint) {
+        const loteIdSel = sel.value;
+        if (loteIdSel && typeof getLoteDisponivelParaAgendamento === 'function') {
+            const editingId = document.getElementById('reg-id')?.value;
+            const disp = Math.max(0, getLoteDisponivelParaAgendamento(Number(loteIdSel), editingId ? Number(editingId) : null));
+            const reserv = (typeof getLoteReservado === 'function') ? getLoteReservado(Number(loteIdSel)) : 0;
+            document.getElementById('span-lote-disp').textContent = disp;
+            document.getElementById('span-lote-reserv').textContent = reserv;
+            estoqueHint.classList.toggle('text-red-600', disp <= 0);
+            estoqueHint.classList.toggle('text-slate-500', disp > 0);
+            estoqueHint.classList.remove('hidden');
+        } else {
+            estoqueHint.classList.add('hidden');
+        }
+    }
 
     if (!validade) return;
 
@@ -484,7 +512,9 @@ function confirmDeleteRecord() {
     pendingDeleteId = null;
     document.getElementById('modal-delete-confirm').classList.remove('active');
     document.getElementById('delete-confirm-input').value = '';
+    if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
     saveAll(); renderCalendar(); renderTable(); renderDashboard(); renderPatients(); closeModals();
+    if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
     showNotification('Agendamento excluído com sucesso.', 'success');
 }
 
@@ -825,6 +855,17 @@ function saveRecord(e) {
     const loteId = loteSel.value ? Number(loteSel.value) : null;
     const loteNumero = loteOpt && loteOpt.dataset.numero ? loteOpt.dataset.numero.toUpperCase() : '';
 
+    // ─── BLOQUEIO DE ESTOQUE ───
+    // Reserva (Agendado) ou consumo (Aplicado) exigem disponível > 0 no lote.
+    if (loteId && (statusVal === 'Agendado' || statusVal === 'Aplicado') && typeof getLoteDisponivelParaAgendamento === 'function') {
+        const dispLivre = getLoteDisponivelParaAgendamento(loteId, id ? Number(id) : null);
+        if (dispLivre <= 0) {
+            const loteRef = vaccineLots.find(l => l.id == loteId);
+            showNotification(`Estoque insuficiente: o lote ${loteRef ? loteRef.numero : ''} não possui doses disponíveis. Selecione outro lote ou registre uma entrada.`, 'error');
+            return;
+        }
+    }
+
     const vendedorVal = document.getElementById('reg-vendedor').value.trim().toUpperCase();
     const aplicadorVal = document.getElementById('reg-aplicador').value.trim().toUpperCase();
 
@@ -875,6 +916,9 @@ function saveRecord(e) {
         `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a.doseAtual} | ${a.data ? a.data.split('-').reverse().join('/') : '—'}`,
         isNew ? `Status: ${a.status}${a.vendedor ? ' | Vendedor: ' + a.vendedor : ''}` : null, appChanges);
     window._doseAnteriorConfirmado = false;
+    if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
     saveAll(); renderCalendar(); renderTable(); renderDashboard(); renderPatients(); closeModals();
+    if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+    if (typeof updateExpiryBadge === 'function') updateExpiryBadge();
     showNotification('Agendamento salvo com sucesso!', 'success');
 }

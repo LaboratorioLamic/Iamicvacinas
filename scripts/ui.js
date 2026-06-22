@@ -22,11 +22,19 @@ function switchTab(tab) {
     const lbl = document.getElementById('topbar-module-label');
     if (lbl) lbl.textContent = labels[tab] || '';
 
+    // A aba Vacinas gerencia scroll internamente; as demais precisam do main scrollável
+    const mainEl = document.querySelector('main');
+    if (mainEl) mainEl.style.overflow = tab === 'vacinas' ? 'hidden' : '';
+
     if(tab === 'dashboard') renderDashboard();
     if(tab === 'agenda') renderCalendar();
     if(tab === 'dados') renderTable();
     if(tab === 'pacientes') renderPatients();
-    if(tab === 'vacinas') { renderVaccines(); updateExpiryBadge(); }
+    if(tab === 'vacinas') {
+        if (typeof switchAlmoxModulo === 'function') switchAlmoxModulo(almoxModulo || 'estoque');
+        else renderVaccines();
+        updateExpiryBadge();
+    }
 }
 
 function toggleSidebar() {
@@ -180,16 +188,24 @@ function populateGroupSelect() {
 
 function updateExpiryBadge() {
     const alerts = getExpiryAlerts();
-    const badge = document.getElementById('expiry-badge');
-    if (!badge) return;
-    if (alerts.length > 0) {
-        badge.classList.remove('hidden');
-        badge.classList.add('flex');
-        badge.textContent = alerts.length > 99 ? '99+' : alerts.length;
-    } else {
-        badge.classList.add('hidden');
-        badge.classList.remove('flex');
-    }
+    const count = alerts.length;
+    const text = count > 99 ? '99+' : count;
+    // badge principal (módulo Produtos) + badges secundários (Lotes, Movimentação)
+    const badges = [
+        document.getElementById('expiry-badge'),
+        ...document.querySelectorAll('.alm-expiry-badge')
+    ];
+    badges.forEach(badge => {
+        if (!badge) return;
+        if (count > 0) {
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+            badge.textContent = text;
+        } else {
+            badge.classList.add('hidden');
+            badge.classList.remove('flex');
+        }
+    });
 }
 
 function switchUsersSubTab(tab) {
@@ -224,8 +240,8 @@ function toggleExpiryPanel(e) {
     const panel = document.getElementById('expiry-panel');
     if (panel.classList.contains('hidden')) {
         renderExpiryPanel();
-        // Posiciona com fixed relativo ao botão sino
-        const btn = document.getElementById('btn-expiry-bell');
+        // Posiciona com fixed relativo ao botão sino que foi clicado
+        const btn = (e && e.currentTarget) ? e.currentTarget : document.getElementById('btn-expiry-bell');
         const rect = btn.getBoundingClientRect();
         panel.style.top = (rect.bottom + 8) + 'px';
         // Alinha pela direita do botão, sem sair da tela
