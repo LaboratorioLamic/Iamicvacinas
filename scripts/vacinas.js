@@ -282,12 +282,13 @@ function deleteVaccine(id) {
     if(!v) return;
     const inUse = appointments.some(a => a.vaccineId == id);
     if(inUse) { showNotification('Não é possível excluir: vacina possui agendamentos vinculados. Desative-a em vez de excluir.', 'error'); return; }
-    if(!confirm(`Excluir a vacina "${v.nome}" permanentemente?`)) return;
-    logAudit('Excluído', 'vacina', id, v.nome);
-    vaccines = vaccines.filter(x => x.id != id);
-    vaccineLots = vaccineLots.filter(l => l.vaccineId != id);
-    saveAll(); renderVaccines(); updateExpiryBadge();
-    showNotification('Vacina excluída!', 'success');
+    showConfirmDanger(`Excluir a vacina "${v.nome}" permanentemente?`, () => {
+        logAudit('Excluído', 'vacina', id, v.nome);
+        vaccines = vaccines.filter(x => x.id != id);
+        vaccineLots = vaccineLots.filter(l => l.vaccineId != id);
+        saveAll(); renderVaccines(); updateExpiryBadge();
+        showNotification('Vacina excluída!', 'success');
+    });
 }
 
 // ─── GESTÃO DE LOTES ──────────────────────────────────────────────────────────
@@ -410,12 +411,13 @@ function toggleLoteStatus(loteId, newStatus) {
 
 function deleteLote(loteId) {
     if (!checkPerm('excluir_lote')) return;
-    if (!confirm('Excluir este lote definitivamente?')) return;
-    const lote = vaccineLots.find(l => l.id == loteId);
-    const vacLote = lote ? vaccines.find(v => v.id == lote.vaccineId) : null;
-    logAudit('Excluído', 'lote', String(lote ? lote.vaccineId : loteId), lote ? `Lote ${lote.numero}` : '—', vacLote ? `Vacina: ${vacLote.nome}` : null);
-    vaccineLots = vaccineLots.filter(l => l.id != loteId);
-    saveAll(); renderLoteLists(); updateExpiryBadge(); showNotification('Lote excluído.', 'success');
+    showConfirmDanger('Excluir este lote definitivamente?', () => {
+        const lote = vaccineLots.find(l => l.id == loteId);
+        const vacLote = lote ? vaccines.find(v => v.id == lote.vaccineId) : null;
+        logAudit('Excluído', 'lote', String(lote ? lote.vaccineId : loteId), lote ? `Lote ${lote.numero}` : '—', vacLote ? `Vacina: ${vacLote.nome}` : null);
+        vaccineLots = vaccineLots.filter(l => l.id != loteId);
+        saveAll(); renderLoteLists(); updateExpiryBadge(); showNotification('Lote excluído.', 'success');
+    });
 }
 
 let _viewLoteId = null;

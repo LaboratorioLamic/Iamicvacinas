@@ -172,14 +172,15 @@ function clearAuditFilter() {
 
 function deleteAuditEntry(entryId) {
     if (!isCurrentUserAdmin()) return;
-    if (!confirm('Excluir este registro do histórico permanentemente?')) return;
-    db.ref('auditLog/' + entryId).remove()
-        .then(() => {
-            auditLog = auditLog.filter(e => e.id !== entryId);
-            _renderAuditTimeline();
-            showNotification('Registro excluído do histórico.', 'success');
-        })
-        .catch(() => showNotification('Erro ao excluir registro.', 'error'));
+    showConfirmDanger('Excluir este registro do histórico permanentemente?', () => {
+        db.ref('auditLog/' + entryId).remove()
+            .then(() => {
+                auditLog = auditLog.filter(e => e.id !== entryId);
+                _renderAuditTimeline();
+                showNotification('Registro excluído do histórico.', 'success');
+            })
+            .catch(() => showNotification('Erro ao excluir registro.', 'error'));
+    });
 }
 
 // Fecha o picker ao clicar fora (from index.html line 2364)

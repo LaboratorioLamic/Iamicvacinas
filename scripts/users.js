@@ -365,9 +365,10 @@ function saveGroup(e) {
 function deleteGroup(id) {
     const inUse = appUsers.some(u => u.grupoId == id);
     if (inUse) { showNotification('Não é possível excluir: grupo possui usuários vinculados.', 'error'); return; }
-    if (!confirm('Excluir este grupo definitivamente?')) return;
-    appGroups = appGroups.filter(g => String(g.id) !== String(id));
-    saveUsersData();
-    renderGroupsList();
-    showNotification('Grupo excluído.', 'success');
+    showConfirmDanger('Excluir este grupo definitivamente?', () => {
+        appGroups = appGroups.filter(g => String(g.id) !== String(id));
+        saveUsersData();
+        renderGroupsList();
+        showNotification('Grupo excluído.', 'success');
+    });
 }

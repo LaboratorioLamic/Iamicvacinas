@@ -1,5 +1,21 @@
 // ─── UI / NAVIGATION FUNCTIONS ───────────────────────────────────────────────
 
+let _dangerCallback = null;
+
+function showConfirmDanger(msg, onConfirm) {
+    _dangerCallback = onConfirm;
+    document.getElementById('modal-danger-msg').textContent = msg;
+    const modal = document.getElementById('modal-danger-confirm');
+    modal.classList.remove('hidden');
+    const btn = document.getElementById('modal-danger-btn-confirm');
+    btn.onclick = () => { const cb = _dangerCallback; closeDangerConfirm(); if (cb) cb(); };
+}
+
+function closeDangerConfirm() {
+    document.getElementById('modal-danger-confirm').classList.add('hidden');
+    _dangerCallback = null;
+}
+
 let agendaView = 'agenda'; // 'agenda' | 'planilha' | 'kanban'
 
 function switchAgendaView(view) {

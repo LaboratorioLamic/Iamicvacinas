@@ -726,10 +726,10 @@ function editReason(i) {
 }
 
 function deleteReason(i) {
-    if(confirm('Excluir este motivo definitivamente?')) {
+    showConfirmDanger('Excluir este motivo definitivamente?', () => {
         cancelReasons.splice(i, 1);
         saveAll(); renderCancelReasons(); showNotification('Motivo excluído', 'success');
-    }
+    });
 }
 
 function saveRecord(e) {

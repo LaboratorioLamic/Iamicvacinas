@@ -99,6 +99,42 @@
 
     <div id="notification-container" class="fixed top-[60px] right-4 z-[9999] space-y-2 pointer-events-none"></div>
 
+    <!-- ══ MODAL CONFIRMAÇÃO EXCLUSÃO ══ -->
+    <div id="modal-danger-confirm" class="hidden fixed inset-0 z-[10000] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeDangerConfirm()"></div>
+        <div class="relative w-full max-w-sm animate-[fadeInScale_.18s_ease-out]">
+            <!-- Glow vermelho atrás do card -->
+            <div class="absolute -inset-1 bg-gradient-to-br from-red-600 to-red-900 rounded-3xl blur-lg opacity-60"></div>
+            <div class="relative bg-gradient-to-br from-red-700 to-red-950 rounded-2xl shadow-2xl border border-red-500/40 overflow-hidden">
+                <!-- Faixa topo -->
+                <div class="h-1.5 w-full bg-gradient-to-r from-red-400 via-red-300 to-red-500"></div>
+                <div class="px-7 pt-7 pb-6">
+                    <!-- Ícone -->
+                    <div class="flex justify-center mb-5">
+                        <div class="w-16 h-16 rounded-full bg-red-500/20 border-2 border-red-400/50 flex items-center justify-center shadow-inner">
+                            <i class="fas fa-trash-alt text-2xl text-red-300"></i>
+                        </div>
+                    </div>
+                    <!-- Título -->
+                    <h3 class="text-center text-white font-black text-lg uppercase tracking-wide mb-2">Atenção</h3>
+                    <!-- Mensagem -->
+                    <p id="modal-danger-msg" class="text-center text-red-200 text-sm font-semibold leading-relaxed mb-7"></p>
+                    <!-- Botões -->
+                    <div class="flex gap-3">
+                        <button onclick="closeDangerConfirm()"
+                            class="flex-1 py-3 rounded-xl text-sm font-black uppercase tracking-wide bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all duration-150">
+                            Cancelar
+                        </button>
+                        <button id="modal-danger-btn-confirm"
+                            class="flex-1 py-3 rounded-xl text-sm font-black uppercase tracking-wide bg-red-500 hover:bg-red-400 active:scale-95 text-white shadow-lg shadow-red-900/60 transition-all duration-150">
+                            <i class="fas fa-trash-alt mr-1.5"></i>Excluir
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="loading-overlay" class="fixed inset-0 bg-[#0f172a] z-[9500] flex items-center justify-center flex-col gap-4">
         <i class="fas fa-syringe text-blue-500 text-5xl" style="animation:pulse 1.5s ease-in-out infinite;"></i>
         <p class="text-white font-black uppercase tracking-[0.3em] text-sm mt-2">Conectando ao servidor...</p>
