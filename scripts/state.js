@@ -85,11 +85,11 @@ let pendingBackupData = null;
 const PERM_LABELS = {
     agendar: 'Visualizar Agendamento', criar_agendamento: 'Agendar', aplicar: 'Aplicar', definir_feriados: 'Definir Feriados',
     adicionar_paciente: 'Adicionar Paciente', editar_paciente: 'Editar Paciente',
-    vacinas_crud: 'Adicionar/Editar Vacinas', lotes_fechar_abrir: 'Fechar/Abrir Lotes',
-    vacinas_ativar: 'Ativar/Desativar Vacinas', baixar_pdf: 'Baixar PDF',
+    leitura_estoque: 'Leitura do Estoque', criar_produtos: 'Criar Produtos',
+    edicao_lotes: 'Edição de Lotes', edicao_movimentacao: 'Edição de Movimentação',
+    baixar_pdf: 'Baixar PDF',
     ver_dashboard: 'Ver Dashboard', ver_dash_financeiro: 'Painel Financeiro', ver_agenda: 'Ver Agenda', ver_tabela: 'Ver Tabela', ver_pacientes: 'Ver Pacientes', ver_vacinas: 'Ver Vacinas', ver_configuracoes: 'Ver Configurações',
     excluir_agendamento: 'Excluir Agendamento', excluir_paciente: 'Excluir Paciente',
-    excluir_vacina: 'Excluir Vacina', excluir_lote: 'Excluir Lote',
     criar_editar_usuarios: 'Criar/Editar Usuários', criar_editar_grupos: 'Criar/Editar Grupos',
     backup: 'Função de Backup', alterar_propria_senha: 'Alterar Própria Senha'
 };

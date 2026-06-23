@@ -78,9 +78,9 @@ function renderVaccines() {
             </td>
             <td class="p-3 text-center">
                 <div class="flex justify-center gap-2">
-                    ${permBtn('vacinas_crud', `<button onclick="editVaccine(${v.id})" class="h-8 w-8 bg-slate-100 hover:bg-clinic-600 hover:text-white rounded transition shadow-sm" title="Editar"><i class="fas fa-pen text-[10px]"></i></button>`)}
-                    ${permBtn('lotes_fechar_abrir', `<button onclick="openLoteModal(${v.id})" class="h-8 w-8 bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white rounded transition shadow-sm" title="Gerenciar Lotes"><i class="fas fa-list-check text-[10px]"></i></button>`)}
-                    ${permBtn('vacinas_ativar', `<button onclick="toggleVaccineStatus(${v.id})" class="h-8 w-8 ${ativo ? 'bg-green-50 text-green-600 hover:bg-green-500' : 'bg-orange-50 text-orange-500 hover:bg-orange-500'} hover:text-white rounded transition shadow-sm" title="${ativo ? 'Desativar' : 'Ativar'}"><i class="fas ${ativo ? 'fa-toggle-on' : 'fa-toggle-off'} text-[10px]"></i></button>`)}
+                    ${permBtn('criar_produtos', `<button onclick="editVaccine(${v.id})" class="h-8 w-8 bg-slate-100 hover:bg-clinic-600 hover:text-white rounded transition shadow-sm" title="Editar"><i class="fas fa-pen text-[10px]"></i></button>`)}
+                    ${permBtn('edicao_lotes', `<button onclick="openLoteModal(${v.id})" class="h-8 w-8 bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white rounded transition shadow-sm" title="Gerenciar Lotes"><i class="fas fa-list-check text-[10px]"></i></button>`)}
+                    ${permBtn('criar_produtos', `<button onclick="toggleVaccineStatus(${v.id})" class="h-8 w-8 ${ativo ? 'bg-green-50 text-green-600 hover:bg-green-500' : 'bg-orange-50 text-orange-500 hover:bg-orange-500'} hover:text-white rounded transition shadow-sm" title="${ativo ? 'Desativar' : 'Ativar'}"><i class="fas ${ativo ? 'fa-toggle-on' : 'fa-toggle-off'} text-[10px]"></i></button>`)}
 
                 </div>
             </td>
@@ -192,7 +192,7 @@ function confirmarFaixaEtaria() {
 }
 
 function openVaccineModal() {
-    if (!checkPerm('vacinas_crud')) return;
+    if (!checkPerm('criar_produtos')) return;
     document.getElementById('vacina-form').reset();
     document.getElementById('vac-id').value = '';
     _esquemas = [];
@@ -203,7 +203,7 @@ function openVaccineModal() {
 }
 
 function editVaccine(id) {
-    if (!checkPerm('vacinas_crud')) return;
+    if (!checkPerm('criar_produtos')) return;
     const v = vaccines.find(x=>x.id==id); if(!v) return;
     document.getElementById('vac-id').value = v.id;
     document.getElementById('vac-nome').value = v.nome;
@@ -219,7 +219,7 @@ function editVaccine(id) {
     renderEsquemas();
     const btnDel = document.getElementById('btn-delete-vacina');
     if (btnDel) {
-        const canDel = isCurrentUserAdmin() || hasPerm('excluir_vacina');
+        const canDel = isCurrentUserAdmin() || hasPerm('criar_produtos');
         const inUse = appointments.some(a => a.vaccineId == id);
         btnDel.classList.toggle('hidden', !canDel || inUse);
     }
@@ -267,7 +267,7 @@ function saveVaccine(e) {
 }
 
 function toggleVaccineStatus(id) {
-    if (!checkPerm('vacinas_ativar')) return;
+    if (!checkPerm('criar_produtos')) return;
     const idx = vaccines.findIndex(x => x.id == id);
     if(idx < 0) return;
     const wasAtivo = vaccines[idx].ativo !== false;
@@ -277,7 +277,7 @@ function toggleVaccineStatus(id) {
 }
 
 function deleteVaccine(id) {
-    if (!checkPerm('excluir_vacina')) return;
+    if (!checkPerm('criar_produtos')) return;
     const v = vaccines.find(x => x.id == id);
     if(!v) return;
     const inUse = appointments.some(a => a.vaccineId == id);
@@ -346,10 +346,10 @@ function renderLoteLists() {
             </div>
             <div class="flex gap-2" onclick="event.stopPropagation()">
                 ${isAberto
-                    ? permBtn('lotes_fechar_abrir', `<button onclick="toggleLoteStatus(${l.id},'fechado')" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black hover:bg-slate-200 transition" title="Fechar lote"><i class="fas fa-lock mr-1"></i>Fechar</button>`)
-                    : permBtn('lotes_fechar_abrir', `<button onclick="toggleLoteStatus(${l.id},'aberto')" class="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-[10px] font-black hover:bg-green-100 transition" title="Abrir lote"><i class="fas fa-lock-open mr-1"></i>Abrir</button>`)
+                    ? permBtn('edicao_lotes', `<button onclick="toggleLoteStatus(${l.id},'fechado')" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black hover:bg-slate-200 transition" title="Fechar lote"><i class="fas fa-lock mr-1"></i>Fechar</button>`)
+                    : permBtn('edicao_lotes', `<button onclick="toggleLoteStatus(${l.id},'aberto')" class="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-[10px] font-black hover:bg-green-100 transition" title="Abrir lote"><i class="fas fa-lock-open mr-1"></i>Abrir</button>`)
                 }
-                ${!emUso ? permBtn('excluir_lote', `<button onclick="deleteLote(${l.id})" class="h-7 w-7 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-[10px] flex items-center justify-center transition"><i class="fas fa-trash"></i></button>`) : ''}
+                ${!emUso ? permBtn('edicao_lotes', `<button onclick="deleteLote(${l.id})" class="h-7 w-7 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-[10px] flex items-center justify-center transition"><i class="fas fa-trash"></i></button>`) : ''}
             </div>
         </div>`;
     }
@@ -361,29 +361,33 @@ function renderLoteLists() {
 }
 
 function addLote() {
-    if (!checkPerm('lotes_fechar_abrir')) return;
+    if (!checkPerm('edicao_lotes')) return;
     const numero = document.getElementById('novo-lote-numero').value.trim().toUpperCase();
     const validade = document.getElementById('novo-lote-validade').value;
     const quantidade = parseInt(document.getElementById('novo-lote-qtd').value, 10) || 0;
+    const fornecedor = document.getElementById('novo-lote-fornecedor').value.trim();
+    const nota = document.getElementById('novo-lote-nota').value.trim();
     if (!numero || !validade) { showNotification('Informe o número do lote e a validade.', 'error'); return; }
     if (quantidade <= 0) { showNotification('Informe a quantidade inicial do lote (maior que zero).', 'error'); return; }
     if (!currentLoteModalVaccineId) return;
     const newId = Date.now();
-    const novoLote = { id: newId, vaccineId: currentLoteModalVaccineId, numero, validade, status: 'aberto' };
+    const novoLote = { id: newId, vaccineId: currentLoteModalVaccineId, numero, validade, status: 'aberto', fornecedor, nota };
     vaccineLots.push(novoLote);
     stockMovements.push({ id: newId + 1, loteId: newId, vaccineId: currentLoteModalVaccineId, tipo: 'entrada', qtd: quantidade, motivo: 'Cadastro inicial', descarte: false, data: new Date().toISOString(), usuario: currentUser ? currentUser.nome : '—' });
     const vacLote = vaccines.find(v => v.id == currentLoteModalVaccineId);
-    logAudit('Criado', 'lote', String(currentLoteModalVaccineId), `Lote ${numero}`, `Vacina: ${vacLote ? vacLote.nome : '—'} | Validade: ${validade} | Qtd inicial: ${quantidade}`);
+    logAudit('Criado', 'lote', String(currentLoteModalVaccineId), `Lote ${numero}`, `Vacina: ${vacLote ? vacLote.nome : '—'} | Validade: ${validade} | Qtd inicial: ${quantidade}${fornecedor ? ' | Fornecedor: ' + fornecedor : ''}${nota ? ' | NF: ' + nota : ''}`);
     document.getElementById('novo-lote-numero').value = '';
     document.getElementById('novo-lote-validade').value = '';
     document.getElementById('novo-lote-qtd').value = '';
+    document.getElementById('novo-lote-fornecedor').value = '';
+    document.getElementById('novo-lote-nota').value = '';
     saveAll(); renderLoteLists(); updateExpiryBadge();
     if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
     showNotification('Lote cadastrado com sucesso!', 'success');
 }
 
 function toggleLoteStatus(loteId, newStatus) {
-    if (!checkPerm('lotes_fechar_abrir')) return;
+    if (!checkPerm('edicao_lotes')) return;
     if (newStatus === 'fechado') {
         const lote = vaccineLots.find(l => l.id == loteId);
         const vac  = lote ? vaccines.find(v => v.id == lote.vaccineId) : null;
@@ -410,7 +414,7 @@ function toggleLoteStatus(loteId, newStatus) {
 }
 
 function deleteLote(loteId) {
-    if (!checkPerm('excluir_lote')) return;
+    if (!checkPerm('edicao_lotes')) return;
     showConfirmDanger('Excluir este lote definitivamente?', () => {
         const lote = vaccineLots.find(l => l.id == loteId);
         const vacLote = lote ? vaccines.find(v => v.id == lote.vaccineId) : null;
@@ -437,7 +441,7 @@ function _refreshViewLoteHeader() {
     header.className = `p-5 text-white shrink-0 ${vencido ? 'bg-gradient-to-br from-red-700 to-red-900' : vencendo ? 'bg-gradient-to-br from-amber-500 to-amber-700' : l.status === 'aberto' ? 'bg-gradient-to-br from-indigo-600 to-indigo-900' : 'bg-gradient-to-br from-slate-600 to-slate-800'}`;
     // botão toggle
     const btn = document.getElementById('view-lote-btn-toggle');
-    const canToggle = isCurrentUserAdmin() || hasPerm('lotes_fechar_abrir');
+    const canToggle = isCurrentUserAdmin() || hasPerm('edicao_lotes');
     if (btn) {
         btn.classList.toggle('hidden', !canToggle);
         if (l.status === 'aberto') {
@@ -472,6 +476,22 @@ function editLote(loteId) {
 
     document.getElementById('view-lote-numero').textContent = l.numero || '—';
     document.getElementById('view-lote-vacina').textContent = v ? v.nome : '—';
+
+    const fornRow = document.getElementById('view-lote-fornecedor-row');
+    const notaRow = document.getElementById('view-lote-nota-row');
+    if (l.fornecedor) {
+        document.getElementById('view-lote-fornecedor').textContent = l.fornecedor;
+        fornRow.classList.remove('hidden');
+    } else {
+        fornRow.classList.add('hidden');
+    }
+    if (l.nota) {
+        document.getElementById('view-lote-nota').textContent = l.nota;
+        notaRow.classList.remove('hidden');
+    } else {
+        notaRow.classList.add('hidden');
+    }
+
     document.getElementById('view-lote-disp').textContent = est.disponivel;
     document.getElementById('view-lote-reserv').textContent = est.reservado;
     document.getElementById('view-lote-saida').textContent = est.aplicado + est.saidaManual;
@@ -482,11 +502,11 @@ function editLote(loteId) {
 
     // botão excluir: só sem movimentações e agendamentos
     const hasMov = stockMovements.some(m => m.loteId == loteId) || appointments.some(a => a.loteId == loteId);
-    const canDel = isCurrentUserAdmin() || hasPerm('excluir_lote');
+    const canDel = isCurrentUserAdmin() || hasPerm('edicao_lotes');
     document.getElementById('view-lote-btn-excluir').classList.toggle('hidden', !canDel || hasMov);
 
     // botão editar
-    const canEdit = isCurrentUserAdmin() || hasPerm('lotes_fechar_abrir');
+    const canEdit = isCurrentUserAdmin() || hasPerm('edicao_lotes');
     document.getElementById('view-lote-btn-editar').classList.toggle('hidden', !canEdit);
 
     setViewLoteFilter('ambos');
@@ -567,7 +587,7 @@ function renderViewLoteMov() {
     };
 
     const canEditApt = isCurrentUserAdmin() || hasPerm('agendar') || hasPerm('criar_agendamento');
-    const canEditMov = isCurrentUserAdmin() || hasPerm('lotes_fechar_abrir');
+    const canEditMov = isCurrentUserAdmin() || hasPerm('edicao_movimentacao');
 
     const cardsHtml = paginated.map(ev => {
         const cfg = subtipoCfg[ev._subtipo] || subtipoCfg.ajuste;
@@ -623,7 +643,7 @@ function renderViewLoteMov() {
 }
 
 function toggleLoteFromView() {
-    if (!checkPerm('lotes_fechar_abrir')) return;
+    if (!checkPerm('edicao_lotes')) return;
     const l = vaccineLots.find(x => x.id == _viewLoteId);
     if (!l) return;
     const novoStatus = l.status === 'aberto' ? 'fechado' : 'aberto';
@@ -671,6 +691,8 @@ function editLoteFromView() {
     document.getElementById('edit-lote-id').value = l.id;
     document.getElementById('edit-lote-numero').value = l.numero;
     document.getElementById('edit-lote-validade').value = l.validade;
+    document.getElementById('edit-lote-fornecedor').value = l.fornecedor || '';
+    document.getElementById('edit-lote-nota').value = l.nota || '';
     document.getElementById('modal-edit-lote').classList.add('active');
 }
 
@@ -736,13 +758,17 @@ function salvarEdicaoLote() {
     const id = document.getElementById('edit-lote-id').value;
     const numero = document.getElementById('edit-lote-numero').value.trim().toUpperCase();
     const validade = document.getElementById('edit-lote-validade').value;
+    const fornecedor = document.getElementById('edit-lote-fornecedor').value.trim();
+    const nota = document.getElementById('edit-lote-nota').value.trim();
     if (!numero || !validade) { showNotification('Preencha o número e a validade.', 'error'); return; }
     const idx = vaccineLots.findIndex(l => l.id == id);
     if (idx === -1) return;
     const old = {...vaccineLots[idx]};
     vaccineLots[idx].numero = numero;
     vaccineLots[idx].validade = validade;
-    logAudit('Editado', 'lote', String(vaccineLots[idx].vaccineId), `Lote ${numero}`, `Número: ${old.numero}→${numero} | Validade: ${old.validade}→${validade}`);
+    vaccineLots[idx].fornecedor = fornecedor;
+    vaccineLots[idx].nota = nota;
+    logAudit('Editado', 'lote', String(vaccineLots[idx].vaccineId), `Lote ${numero}`, `Número: ${old.numero}→${numero} | Validade: ${old.validade}→${validade}${fornecedor !== (old.fornecedor||'') ? ' | Fornecedor: →' + fornecedor : ''}${nota !== (old.nota||'') ? ' | NF: →' + nota : ''}`);
     saveAll(); renderLoteLists(); updateExpiryBadge();
     document.getElementById('modal-edit-lote').classList.remove('active');
     showNotification('Lote atualizado com sucesso!', 'success');

@@ -150,7 +150,7 @@ function applyPermissions() {
     const canCfg     = admin || hasPerm('ver_configuracoes');
     const canAgendar = admin || hasPerm('criar_agendamento');
     const canPac     = admin || hasPerm('adicionar_paciente');
-    const canVac     = admin || hasPerm('vacinas_crud');
+    const canVac     = admin || hasPerm('criar_produtos');
     const canPdf     = admin || hasPerm('baixar_pdf');
 
     // Sub-views de agenda — Planilha/Kanban requerem ver_tabela
@@ -223,6 +223,24 @@ function applyPermissions() {
     if (el('btn-novo-paciente'))  el('btn-novo-paciente').style.display  = canPac     ? '' : 'none';
     if (el('fab-nova-vacina'))    el('fab-nova-vacina').style.display    = canVac     ? '' : 'none';
     if (el('btn-pdf-prontuario')) el('btn-pdf-prontuario').style.display = canPdf     ? '' : 'none';
+
+    // Módulos do almoxarifado — oculta botões de nav sem permissão
+    const canEstoque  = admin || hasPerm('leitura_estoque') || hasPerm('criar_produtos') || hasPerm('edicao_lotes') || hasPerm('edicao_movimentacao');
+    const canProdutos = admin || hasPerm('criar_produtos');
+    const canLotes    = admin || hasPerm('edicao_lotes');
+    const canMov      = admin || hasPerm('edicao_movimentacao');
+    if (el('alm-btn-estoque'))      el('alm-btn-estoque').style.display      = canEstoque  ? '' : 'none';
+    if (el('alm-btn-produtos'))     el('alm-btn-produtos').style.display     = canProdutos ? '' : 'none';
+    if (el('alm-btn-lotes'))        el('alm-btn-lotes').style.display        = canLotes    ? '' : 'none';
+    if (el('alm-btn-movimentacao')) el('alm-btn-movimentacao').style.display = canMov      ? '' : 'none';
+    // Redireciona para primeiro módulo permitido se o atual ficou oculto
+    if (typeof almoxModulo !== 'undefined') {
+        const moduloOk = { estoque: canEstoque, produtos: canProdutos, lotes: canLotes, movimentacao: canMov };
+        if (!moduloOk[almoxModulo]) {
+            const primeiro = ['estoque','produtos','lotes','movimentacao'].find(m => moduloOk[m]);
+            if (primeiro) switchAlmoxModulo(primeiro);
+        }
+    }
 
     // Botão "Agendar neste dia" no modal do dia
     const btnDia = el('btn-agendar-dia');

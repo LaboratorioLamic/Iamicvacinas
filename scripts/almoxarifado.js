@@ -518,8 +518,8 @@ function renderAlmoxLotes() {
             </td>
             <td class="p-3 text-center" onclick="event.stopPropagation()">
                 <div class="flex justify-center gap-1.5">
-                    ${permBtn('lotes_fechar_abrir', `<button onclick="openMovimentacaoEntrada(${lote.id})" class="h-8 w-8 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded transition shadow-sm" title="Registrar entrada"><i class="fas fa-arrow-down text-[10px]"></i></button>`)}
-                    ${permBtn('lotes_fechar_abrir', `<button onclick="openMovimentacaoSaida(${lote.id})" class="h-8 w-8 bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white rounded transition shadow-sm" title="Registrar saída / descarte"><i class="fas fa-arrow-up text-[10px]"></i></button>`)}
+                    ${permBtn('edicao_movimentacao', `<button onclick="openMovimentacaoEntrada(${lote.id})" class="h-8 w-8 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded transition shadow-sm" title="Registrar entrada"><i class="fas fa-arrow-down text-[10px]"></i></button>`)}
+                    ${permBtn('edicao_movimentacao', `<button onclick="openMovimentacaoSaida(${lote.id})" class="h-8 w-8 bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white rounded transition shadow-sm" title="Registrar saída / descarte"><i class="fas fa-arrow-up text-[10px]"></i></button>`)}
                 </div>
             </td>
         </tr>`;
@@ -529,7 +529,7 @@ function renderAlmoxLotes() {
 let _fabLoteVaccines = [];
 
 function openAddLoteModal() {
-    if (!checkPerm('lotes_fechar_abrir')) return;
+    if (!checkPerm('edicao_lotes')) return;
     _fabLoteVaccines = vaccines.filter(v => v.ativo !== false).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     document.getElementById('fab-lote-vaccine-search').value = '';
     document.getElementById('fab-lote-vaccine').value = '';
@@ -586,17 +586,21 @@ function salvarFabLote() {
     const numero = document.getElementById('fab-lote-numero').value.trim().toUpperCase();
     const validade = document.getElementById('fab-lote-validade').value;
     const qtd = parseInt(document.getElementById('fab-lote-qtd').value) || 0;
+    const fornecedor = document.getElementById('fab-lote-fornecedor').value.trim();
+    const nota = document.getElementById('fab-lote-nota').value.trim();
     if (!numero || !validade) { showNotification('Preencha número e validade.', 'error'); return; }
     const newId = Date.now();
-    const novoLote = { id: newId, vaccineId, numero, validade, status: 'aberto' };
+    const novoLote = { id: newId, vaccineId, numero, validade, status: 'aberto', fornecedor, nota };
     vaccineLots.push(novoLote);
     if (qtd > 0) {
         stockMovements.push({ id: Date.now() + 1, loteId: newId, vaccineId: vaccineId, tipo: 'entrada', qtd: qtd, motivo: 'Cadastro inicial', descarte: false, data: new Date().toISOString(), usuario: currentUser ? currentUser.nome : '—' });
     }
     const v = vaccines.find(x => x.id == vaccineId);
-    logAudit('Criado', 'lote', String(vaccineId), `Lote ${numero}`, `Vacina: ${v ? v.nome : vaccineId} | Validade: ${validade} | Qtd: ${qtd}`);
+    logAudit('Criado', 'lote', String(vaccineId), `Lote ${numero}`, `Vacina: ${v ? v.nome : vaccineId} | Validade: ${validade} | Qtd: ${qtd}${fornecedor ? ' | Fornecedor: ' + fornecedor : ''}${nota ? ' | NF: ' + nota : ''}`);
     saveAll(); renderAlmoxLotes(); updateExpiryBadge();
     document.getElementById('modal-add-lote-fab').classList.remove('active');
+    document.getElementById('fab-lote-fornecedor').value = '';
+    document.getElementById('fab-lote-nota').value = '';
     refreshVaccineViewModal(vaccineId);
     showNotification('Lote cadastrado com sucesso!', 'success');
 }
@@ -655,8 +659,8 @@ function renderMovimentacao() {
         const acoes = isAuto
             ? `<button onclick="editRecord(${m.appointmentId})" class="h-8 w-8 bg-slate-50 text-slate-400 hover:bg-clinic-50 hover:text-clinic-600 border border-slate-200 rounded transition shadow-sm flex items-center justify-center mx-auto" title="Ver agendamento"><i class="fas fa-eye text-[10px]"></i></button>`
             : `<div class="flex justify-center gap-1.5">
-                ${permBtn('lotes_fechar_abrir', `<button onclick="openEditMovModal(${m.id})" class="h-8 w-8 bg-slate-100 text-slate-600 hover:bg-clinic-600 hover:text-white rounded transition shadow-sm" title="Editar"><i class="fas fa-pen text-[10px]"></i></button>`)}
-                ${permBtn('lotes_fechar_abrir', `<button onclick="deleteMovimentacao(${m.id})" class="h-8 w-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded transition shadow-sm" title="Excluir"><i class="fas fa-trash text-[10px]"></i></button>`)}
+                ${permBtn('edicao_movimentacao', `<button onclick="openEditMovModal(${m.id})" class="h-8 w-8 bg-slate-100 text-slate-600 hover:bg-clinic-600 hover:text-white rounded transition shadow-sm" title="Editar"><i class="fas fa-pen text-[10px]"></i></button>`)}
+                ${permBtn('edicao_movimentacao', `<button onclick="deleteMovimentacao(${m.id})" class="h-8 w-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded transition shadow-sm" title="Excluir"><i class="fas fa-trash text-[10px]"></i></button>`)}
                </div>`;
         return `<tr class="hover:bg-slate-50 transition">
             <td class="p-3 text-xs text-slate-500 font-bold whitespace-nowrap">${dataStr}</td>
@@ -675,7 +679,7 @@ function openMovimentacaoEntrada(loteId) { openMovModal('entrada', loteId); }
 function openMovimentacaoSaida(loteId)   { openMovModal('saida', loteId); }
 
 function openMovModal(tipo, loteId) {
-    if (!checkPerm('lotes_fechar_abrir')) return;
+    if (!checkPerm('edicao_movimentacao')) return;
     _movPendingTipo = tipo;
     _movPendingLoteId = loteId || null;
     _movSaidaDescarte = false;
@@ -873,7 +877,7 @@ function confirmMovimentacao(e) {
 }
 
 function openEditMovModal(movId) {
-    if (!checkPerm('lotes_fechar_abrir')) return;
+    if (!checkPerm('edicao_movimentacao')) return;
     const m = stockMovements.find(x => x.id == movId);
     if (!m) return;
     const lote = vaccineLots.find(l => l.id == m.loteId);
@@ -941,7 +945,7 @@ function salvarEdicaoMov() {
 let _pendingDeleteMovId = null;
 
 function deleteMovimentacao(movId) {
-    if (!checkPerm('lotes_fechar_abrir')) return;
+    if (!checkPerm('edicao_movimentacao')) return;
     const m = stockMovements.find(x => x.id == movId);
     if (!m) return;
     const lote  = vaccineLots.find(l => l.id == m.loteId);
@@ -1221,8 +1225,8 @@ function renderVVMovs() {
         const acoesBtns = isAuto
             ? `<button onclick="editRecord(${m.appointmentId})" class="h-7 w-7 bg-slate-50 border border-slate-200 text-slate-400 hover:text-clinic-600 rounded-lg flex items-center justify-center transition" title="Ver agendamento"><i class="fas fa-eye text-[10px]"></i></button>`
             : `<div class="flex gap-1">
-                ${permBtn('lotes_fechar_abrir', `<button onclick="openEditMovModal(${m.id})" class="h-7 w-7 bg-slate-100 text-slate-600 hover:bg-clinic-600 hover:text-white rounded-lg flex items-center justify-center transition" title="Editar"><i class="fas fa-pen text-[10px]"></i></button>`)}
-                ${permBtn('lotes_fechar_abrir', `<button onclick="deleteMovimentacao(${m.id})" class="h-7 w-7 bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-lg flex items-center justify-center transition" title="Excluir"><i class="fas fa-trash text-[10px]"></i></button>`)}
+                ${permBtn('edicao_movimentacao', `<button onclick="openEditMovModal(${m.id})" class="h-7 w-7 bg-slate-100 text-slate-600 hover:bg-clinic-600 hover:text-white rounded-lg flex items-center justify-center transition" title="Editar"><i class="fas fa-pen text-[10px]"></i></button>`)}
+                ${permBtn('edicao_movimentacao', `<button onclick="deleteMovimentacao(${m.id})" class="h-7 w-7 bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-lg flex items-center justify-center transition" title="Excluir"><i class="fas fa-trash text-[10px]"></i></button>`)}
                </div>`;
         return `<div class="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition">
             <div class="shrink-0">${tipoBadge}</div>
@@ -1244,7 +1248,7 @@ function renderVVMovs() {
 }
 
 function openAddLoteFromVaccineView() {
-    if (!checkPerm('lotes_fechar_abrir')) return;
+    if (!checkPerm('edicao_lotes')) return;
     const v = vaccines.find(x => x.id == _vvVaccineId);
     if (!v) return;
     _fabLoteVaccines = vaccines.filter(x => x.ativo !== false).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));

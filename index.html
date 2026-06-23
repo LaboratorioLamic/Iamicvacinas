@@ -1861,6 +1861,7 @@
                 <button onclick="document.getElementById('modal-add-lote-fab').classList.remove('active')" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition"><i class="fas fa-times text-xl"></i></button>
             </div>
             <div class="p-5 space-y-3">
+                <!-- 1. Vacina -->
                 <div class="relative">
                     <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Vacina</label>
                     <input type="text" id="fab-lote-vaccine-search" autocomplete="off" placeholder="Digite para buscar vacina..."
@@ -1869,17 +1870,32 @@
                     <input type="hidden" id="fab-lote-vaccine">
                     <div id="fab-lote-vaccine-dropdown" class="hidden absolute z-10 w-full bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto"></div>
                 </div>
+                <!-- 2. Lote -->
                 <div>
                     <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Nº do Lote</label>
                     <input type="text" id="fab-lote-numero" placeholder="Ex: AB1234" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 uppercase font-bold">
                 </div>
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Validade</label>
-                    <input type="date" id="fab-lote-validade" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                <!-- 3. Fornecedor / N° Nota -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Fornecedor</label>
+                        <input type="text" id="fab-lote-fornecedor" placeholder="Nome do fornecedor" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">N° Nota</label>
+                        <input type="text" id="fab-lote-nota" placeholder="Nº da nota fiscal" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold">
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Quantidade Inicial</label>
-                    <input type="number" id="fab-lote-qtd" min="1" placeholder="0" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-center">
+                <!-- 4. Validade / Quantidade Inicial -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Validade</label>
+                        <input type="date" id="fab-lote-validade" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Qtd. Inicial</label>
+                        <input type="number" id="fab-lote-qtd" min="1" placeholder="0" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-center">
+                    </div>
                 </div>
                 <div class="flex gap-3 pt-1">
                     <button onclick="salvarFabLote()" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-black text-xs uppercase hover:bg-indigo-700 transition shadow"><i class="fas fa-save mr-1"></i>Salvar</button>
@@ -1914,11 +1930,15 @@
             <!-- Cadastro de novo lote -->
             <div class="p-4 bg-blue-50 border-b border-blue-100 shrink-0">
                 <p class="text-[10px] font-black text-blue-700 uppercase mb-2"><i class="fas fa-plus-circle mr-1"></i> Cadastrar Novo Lote</p>
-                <div class="flex gap-2">
+                <div class="flex gap-2 mb-2">
                     <input type="text" id="novo-lote-numero" placeholder="Nº do lote..." class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase font-bold">
                     <input type="date" id="novo-lote-validade" class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                     <input type="number" id="novo-lote-qtd" min="1" placeholder="Qtd." title="Quantidade inicial recebida" class="w-20 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-bold text-center">
                     <button onclick="addLote()" class="bg-blue-500 text-white px-4 py-2 rounded-lg font-black uppercase text-xs hover:bg-blue-600 transition shadow-sm flex items-center gap-1"><i class="fas fa-plus"></i> Add</button>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="novo-lote-fornecedor" placeholder="Fornecedor" class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-bold">
+                    <input type="text" id="novo-lote-nota" placeholder="N° Nota Fiscal" class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-bold">
                 </div>
             </div>
             <!-- Lista de lotes (limite visual ~5 itens) -->
@@ -2223,6 +2243,10 @@
                             <p class="text-[10px] text-indigo-200 font-black uppercase tracking-widest">Lote</p>
                             <h3 id="view-lote-numero" class="font-black text-xl tracking-tight leading-tight font-mono">—</h3>
                             <p id="view-lote-vacina" class="text-indigo-200 text-xs font-bold mt-0.5">—</p>
+                            <div id="view-lote-fornecedor-row" class="hidden flex items-center gap-3 mt-1.5">
+                                <span class="text-[10px] text-white/60 font-black uppercase tracking-widest"><i class="fas fa-truck mr-1"></i><span id="view-lote-fornecedor"></span></span>
+                                <span id="view-lote-nota-row" class="hidden text-[10px] text-white/60 font-black uppercase tracking-widest"><i class="fas fa-file-invoice mr-1"></i>NF <span id="view-lote-nota"></span></span>
+                            </div>
                         </div>
                     </div>
                     <button onclick="document.getElementById('modal-view-lote').classList.remove('active')" class="h-8 w-8 rounded-full hover:bg-white/15 flex justify-center items-center transition shrink-0"><i class="fas fa-times"></i></button>
@@ -2288,6 +2312,16 @@
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Validade</label>
                     <input type="date" id="edit-lote-validade" class="w-full border border-slate-200 rounded-xl py-2 px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-clinic-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Fornecedor</label>
+                        <input type="text" id="edit-lote-fornecedor" class="w-full border border-slate-200 rounded-xl py-2 px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-clinic-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">N° Nota</label>
+                        <input type="text" id="edit-lote-nota" class="w-full border border-slate-200 rounded-xl py-2 px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-clinic-500">
+                    </div>
                 </div>
             </div>
             <div class="flex gap-3">
@@ -2613,13 +2647,20 @@
                                             <p class="text-[9px] font-black text-purple-700 uppercase tracking-widest mb-2 flex items-center gap-1.5 bg-purple-50 rounded-lg px-2 py-1"><i class="fas fa-vial"></i> Vacinas</p>
                                             <div class="space-y-2 pl-2">
                                                 <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-purple-600" value="vacinas_crud"> Adicionar/Editar Vacinas Cadastradas
+                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-purple-600" value="leitura_estoque"> Leitura do Estoque
+                                                    <span class="text-[10px] text-slate-400 font-normal">(visualiza estoque, sem lotes/movimentação)</span>
                                                 </label>
                                                 <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-purple-600" value="lotes_fechar_abrir"> Fechar/Abrir Lotes
+                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-purple-600" value="criar_produtos"> Criar Produtos
+                                                    <span class="text-[10px] text-slate-400 font-normal">(acesso à aba de produtos, editar/excluir/adicionar)</span>
                                                 </label>
                                                 <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-purple-600" value="vacinas_ativar"> Ativar/Desativar Vacinas
+                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-purple-600" value="edicao_lotes"> Edição de Lotes
+                                                    <span class="text-[10px] text-slate-400 font-normal">(visualiza aba de lotes, editar e excluir)</span>
+                                                </label>
+                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
+                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-purple-600" value="edicao_movimentacao"> Edição de Movimentação
+                                                    <span class="text-[10px] text-slate-400 font-normal">(visualiza movimentação, entradas/saídas manuais e edição)</span>
                                                 </label>
                                             </div>
                                         </div>
@@ -2673,12 +2714,6 @@
                                                 </label>
                                                 <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
                                                     <input type="checkbox" class="perm-check h-4 w-4 rounded accent-red-600" value="excluir_paciente"> Excluir Paciente
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-red-600" value="excluir_vacina"> Excluir Vacina
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-red-600" value="excluir_lote"> Excluir Lote
                                                 </label>
                                             </div>
                                         </div>
