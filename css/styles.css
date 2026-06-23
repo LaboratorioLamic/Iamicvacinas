@@ -67,3 +67,160 @@ input[type="month"]::-webkit-calendar-picker-indicator { width: 100%; height: 10
 
 /* From line 139 — loading bar animation */
 @keyframes ldbar{0%{width:0%}50%{width:100%}100%{width:0%}}
+
+/* ── FAB Novo Agendamento ────────────────────────────────── */
+.fab-agenda {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 400;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1d4ed8, #1e3a8a);
+    color: #fff;
+    font-size: 22px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(29,78,216,0.45), 0 2px 6px rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.18s, opacity 0.15s;
+}
+.fab-agenda:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 28px rgba(29,78,216,0.55), 0 3px 10px rgba(0,0,0,0.3);
+}
+.fab-agenda:active { transform: scale(0.95); }
+.fab-agenda.hidden { display: none !important; }
+
+body.lite-mode .fab-agenda { transition: none !important; }
+
+/* ── Modo Leve ─────────────────────────────────────────── */
+/* Toggle button */
+.lite-mode-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.2s;
+    text-align: left;
+}
+.lite-mode-btn:hover { background: rgba(255,255,255,0.08); }
+
+/* Track */
+.lite-toggle-track {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.2);
+    transition: background 0.3s, border-color 0.3s;
+    flex-shrink: 0;
+}
+.lite-mode-btn.active .lite-toggle-track {
+    background: #34d399;
+    border-color: #10b981;
+    box-shadow: 0 0 8px rgba(52,211,153,0.5);
+}
+
+/* Thumb */
+.lite-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+.lite-mode-btn.active .lite-toggle-thumb { transform: translateX(16px); }
+
+/* Icon pulse on activate */
+.lite-mode-icon {
+    font-size: 14px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+    color: #94a3b8;
+    transition: color 0.3s;
+}
+.lite-mode-btn.active .lite-mode-icon { color: #34d399; }
+
+/* Labels */
+.lite-mode-label-wrap {
+    flex: 1;
+    overflow: hidden;
+}
+.lite-mode-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    white-space: nowrap;
+    transition: color 0.3s;
+}
+.lite-mode-btn.active .lite-mode-label { color: #6ee7b7; }
+.lite-mode-sublabel {
+    display: block;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #475569;
+    white-space: nowrap;
+    margin-top: 1px;
+}
+
+/* ── Modo Leve: remove animações e efeitos pesados ── */
+body.lite-mode *,
+body.lite-mode *::before,
+body.lite-mode *::after {
+    animation: none !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition: none !important;
+    transition-duration: 0.01ms !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+}
+/* Mantém indicador de aba ativa na sidebar */
+body.lite-mode .sidebar-nav-btn.active {
+    box-shadow: inset 3px 0 0 #3b82f6 !important;
+}
+body.lite-mode .glass-card {
+    background: rgba(255,255,255,0.97) !important;
+}
+body.lite-mode #app-sidebar {
+    box-shadow: 2px 0 8px rgba(0,0,0,0.3) !important;
+    transition: none !important;
+}
+body.lite-mode .app-topbar {
+    box-shadow: none !important;
+    border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+    background: #0f172a !important;
+}
+body.lite-mode .notification {
+    transform: none !important;
+}
+/* mantém toggle animado no modo leve */
+body.lite-mode .lite-toggle-thumb {
+    transition: transform 0.15s ease !important;
+}
+body.lite-mode .lite-toggle-track {
+    transition: background 0.15s ease !important;
+}

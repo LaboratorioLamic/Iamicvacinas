@@ -1,5 +1,26 @@
 // ─── UI / NAVIGATION FUNCTIONS ───────────────────────────────────────────────
 
+// ── Modo Leve ────────────────────────────────────────────────────────────────
+function toggleLiteMode() {
+    const isActive = document.body.classList.toggle('lite-mode');
+    const btn = document.getElementById('lite-mode-toggle');
+    btn.classList.toggle('active', isActive);
+    try { localStorage.setItem('lite-mode', isActive ? '1' : '0'); } catch(e) {}
+}
+
+function initLiteMode() {
+    try {
+        if (localStorage.getItem('lite-mode') === '1') {
+            document.body.classList.add('lite-mode');
+            const btn = document.getElementById('lite-mode-toggle');
+            if (btn) btn.classList.add('active');
+        }
+    } catch(e) {}
+}
+
+document.addEventListener('DOMContentLoaded', initLiteMode);
+// ─────────────────────────────────────────────────────────────────────────────
+
 let _dangerCallback = null;
 
 function showConfirmDanger(msg, onConfirm) {
@@ -73,7 +94,7 @@ function switchTab(tab) {
     if (mainEl) mainEl.style.overflow = tab === 'vacinas' ? 'hidden' : '';
 
     // FAB agendar: visível apenas na aba agenda
-    const fabAgendar = document.getElementById('fab-agendar');
+    const fabAgendar = document.getElementById('fab-novo-agendamento');
     if (fabAgendar) fabAgendar.classList.toggle('hidden', tab !== 'agenda');
 
     if(tab === 'dashboard') renderDashboard();

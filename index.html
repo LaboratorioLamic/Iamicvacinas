@@ -188,6 +188,18 @@
 
         <!-- User Footer -->
         <div class="border-t border-white/10 px-3 py-4 shrink-0 space-y-2">
+            <!-- Botão Modo Leve -->
+            <button id="lite-mode-toggle" onclick="toggleLiteMode()" class="lite-mode-btn" title="Modo Leve: desativa animações para melhor desempenho">
+                <i class="fas fa-bolt lite-mode-icon"></i>
+                <div class="sidebar-label lite-mode-label-wrap">
+                    <span class="lite-mode-label">Modo Leve</span>
+                    <span class="lite-mode-sublabel">Desempenho</span>
+                </div>
+                <div class="lite-toggle-track">
+                    <div class="lite-toggle-thumb"></div>
+                </div>
+            </button>
+
             <button onclick="openMeuPerfil()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/10 transition-all text-left">
                 <i class="fas fa-user-circle text-clinic-400 text-lg w-5 text-center shrink-0"></i>
                 <div class="sidebar-label overflow-hidden">
@@ -202,6 +214,12 @@
         </div>
     </aside>
     <!-- ══════════════════════════════════════════════════ -->
+
+    <!-- ══════════════════ FAB NOVO AGENDAMENTO ══════════════════ -->
+    <button id="fab-novo-agendamento" onclick="openRecordModal()" class="fab-agenda hidden" title="Novo Agendamento">
+        <i class="fas fa-plus"></i>
+    </button>
+    <!-- ══════════════════════════════════════════════════════════ -->
 
     <!-- ══════════════════ TOPBAR ══════════════════ -->
     <header class="app-topbar fixed top-0 left-0 right-0 h-14 z-[150] flex items-center px-4 gap-4" style="background:rgba(15,23,42,0.97);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.07);box-shadow:0 2px 20px rgba(0,0,0,0.4);">
@@ -542,7 +560,7 @@
                             <button id="btn-cal-semanal" onclick="switchCalView('semanal')" class="px-3 h-8 rounded-lg text-xs font-black uppercase tracking-wider transition text-slate-500 hover:bg-white">Semanal</button>
                         </div>
                         <!-- Navegação de período -->
-                        <div class="relative flex items-center gap-2 bg-slate-100 p-1 rounded-xl shadow-sm border border-slate-200" style="z-index:1000;">
+                        <div class="relative flex items-center gap-2 bg-slate-100 p-1 rounded-xl shadow-sm border border-slate-200">
                             <button onclick="calNavPrev()" class="h-8 w-8 bg-white hover:bg-slate-200 rounded-lg flex items-center justify-center font-bold shadow-sm transition"><i class="fas fa-chevron-left text-xs"></i></button>
                             <div class="relative">
                                 <button onclick="toggleMonthYearPicker()" class="flex items-center gap-2 px-3 h-8 rounded-lg hover:bg-slate-200 transition font-black text-navy-900 uppercase tracking-widest text-sm select-none">
@@ -664,7 +682,6 @@
                                 <option value="Aplicado">Aplicado</option>
                                 <option value="Cancelado">Cancelado</option>
                             </select>
-                            <button id="btn-novo-tabela" onclick="openRecordModal()" class="px-4 py-2 bg-clinic-600 text-white rounded-lg hover:bg-clinic-700 font-black text-xs shadow-md transition"><i class="fas fa-plus mr-2"></i>NOVO</button>
                         </div>
                     </div>
                     <!-- Planilhas View -->

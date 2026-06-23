@@ -371,7 +371,7 @@ function renderEstoqueDashboard() {
                 </div>
                 <div class="text-center border-l ${tema.divisor}">
                     <p class="text-slate-400 text-[8px] font-black uppercase tracking-wide">Total</p>
-                    <p class="text-slate-700 font-black text-sm leading-tight">${e.total}</p>
+                    <p class="text-slate-700 font-black text-sm leading-tight">${e.disponivel + e.reservado}</p>
                 </div>
             </div>
 
@@ -504,13 +504,14 @@ function renderAlmoxLotes() {
                 : `<span class="text-slate-600 text-xs">${validade}</span>`;
         const dispCls = estoque.disponivel <= 0 ? 'bg-slate-100 text-slate-400' : estoque.disponivel <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
         const saidaTotal = estoque.aplicado + estoque.saidaManual;
+        const saldoTotal = estoque.disponivel + estoque.reservado;
         return `<tr class="hover:bg-slate-50 transition cursor-pointer ${!ativo ? 'opacity-60' : ''}" onclick="editLote(${lote.id})">
             <td class="p-3 font-bold text-slate-700">${vaccineName}</td>
             <td class="p-3 text-xs font-mono font-bold">${lote.numero || '—'}</td>
             <td class="p-3 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-black ${dispCls}">${estoque.disponivel}</span></td>
             <td class="p-3 text-center text-xs font-bold text-indigo-600">${estoque.reservado}</td>
             <td class="p-3 text-center text-xs font-bold text-orange-600">${saidaTotal}</td>
-            <td class="p-3 text-center text-xs font-bold text-slate-700">${estoque.total}</td>
+            <td class="p-3 text-center text-xs font-bold text-slate-700">${saldoTotal}</td>
             <td class="p-3">${validadeCel}</td>
             <td class="p-3 text-center">
                 <span class="px-2 py-1 rounded-full text-[10px] font-black uppercase ${ativo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${ativo ? 'Ativo' : 'Inativo'}</span>
@@ -802,7 +803,7 @@ function onMovLoteChange() {
     const e = getLoteEstoque(loteId);
     document.getElementById('mov-info-disp').textContent = e.disponivel;
     document.getElementById('mov-info-reserv').textContent = e.reservado;
-    document.getElementById('mov-info-total').textContent = e.total;
+    document.getElementById('mov-info-total').textContent = e.disponivel + e.reservado;
     info.classList.remove('hidden');
 }
 
@@ -1016,6 +1017,12 @@ function setText(id, val) { const el = document.getElementById(id); if (el) el.t
 // Sincroniza modais de lotes e de visualização de vacina que possam estar abertos.
 // Chamado após qualquer alteração de agendamento para manter abas em sincronia.
 function refreshOpenModals() {
+    // Modal do dia (openDayModal)
+    if (document.getElementById('modal-day-details')?.classList.contains('active') &&
+        typeof selectedDayDate !== 'undefined' && selectedDayDate) {
+        const [_y, _m, _d] = selectedDayDate.split('-');
+        if (typeof openDayModal === 'function') openDayModal(selectedDayDate, parseInt(_d), parseInt(_m) - 1, parseInt(_y));
+    }
     // Modal de listagem de lotes (openLoteModal)
     if (document.getElementById('modal-lotes')?.classList.contains('active')) {
         if (typeof renderLoteLists === 'function') renderLoteLists();
@@ -1030,7 +1037,7 @@ function refreshOpenModals() {
                 setText('view-lote-disp',   est.disponivel);
                 setText('view-lote-reserv', est.reservado);
                 setText('view-lote-saida',  est.aplicado + est.saidaManual);
-                setText('view-lote-total',  est.total);
+                setText('view-lote-total',  est.disponivel + est.reservado);
             }
         }
     }
@@ -1069,7 +1076,7 @@ function openVaccineViewModal(vaccineId) {
     statusEl.className = v.ativo !== false ? 'text-[10px] font-black uppercase mt-0.5 text-emerald-300' : 'text-[10px] font-black uppercase mt-0.5 text-red-300';
     document.getElementById('vv-kpi-disp').textContent  = e.disponivel;
     document.getElementById('vv-kpi-reserv').textContent = e.reservado;
-    document.getElementById('vv-kpi-total').textContent  = e.total;
+    document.getElementById('vv-kpi-total').textContent  = e.disponivel + e.reservado;
 
     // Header color por estoque
     const hdr = document.getElementById('vv-header');
