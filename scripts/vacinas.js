@@ -64,11 +64,24 @@ function renderVaccines() {
         const hasAppointments = appointments.some(a => a.vaccineId == v.id);
         const est = (typeof getVaccineEstoque === 'function') ? getVaccineEstoque(v.id) : { disponivel:0, reservado:0 };
         const estCls = est.disponivel <= 0 ? 'bg-red-100 text-red-700' : est.disponivel <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
+        const today = new Date(); today.setHours(0,0,0,0);
+        const twoMonths = new Date(); twoMonths.setMonth(twoMonths.getMonth() + 2); twoMonths.setHours(0,0,0,0);
+        const lotesAbertos = (typeof vaccineLots !== 'undefined') ? vaccineLots.filter(l => l.vaccineId == v.id && l.status === 'aberto') : [];
+        const totalLotes = lotesAbertos.length;
+        const lotesVencendo = lotesAbertos.filter(l => { if (!l.validade) return false; const d = new Date(l.validade + 'T00:00:00'); return d >= today && d <= twoMonths; }).length;
+        const lotesVencidos = lotesAbertos.filter(l => l.validade && new Date(l.validade + 'T00:00:00') < today).length;
+        const avencerCls = lotesVencidos > 0 ? 'bg-red-100 text-red-700' : lotesVencendo > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500';
+        const avencerVal = lotesVencidos > 0 ? `${lotesVencidos} vencido${lotesVencidos > 1 ? 's' : ''}` : lotesVencendo > 0 ? `${lotesVencendo} lote${lotesVencendo > 1 ? 's' : ''}` : '—';
         tbody.innerHTML += `<tr class="hover:bg-slate-50 transition ${!ativo ? 'opacity-50' : ''}">
-            <td class="p-3 font-bold text-slate-700">${v.nome}</td><td class="p-3 text-xs">${schema}</td>
-            <td class="p-3 text-xs">${(v.intervalos && v.intervalos.length ? v.intervalos.map((x,i)=>`D${i+1}→D${i+2}: ${x}d`).join(', ') : (v.intervaloDias > 0 ? v.intervaloDias + ' dias' : '-'))}</td>
+            <td class="p-3 font-bold text-slate-700">${v.nome}</td>
             <td class="p-3 text-xs">${idadeMinStr}</td>
             <td class="p-3 text-xs font-bold text-green-600">${formatCurrency(v.valor)}</td>
+            <td class="p-3 text-center">
+                <span class="px-2.5 py-1 rounded-full text-xs font-black ${totalLotes > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}">${totalLotes}</span>
+            </td>
+            <td class="p-3 text-center">
+                <span class="px-2.5 py-1 rounded-full text-xs font-black ${avencerCls}">${avencerVal}</span>
+            </td>
             <td class="p-3 text-center">
                 <span class="px-2.5 py-1 rounded-full text-xs font-black ${estCls}">${est.disponivel}</span>
                 ${est.reservado > 0 ? `<span class="block text-[9px] text-indigo-500 font-bold mt-0.5">${est.reservado} reserv.</span>` : ''}
@@ -79,7 +92,7 @@ function renderVaccines() {
             <td class="p-3 text-center">
                 <div class="flex justify-center gap-2">
                     ${permBtn('criar_produtos', `<button onclick="editVaccine(${v.id})" class="h-8 w-8 bg-slate-100 hover:bg-clinic-600 hover:text-white rounded transition shadow-sm" title="Editar"><i class="fas fa-pen text-[10px]"></i></button>`)}
-                    ${permBtn('edicao_lotes', `<button onclick="openLoteModal(${v.id})" class="h-8 w-8 bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white rounded transition shadow-sm" title="Gerenciar Lotes"><i class="fas fa-list-check text-[10px]"></i></button>`)}
+                    ${permBtn('edicao_lotes', `<button onclick="openVaccineViewModal(${v.id})" class="h-8 w-8 bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white rounded transition shadow-sm" title="Ver Estoque"><i class="fas fa-chart-bar text-[10px]"></i></button>`)}
                     ${permBtn('criar_produtos', `<button onclick="toggleVaccineStatus(${v.id})" class="h-8 w-8 ${ativo ? 'bg-green-50 text-green-600 hover:bg-green-500' : 'bg-orange-50 text-orange-500 hover:bg-orange-500'} hover:text-white rounded transition shadow-sm" title="${ativo ? 'Desativar' : 'Ativar'}"><i class="fas ${ativo ? 'fa-toggle-on' : 'fa-toggle-off'} text-[10px]"></i></button>`)}
 
                 </div>
@@ -296,6 +309,7 @@ function openLoteModal(vaccineId) {
     currentLoteModalVaccineId = vaccineId;
     const v = vaccines.find(x => x.id == vaccineId);
     document.getElementById('lote-modal-vaccine-name').innerText = v ? v.nome : '';
+    document.getElementById('novo-lote-fabricante').value = '';
     document.getElementById('novo-lote-numero').value = '';
     document.getElementById('novo-lote-validade').value = '';
     switchLoteTab('abertos');
@@ -335,7 +349,7 @@ function renderLoteLists() {
         return `
         <div class="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer" onclick="editLote(${l.id})">
             <div>
-                <p class="font-black text-navy-900 text-sm">Lote: ${l.numero}</p>
+                <p class="font-black text-navy-900 text-sm">Lote: ${l.numero}${l.fabricante ? `<span class="ml-1.5 text-[10px] text-slate-400 font-bold">${l.fabricante}</span>` : ''}</p>
                 <p class="text-[10px] text-slate-500 font-bold">Validade: ${l.validade.split('-').reverse().join('/')} ${badgeHtml}</p>
                 <p class="text-[10px] font-bold mt-1 flex gap-2">
                     <span class="text-green-600"><i class="fas fa-box-open mr-0.5"></i>Disp: ${est.disponivel}</span>
@@ -362,6 +376,7 @@ function renderLoteLists() {
 
 function addLote() {
     if (!checkPerm('edicao_lotes')) return;
+    const fabricante = document.getElementById('novo-lote-fabricante').value.trim();
     const numero = document.getElementById('novo-lote-numero').value.trim().toUpperCase();
     const validade = document.getElementById('novo-lote-validade').value;
     const quantidade = parseInt(document.getElementById('novo-lote-qtd').value, 10) || 0;
@@ -371,11 +386,12 @@ function addLote() {
     if (quantidade <= 0) { showNotification('Informe a quantidade inicial do lote (maior que zero).', 'error'); return; }
     if (!currentLoteModalVaccineId) return;
     const newId = Date.now();
-    const novoLote = { id: newId, vaccineId: currentLoteModalVaccineId, numero, validade, status: 'aberto', fornecedor, nota };
+    const novoLote = { id: newId, vaccineId: currentLoteModalVaccineId, numero, fabricante, validade, status: 'aberto', fornecedor, nota };
     vaccineLots.push(novoLote);
     stockMovements.push({ id: newId + 1, loteId: newId, vaccineId: currentLoteModalVaccineId, tipo: 'entrada', qtd: quantidade, motivo: 'Cadastro inicial', descarte: false, data: new Date().toISOString(), usuario: currentUser ? currentUser.nome : '—' });
     const vacLote = vaccines.find(v => v.id == currentLoteModalVaccineId);
     logAudit('Criado', 'lote', String(currentLoteModalVaccineId), `Lote ${numero}`, `Vacina: ${vacLote ? vacLote.nome : '—'} | Validade: ${validade} | Qtd inicial: ${quantidade}${fornecedor ? ' | Fornecedor: ' + fornecedor : ''}${nota ? ' | NF: ' + nota : ''}`);
+    document.getElementById('novo-lote-fabricante').value = '';
     document.getElementById('novo-lote-numero').value = '';
     document.getElementById('novo-lote-validade').value = '';
     document.getElementById('novo-lote-qtd').value = '';
@@ -477,6 +493,13 @@ function editLote(loteId) {
     document.getElementById('view-lote-numero').textContent = l.numero || '—';
     document.getElementById('view-lote-vacina').textContent = v ? v.nome : '—';
 
+    const fabRow = document.getElementById('view-lote-fabricante-row');
+    if (l.fabricante) {
+        document.getElementById('view-lote-fabricante').textContent = l.fabricante;
+        fabRow.classList.remove('hidden');
+    } else {
+        fabRow.classList.add('hidden');
+    }
     const fornRow = document.getElementById('view-lote-fornecedor-row');
     const notaRow = document.getElementById('view-lote-nota-row');
     if (l.fornecedor) {
@@ -689,6 +712,7 @@ function editLoteFromView() {
     const l = vaccineLots.find(x => x.id == _viewLoteId);
     if (!l) return;
     document.getElementById('edit-lote-id').value = l.id;
+    document.getElementById('edit-lote-fabricante').value = l.fabricante || '';
     document.getElementById('edit-lote-numero').value = l.numero;
     document.getElementById('edit-lote-validade').value = l.validade;
     document.getElementById('edit-lote-fornecedor').value = l.fornecedor || '';
@@ -756,6 +780,7 @@ function confirmDeleteLoteAppointment() {
 
 function salvarEdicaoLote() {
     const id = document.getElementById('edit-lote-id').value;
+    const fabricante = document.getElementById('edit-lote-fabricante').value.trim();
     const numero = document.getElementById('edit-lote-numero').value.trim().toUpperCase();
     const validade = document.getElementById('edit-lote-validade').value;
     const fornecedor = document.getElementById('edit-lote-fornecedor').value.trim();
@@ -764,6 +789,7 @@ function salvarEdicaoLote() {
     const idx = vaccineLots.findIndex(l => l.id == id);
     if (idx === -1) return;
     const old = {...vaccineLots[idx]};
+    vaccineLots[idx].fabricante = fabricante;
     vaccineLots[idx].numero = numero;
     vaccineLots[idx].validade = validade;
     vaccineLots[idx].fornecedor = fornecedor;

@@ -533,6 +533,7 @@ function openAddLoteModal() {
     _fabLoteVaccines = vaccines.filter(v => v.ativo !== false).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     document.getElementById('fab-lote-vaccine-search').value = '';
     document.getElementById('fab-lote-vaccine').value = '';
+    document.getElementById('fab-lote-fabricante').value = '';
     document.getElementById('fab-lote-numero').value = '';
     document.getElementById('fab-lote-validade').value = '';
     document.getElementById('fab-lote-qtd').value = '';
@@ -583,6 +584,7 @@ function salvarFabLote() {
         document.getElementById('fab-lote-vaccine-search').focus();
         showNotification('Selecione uma vacina.', 'error'); return;
     }
+    const fabricante = document.getElementById('fab-lote-fabricante').value.trim();
     const numero = document.getElementById('fab-lote-numero').value.trim().toUpperCase();
     const validade = document.getElementById('fab-lote-validade').value;
     const qtd = parseInt(document.getElementById('fab-lote-qtd').value) || 0;
@@ -590,7 +592,7 @@ function salvarFabLote() {
     const nota = document.getElementById('fab-lote-nota').value.trim();
     if (!numero || !validade) { showNotification('Preencha número e validade.', 'error'); return; }
     const newId = Date.now();
-    const novoLote = { id: newId, vaccineId, numero, validade, status: 'aberto', fornecedor, nota };
+    const novoLote = { id: newId, vaccineId, numero, fabricante, validade, status: 'aberto', fornecedor, nota };
     vaccineLots.push(novoLote);
     if (qtd > 0) {
         stockMovements.push({ id: Date.now() + 1, loteId: newId, vaccineId: vaccineId, tipo: 'entrada', qtd: qtd, motivo: 'Cadastro inicial', descarte: false, data: new Date().toISOString(), usuario: currentUser ? currentUser.nome : '—' });
@@ -599,6 +601,7 @@ function salvarFabLote() {
     logAudit('Criado', 'lote', String(vaccineId), `Lote ${numero}`, `Vacina: ${v ? v.nome : vaccineId} | Validade: ${validade} | Qtd: ${qtd}${fornecedor ? ' | Fornecedor: ' + fornecedor : ''}${nota ? ' | NF: ' + nota : ''}`);
     saveAll(); renderAlmoxLotes(); updateExpiryBadge();
     document.getElementById('modal-add-lote-fab').classList.remove('active');
+    document.getElementById('fab-lote-fabricante').value = '';
     document.getElementById('fab-lote-fornecedor').value = '';
     document.getElementById('fab-lote-nota').value = '';
     refreshVaccineViewModal(vaccineId);
