@@ -23,6 +23,7 @@ function switchCalView(view) {
 
 function calNavPrev() { if (_calView === 'semanal') { _weekStart.setDate(_weekStart.getDate() - 7); renderWeekly(); } else { changeMonth(-1); } }
 function calNavNext() { if (_calView === 'semanal') { _weekStart.setDate(_weekStart.getDate() + 7); renderWeekly(); } else { changeMonth(1); } }
+function calGoToday() { if (_calView === 'semanal') { _weekStart = _getSundayOf(new Date()); renderWeekly(); } else { currentDate = new Date(); renderCalendar(); } }
 
 function _getSundayOf(date) {
     const d = new Date(date); d.setHours(0,0,0,0);
@@ -61,6 +62,8 @@ function renderWeekly() {
             const vac = vaccines.find(v => v.id == a.vaccineId);
             if (!pat || !vac) return '';
             const stColor = a.status === 'Aplicado' ? '#16a34a' : a.status === 'Agendado' ? '#2563eb' : '#0891b2';
+            const stBg    = a.status === 'Aplicado' ? '#dcfce7' : a.status === 'Agendado' ? '#dbeafe' : '#cffafe';
+            const stLabel = a.status || 'Agendado';
             const btnAgendar = a.status === 'Em negociação'
                 ? permBtn('criar_agendamento', `<button onclick="event.stopPropagation();openAgendarModal(${a.id})" class="h-6 w-6 rounded-lg bg-blue-500 text-white hover:bg-blue-600 flex items-center justify-center transition shrink-0" title="Agendar"><i class="fas fa-calendar-check text-[9px]"></i></button>`)
                 : '';
@@ -78,7 +81,10 @@ function renderWeekly() {
                     ${btnAgendar || btnAplicar ? `<div class="flex gap-1 shrink-0">${btnAgendar}${btnAplicar}</div>` : ''}
                 </div>
                 <p class="text-[10px] text-slate-400 mt-0.5 truncate">${vac.nome} · ${a.doseAtual}</p>
-                ${a.hora ? `<p class="text-[10px] font-bold text-slate-500 mt-0.5"><i class="far fa-clock mr-1"></i>${a.hora}</p>` : ''}
+                <div class="flex items-center justify-between mt-0.5">
+                    ${a.hora ? `<p class="text-[10px] font-bold text-slate-500"><i class="far fa-clock mr-1"></i>${a.hora}</p>` : '<span></span>'}
+                    <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none" style="background:${stBg};color:${stColor};">${stLabel}</span>
+                </div>
             </div>`;
         }).join('');
 
