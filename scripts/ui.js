@@ -1,10 +1,40 @@
 // ─── UI / NAVIGATION FUNCTIONS ───────────────────────────────────────────────
 
+let agendaView = 'agenda'; // 'agenda' | 'planilha' | 'kanban'
+
+function switchAgendaView(view) {
+    agendaView = view;
+    const isTabela = view === 'planilha' || view === 'kanban';
+
+    document.getElementById('agendaview-agenda').classList.toggle('hidden', isTabela);
+    document.getElementById('agendaview-tabela').classList.toggle('hidden', !isTabela);
+
+    const views = ['agenda', 'planilha', 'kanban'];
+    views.forEach(v => {
+        const btn = document.getElementById(`btn-agendaview-${v}`);
+        if (!btn) return;
+        const active = v === view;
+        btn.classList.toggle('bg-navy-900', active);
+        btn.classList.toggle('text-white', active);
+        btn.classList.toggle('border-navy-800', active);
+        btn.classList.toggle('bg-white', !active);
+        btn.classList.toggle('text-slate-500', !active);
+        btn.classList.toggle('border-slate-300', !active);
+    });
+
+    if (view === 'planilha') {
+        switchTableView('planilhas');
+        renderTable();
+    } else if (view === 'kanban') {
+        switchTableView('kanban');
+        renderTable();
+    }
+}
+
 function switchTab(tab) {
     const tabPermsMap = {
         dashboard: 'ver_dashboard',
         agenda:    'ver_agenda',
-        dados:     'ver_tabela',
         pacientes: 'ver_pacientes',
         vacinas:   'ver_vacinas',
     };
@@ -18,7 +48,7 @@ function switchTab(tab) {
     const btn = document.getElementById(`btn-${tab}`);
     if (btn) btn.classList.add('active');
 
-    const labels = { dashboard:'Dashboard', agenda:'Agenda', dados:'Tabela', pacientes:'Pacientes', vacinas:'Vacinas' };
+    const labels = { dashboard:'Dashboard', agenda:'Agenda', pacientes:'Pacientes', vacinas:'Vacinas' };
     const lbl = document.getElementById('topbar-module-label');
     if (lbl) lbl.textContent = labels[tab] || '';
 
@@ -26,9 +56,12 @@ function switchTab(tab) {
     const mainEl = document.querySelector('main');
     if (mainEl) mainEl.style.overflow = tab === 'vacinas' ? 'hidden' : '';
 
+    // FAB agendar: visível apenas na aba agenda
+    const fabAgendar = document.getElementById('fab-agendar');
+    if (fabAgendar) fabAgendar.classList.toggle('hidden', tab !== 'agenda');
+
     if(tab === 'dashboard') renderDashboard();
-    if(tab === 'agenda') renderCalendar();
-    if(tab === 'dados') renderTable();
+    if(tab === 'agenda') { renderCalendar(); renderTable(); }
     if(tab === 'pacientes') renderPatients();
     if(tab === 'vacinas') {
         if (typeof switchAlmoxModulo === 'function') switchAlmoxModulo(almoxModulo || 'estoque');

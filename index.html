@@ -132,10 +132,7 @@
                 <i class="fas fa-calendar-alt text-base w-5 text-center shrink-0"></i>
                 <span class="sidebar-label text-xs font-bold tracking-widest uppercase whitespace-nowrap">Agenda</span>
             </button>
-            <button onclick="switchTab('dados');closeSidebar()" id="btn-dados" class="sidebar-nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all group">
-                <i class="fas fa-table-list text-base w-5 text-center shrink-0"></i>
-                <span class="sidebar-label text-xs font-bold tracking-widest uppercase whitespace-nowrap">Tabela</span>
-            </button>
+
             <button onclick="switchTab('pacientes');closeSidebar()" id="btn-pacientes" class="sidebar-nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all group">
                 <i class="fas fa-users text-base w-5 text-center shrink-0"></i>
                 <span class="sidebar-label text-xs font-bold tracking-widest uppercase whitespace-nowrap">Pacientes</span>
@@ -482,129 +479,176 @@
         </section>
 
         <section id="tab-agenda" class="tab-content active container mx-auto">
-            <div class="glass-card p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 flex justify-between items-center">
-                <h2 class="text-navy-900 font-black text-xl uppercase tracking-tighter"><i class="fas fa-calendar-day text-clinic-500 mr-2"></i> Calendário Vacinal</h2>
-                <div class="flex gap-4 items-center">
-                    <button id="btn-agendar-agenda" onclick="openRecordModal()" class="px-4 py-2 bg-clinic-600 text-white rounded-xl hover:bg-clinic-700 font-black text-xs shadow-lg"><i class="fas fa-plus mr-2"></i>AGENDAR</button>
-                    <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-xl shadow-sm border border-slate-200">
-                        <button onclick="changeMonth(-1)" class="h-8 w-8 bg-white hover:bg-slate-200 rounded-lg flex items-center justify-center font-bold shadow-sm transition"><i class="fas fa-chevron-left text-xs"></i></button>
-                        
-                        <div class="relative flex items-center justify-center w-40 hover:bg-slate-200 h-8 rounded-lg transition overflow-hidden">
-                            <input type="month" id="agenda-month-picker" onchange="jumpToMonth(this.value)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" title="Escolher Mês Específico">
-                            <h3 id="current-month-label" class="font-black text-navy-900 uppercase tracking-widest text-sm pointer-events-none text-center"></h3>
-                        </div>
-
-                        <button onclick="changeMonth(1)" class="h-8 w-8 bg-white hover:bg-slate-200 rounded-lg flex items-center justify-center font-bold shadow-sm transition"><i class="fas fa-chevron-right text-xs"></i></button>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-                <div class="calendar-grid mb-2">
-                    <div class="text-center text-[10px] font-black uppercase text-red-500">Dom</div>
-                    <div class="text-center text-[10px] font-black uppercase text-slate-400">Seg</div>
-                    <div class="text-center text-[10px] font-black uppercase text-slate-400">Ter</div>
-                    <div class="text-center text-[10px] font-black uppercase text-slate-400">Qua</div>
-                    <div class="text-center text-[10px] font-black uppercase text-slate-400">Qui</div>
-                    <div class="text-center text-[10px] font-black uppercase text-slate-400">Sex</div>
-                    <div class="text-center text-[10px] font-black uppercase text-slate-400">Sáb</div>
-                </div>
-                <div id="calendar-body" class="calendar-grid"></div>
-            </div>
-        </section>
-
-        <section id="tab-dados" class="tab-content container mx-auto">
-            <!-- View Toggle Bar -->
+            <!-- Sub-navegação interna -->
             <div class="flex items-center gap-2 mb-4">
-                <button onclick="switchTableView('planilhas')" id="btn-view-planilhas"
+                <button onclick="switchAgendaView('agenda')" id="btn-agendaview-agenda"
                     class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-navy-800 bg-navy-900 text-white">
+                    <i class="fas fa-calendar-alt text-sm"></i> Agenda
+                </button>
+                <button onclick="switchAgendaView('planilha')" id="btn-agendaview-planilha"
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50">
                     <i class="fas fa-table text-sm"></i> Planilha
                 </button>
-                <button onclick="switchTableView('kanban')" id="btn-view-kanban"
+                <button onclick="switchAgendaView('kanban')" id="btn-agendaview-kanban"
                     class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50">
                     <i class="fas fa-columns text-sm"></i> Kanban
                 </button>
             </div>
-            <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-                <!-- Shared Filters Header -->
-                <div class="p-5 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center">
-                    <h2 class="text-xl font-black text-navy-900 uppercase">Relação de Agendamentos</h2>
-                    <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
 
-                        <!-- Busca -->
-                        <div class="relative flex items-center">
-                            <button onclick="toggleTableFilter('wrap-search-agenda', 'filter-search-agenda')" title="Buscar paciente" id="btn-icon-search-agenda"
-                                class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 flex items-center justify-center transition shadow-sm">
-                                <i class="fas fa-search text-sm"></i>
-                            </button>
-                            <div id="wrap-search-agenda" class="overflow-hidden transition-all duration-300 ease-in-out" style="max-width:0;opacity:0;">
-                                <input type="text" id="filter-search-agenda" onkeyup="renderTable()" placeholder="Paciente ou CPF..."
-                                    class="ml-1 px-3 py-2 border border-slate-200 rounded-lg text-sm w-44 focus:ring-2 focus:ring-clinic-500 outline-none">
-                            </div>
+            <!-- View: Agenda (Calendário) -->
+            <div id="agendaview-agenda">
+                <div class="glass-card px-5 py-4 rounded-2xl shadow-sm border border-slate-200 mb-4 flex justify-between items-center gap-4 flex-wrap">
+                    <h2 class="text-navy-900 font-black text-xl uppercase tracking-tighter"><i class="fas fa-calendar-day text-clinic-500 mr-2"></i> Calendário Vacinal</h2>
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <!-- Mensal / Semanal toggle -->
+                        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                            <button id="btn-cal-mensal" onclick="switchCalView('mensal')" class="px-3 h-8 rounded-lg text-xs font-black uppercase tracking-wider transition bg-navy-900 text-white shadow">Mensal</button>
+                            <button id="btn-cal-semanal" onclick="switchCalView('semanal')" class="px-3 h-8 rounded-lg text-xs font-black uppercase tracking-wider transition text-slate-500 hover:bg-white">Semanal</button>
                         </div>
-
-                        <!-- Vendedor -->
-                        <div class="relative flex items-center">
-                            <button onclick="toggleTableFilter('wrap-vendedor-agenda', null, true)" title="Filtrar vendedor" id="btn-icon-vendedor-agenda"
-                                class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 flex items-center justify-center transition shadow-sm">
-                                <i class="fas fa-handshake text-sm"></i>
-                            </button>
-                            <div id="wrap-vendedor-agenda" class="overflow-hidden transition-all duration-300 ease-in-out" style="max-width:0;opacity:0;">
-                                <select id="filter-vendedor-agenda" onchange="renderTable()"
-                                    class="ml-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
-                                    <option value="">Todos os Vendedores</option>
-                                </select>
+                        <!-- Navegação de período -->
+                        <div class="relative flex items-center gap-2 bg-slate-100 p-1 rounded-xl shadow-sm border border-slate-200" style="z-index:1000;">
+                            <button onclick="calNavPrev()" class="h-8 w-8 bg-white hover:bg-slate-200 rounded-lg flex items-center justify-center font-bold shadow-sm transition"><i class="fas fa-chevron-left text-xs"></i></button>
+                            <div class="relative">
+                                <button onclick="toggleMonthYearPicker()" class="flex items-center gap-2 px-3 h-8 rounded-lg hover:bg-slate-200 transition font-black text-navy-900 uppercase tracking-widest text-sm select-none">
+                                    <h3 id="current-month-label" class="pointer-events-none"></h3>
+                                    <i class="fas fa-chevron-down text-[9px] text-slate-400 pointer-events-none"></i>
+                                </button>
+                                <!-- Custom month/year picker dropdown -->
+                                <div id="month-year-picker" class="hidden absolute top-full right-0 mt-2 z-[9999] bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 w-72 select-none" style="animation:fadeSlideDown .15s ease;">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <button onclick="pickerChangeYear(-1)" class="h-8 w-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition text-slate-500"><i class="fas fa-chevron-left text-xs"></i></button>
+                                        <span id="picker-year-label" class="font-black text-navy-900 text-sm tracking-widest"></span>
+                                        <button onclick="pickerChangeYear(1)" class="h-8 w-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition text-slate-500"><i class="fas fa-chevron-right text-xs"></i></button>
+                                    </div>
+                                    <!-- modo mensal: grade de meses -->
+                                    <div id="picker-months-grid" class="grid grid-cols-3 gap-2"></div>
+                                    <!-- modo semanal: navegação de mês + grade de dias -->
+                                    <div id="picker-week-mode" class="hidden">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <button onclick="pickerChangeMonth(-1)" class="h-7 w-7 rounded-lg hover:bg-slate-100 flex items-center justify-center transition text-slate-500"><i class="fas fa-chevron-left text-xs"></i></button>
+                                            <span id="picker-month-label" class="font-black text-navy-900 text-xs tracking-widest uppercase"></span>
+                                            <button onclick="pickerChangeMonth(1)" class="h-7 w-7 rounded-lg hover:bg-slate-100 flex items-center justify-center transition text-slate-500"><i class="fas fa-chevron-right text-xs"></i></button>
+                                        </div>
+                                        <div class="grid grid-cols-7 gap-0.5 mb-1">
+                                            <div class="text-center text-[9px] font-black text-red-400">D</div>
+                                            <div class="text-center text-[9px] font-black text-slate-400">S</div>
+                                            <div class="text-center text-[9px] font-black text-slate-400">T</div>
+                                            <div class="text-center text-[9px] font-black text-slate-400">Q</div>
+                                            <div class="text-center text-[9px] font-black text-slate-400">Q</div>
+                                            <div class="text-center text-[9px] font-black text-slate-400">S</div>
+                                            <div class="text-center text-[9px] font-black text-slate-400">S</div>
+                                        </div>
+                                        <div id="picker-week-days-grid" class="grid grid-cols-7 gap-0.5"></div>
+                                    </div>
+                                </div>
                             </div>
+                            <button onclick="calNavNext()" class="h-8 w-8 bg-white hover:bg-slate-200 rounded-lg flex items-center justify-center font-bold shadow-sm transition"><i class="fas fa-chevron-right text-xs"></i></button>
                         </div>
-
-                        <!-- Aplicador -->
-                        <div class="relative flex items-center">
-                            <button onclick="toggleTableFilter('wrap-aplicador-agenda', null, true)" title="Filtrar aplicador" id="btn-icon-aplicador-agenda"
-                                class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 flex items-center justify-center transition shadow-sm">
-                                <i class="fas fa-user-nurse text-sm"></i>
-                            </button>
-                            <div id="wrap-aplicador-agenda" class="overflow-hidden transition-all duration-300 ease-in-out" style="max-width:0;opacity:0;">
-                                <select id="filter-aplicador-agenda" onchange="renderTable()"
-                                    class="ml-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
-                                    <option value="">Todos os Aplicadores</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <select id="filter-date-agenda" onchange="toggleMonthFilter()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
-                            <option value="todos">Todas as Datas</option>
-                            <option value="hoje">Hoje</option>
-                            <option value="semana">Esta Semana</option>
-                            <option value="mes">Selecionar Mês...</option>
-                        </select>
-                        <input type="month" id="filter-month-agenda" onchange="renderTable()" oninput="renderTable()" onclick="try{this.showPicker()}catch(e){}" class="hidden px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none cursor-pointer" style="color-scheme: light;">
-                        <select id="filter-status-agenda" onchange="renderTable()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
-                            <option value="">Todos os Status</option>
-                            <option value="Em negociação">Em negociação</option>
-                            <option value="Agendado">Agendado</option>
-                            <option value="Aplicado">Aplicado</option>
-                            <option value="Cancelado">Cancelado</option>
-                        </select>
-                        <button id="btn-novo-tabela" onclick="openRecordModal()" class="px-4 py-2 bg-clinic-600 text-white rounded-lg hover:bg-clinic-700 font-black text-xs shadow-md transition"><i class="fas fa-plus mr-2"></i>NOVO</button>
                     </div>
                 </div>
-                <!-- Planilhas View -->
-                <div id="view-planilhas" class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead class="bg-navy-900 text-white text-[10px] uppercase font-black">
-                            <tr id="table-header-row">
-                                <th class="p-4 border-b cursor-pointer select-none hover:bg-navy-700 transition" onclick="setSortTable('data')"><span class="flex items-center gap-1">Data <i id="sort-icon-data" class="fas fa-sort-up text-clinic-400"></i></span></th>
-                                <th class="p-4 border-b cursor-pointer select-none hover:bg-navy-700 transition" onclick="setSortTable('paciente')"><span class="flex items-center gap-1">Paciente / Contato <i id="sort-icon-paciente" class="fas fa-sort text-slate-500"></i></span></th>
-                                <th class="p-4 border-b cursor-pointer select-none hover:bg-navy-700 transition" onclick="setSortTable('vacina')"><span class="flex items-center gap-1">Vacina / Dose <i id="sort-icon-vacina" class="fas fa-sort text-slate-500"></i></span></th>
-                                <th class="p-4 border-b text-center cursor-pointer select-none hover:bg-navy-700 transition" onclick="setSortTable('status')"><span class="flex items-center justify-center gap-1">Status <i id="sort-icon-status" class="fas fa-sort text-slate-500"></i></span></th>
-                                <th class="p-4 border-b text-center">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body" class="text-sm divide-y divide-slate-100"></tbody>
-                    </table>
+                <!-- Mensal -->
+                <div id="cal-view-mensal" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="calendar-grid mb-2">
+                        <div class="text-center text-[10px] font-black uppercase text-red-500">Dom</div>
+                        <div class="text-center text-[10px] font-black uppercase text-slate-400">Seg</div>
+                        <div class="text-center text-[10px] font-black uppercase text-slate-400">Ter</div>
+                        <div class="text-center text-[10px] font-black uppercase text-slate-400">Qua</div>
+                        <div class="text-center text-[10px] font-black uppercase text-slate-400">Qui</div>
+                        <div class="text-center text-[10px] font-black uppercase text-slate-400">Sex</div>
+                        <div class="text-center text-[10px] font-black uppercase text-slate-400">Sáb</div>
+                    </div>
+                    <div id="calendar-body" class="calendar-grid"></div>
                 </div>
-                <!-- Kanban View -->
-                <div id="view-kanban" class="hidden p-5 bg-[#f1f5f9] min-h-[520px]">
-                    <div id="kanban-board" class="flex gap-4 overflow-x-auto pb-4 items-start" style="min-height:460px;"></div>
+                <!-- Semanal -->
+                <div id="cal-view-semanal" class="hidden">
+                    <div id="weekly-board" class="flex gap-3 overflow-x-auto pb-2" style="min-height:420px;"></div>
+                </div>
+            </div>
+
+            <!-- View: Planilha + Kanban (ex tab-dados) -->
+            <div id="agendaview-tabela" class="hidden">
+                <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+                    <!-- Shared Filters Header -->
+                    <div class="p-5 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center">
+                        <h2 class="text-xl font-black text-navy-900 uppercase">Relação de Agendamentos</h2>
+                        <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
+
+                            <!-- Busca -->
+                            <div class="relative flex items-center">
+                                <button onclick="toggleTableFilter('wrap-search-agenda', 'filter-search-agenda')" title="Buscar paciente" id="btn-icon-search-agenda"
+                                    class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 flex items-center justify-center transition shadow-sm">
+                                    <i class="fas fa-search text-sm"></i>
+                                </button>
+                                <div id="wrap-search-agenda" class="overflow-hidden transition-all duration-300 ease-in-out" style="max-width:0;opacity:0;">
+                                    <input type="text" id="filter-search-agenda" onkeyup="renderTable()" placeholder="Paciente ou CPF..."
+                                        class="ml-1 px-3 py-2 border border-slate-200 rounded-lg text-sm w-44 focus:ring-2 focus:ring-clinic-500 outline-none">
+                                </div>
+                            </div>
+
+                            <!-- Vendedor -->
+                            <div class="relative flex items-center">
+                                <button onclick="toggleTableFilter('wrap-vendedor-agenda', null, true)" title="Filtrar vendedor" id="btn-icon-vendedor-agenda"
+                                    class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 flex items-center justify-center transition shadow-sm">
+                                    <i class="fas fa-handshake text-sm"></i>
+                                </button>
+                                <div id="wrap-vendedor-agenda" class="overflow-hidden transition-all duration-300 ease-in-out" style="max-width:0;opacity:0;">
+                                    <select id="filter-vendedor-agenda" onchange="renderTable()"
+                                        class="ml-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
+                                        <option value="">Todos os Vendedores</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Aplicador -->
+                            <div class="relative flex items-center">
+                                <button onclick="toggleTableFilter('wrap-aplicador-agenda', null, true)" title="Filtrar aplicador" id="btn-icon-aplicador-agenda"
+                                    class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 flex items-center justify-center transition shadow-sm">
+                                    <i class="fas fa-user-nurse text-sm"></i>
+                                </button>
+                                <div id="wrap-aplicador-agenda" class="overflow-hidden transition-all duration-300 ease-in-out" style="max-width:0;opacity:0;">
+                                    <select id="filter-aplicador-agenda" onchange="renderTable()"
+                                        class="ml-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
+                                        <option value="">Todos os Aplicadores</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <select id="filter-date-agenda" onchange="toggleMonthFilter()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
+                                <option value="todos">Todas as Datas</option>
+                                <option value="hoje">Hoje</option>
+                                <option value="semana">Esta Semana</option>
+                                <option value="mes">Selecionar Mês...</option>
+                            </select>
+                            <input type="month" id="filter-month-agenda" onchange="renderTable()" oninput="renderTable()" onclick="try{this.showPicker()}catch(e){}" class="hidden px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none cursor-pointer" style="color-scheme: light;">
+                            <select id="filter-status-agenda" onchange="renderTable()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
+                                <option value="">Todos os Status</option>
+                                <option value="Em negociação">Em negociação</option>
+                                <option value="Agendado">Agendado</option>
+                                <option value="Aplicado">Aplicado</option>
+                                <option value="Cancelado">Cancelado</option>
+                            </select>
+                            <button id="btn-novo-tabela" onclick="openRecordModal()" class="px-4 py-2 bg-clinic-600 text-white rounded-lg hover:bg-clinic-700 font-black text-xs shadow-md transition"><i class="fas fa-plus mr-2"></i>NOVO</button>
+                        </div>
+                    </div>
+                    <!-- Planilhas View -->
+                    <div id="view-planilhas" class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-navy-900 text-white text-[10px] uppercase font-black">
+                                <tr id="table-header-row">
+                                    <th class="p-4 border-b cursor-pointer select-none hover:bg-navy-700 transition" onclick="setSortTable('data')"><span class="flex items-center gap-1">Data <i id="sort-icon-data" class="fas fa-sort-up text-clinic-400"></i></span></th>
+                                    <th class="p-4 border-b cursor-pointer select-none hover:bg-navy-700 transition" onclick="setSortTable('paciente')"><span class="flex items-center gap-1">Paciente / Contato <i id="sort-icon-paciente" class="fas fa-sort text-slate-500"></i></span></th>
+                                    <th class="p-4 border-b cursor-pointer select-none hover:bg-navy-700 transition" onclick="setSortTable('vacina')"><span class="flex items-center gap-1">Vacina / Dose <i id="sort-icon-vacina" class="fas fa-sort text-slate-500"></i></span></th>
+                                    <th class="p-4 border-b text-center cursor-pointer select-none hover:bg-navy-700 transition" onclick="setSortTable('status')"><span class="flex items-center justify-center gap-1">Status <i id="sort-icon-status" class="fas fa-sort text-slate-500"></i></span></th>
+                                    <th class="p-4 border-b text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body" class="text-sm divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                    <!-- Kanban View -->
+                    <div id="view-kanban" class="hidden p-4 bg-[#f1f5f9]" style="height:calc(100vh - 220px);display:none;overflow:hidden;">
+                        <div id="kanban-board" class="flex gap-4 h-full overflow-x-auto pb-2"></div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -632,7 +676,7 @@
                 <!-- ── BARRA DE MÓDULOS (fixa, altura total) ── -->
                 <aside style="width:13rem;min-width:13rem;background:linear-gradient(180deg,#0f172a 0%,#1e3a8a 100%);display:flex;flex-direction:column;overflow:hidden;border-right:1px solid rgba(255,255,255,0.07);">
                     <!-- Header -->
-                    <div style="padding:1rem 1rem 0.75rem;border-bottom:1px solid rgba(255,255,255,0.1);flex-shrink:0;">
+                    <div style="padding:1.75rem 1rem 0.75rem;border-bottom:1px solid rgba(255,255,255,0.1);flex-shrink:0;">
                         <p style="font-size:9px;font-weight:900;color:#93c5fd;text-transform:uppercase;letter-spacing:0.15em;">Almoxarifado</p>
                         <p style="color:white;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">Módulos</p>
                     </div>
@@ -696,13 +740,13 @@
                                 <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Reservado</p>
                                 <p class="text-2xl font-black text-indigo-600" id="estoque-kpi-reservado">0</p>
                             </div>
-                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-slate-400">
-                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Aplicado</p>
-                                <p class="text-2xl font-black text-slate-600" id="estoque-kpi-aplicado">0</p>
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-amber-400">
+                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Estoque Baixo</p>
+                                <p class="text-2xl font-black text-amber-500" id="estoque-kpi-baixo">0</p>
                             </div>
-                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-blue-500">
-                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Total Recebido</p>
-                                <p class="text-2xl font-black text-blue-600" id="estoque-kpi-total">0</p>
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-red-400">
+                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Sem Estoque</p>
+                                <p class="text-2xl font-black text-red-500" id="estoque-kpi-sem">0</p>
                             </div>
                             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-amber-500">
                                 <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Lotes Vencendo</p>
@@ -713,7 +757,7 @@
                                 <p class="text-2xl font-black text-red-600" id="estoque-kpi-vencidos">0</p>
                             </div>
                         </div>
-                        <!-- Tabela por produto -->
+                        <!-- Cards por produto -->
                         <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
                             <div class="p-5 bg-slate-50 border-b border-slate-200 flex flex-wrap gap-3 justify-between items-center">
                                 <div class="flex items-center gap-3">
@@ -726,7 +770,23 @@
                                     </div>
                                 </div>
                                 <div class="flex gap-2 items-center">
-                                    <input type="text" oninput="setEstoqueSearch(this.value)" placeholder="Buscar produto..." class="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-clinic-500 outline-none w-48">
+                                    <!-- Filtros Todos / Estoque baixo / Sem estoque -->
+                                    <div class="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200 shadow-sm">
+                                        <button onclick="setEstoqueFilter('todos')" id="estoque-filter-todos" class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition bg-navy-900 text-white shadow">Todos</button>
+                                        <button onclick="setEstoqueFilter('baixo')" id="estoque-filter-baixo" class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-500 hover:bg-white">Estoque baixo</button>
+                                        <button onclick="setEstoqueFilter('sem')" id="estoque-filter-sem" class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-500 hover:bg-white">Sem estoque</button>
+                                    </div>
+                                    <!-- Botão lupa + input oculto -->
+                                    <div class="relative flex items-center">
+                                        <button onclick="toggleEstoqueSearch()" id="btn-estoque-search" class="h-9 w-9 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 transition shadow-sm flex items-center justify-center" title="Buscar produto">
+                                            <i class="fas fa-search text-sm"></i>
+                                        </button>
+                                        <div id="wrap-estoque-search" class="overflow-hidden transition-all duration-300 ease-in-out" style="max-width:0;opacity:0;">
+                                            <input type="text" id="input-estoque-search" oninput="setEstoqueSearch(this.value)" placeholder="Buscar produto..."
+                                                class="ml-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-clinic-500 outline-none w-44">
+                                        </div>
+                                    </div>
+                                    <!-- Notificações vencimento -->
                                     <div class="relative">
                                         <button onclick="toggleExpiryPanel(event)" class="relative h-9 w-9 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600 transition shadow-sm flex items-center justify-center" title="Alertas de vencimento de lotes">
                                             <i class="fas fa-bell text-sm"></i>
@@ -735,22 +795,10 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="overflow-x-auto p-4">
-                                <table class="w-full text-left border-collapse border border-slate-100 rounded-lg">
-                                    <thead class="bg-slate-100 text-slate-600 text-[10px] uppercase font-black">
-                                        <tr>
-                                            <th class="p-3">Produto</th>
-                                            <th class="p-3 text-center">Disponível</th>
-                                            <th class="p-3 text-center">Reservado</th>
-                                            <th class="p-3 text-center">Aplicado</th>
-                                            <th class="p-3 text-center">Total</th>
-                                            <th class="p-3 text-center">Situação</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="estoque-body" class="text-sm divide-y divide-slate-100">
-                                        <tr><td colspan="6" class="p-8 text-center text-slate-400 text-xs font-bold">Carregando estoque...</td></tr>
-                                    </tbody>
-                                </table>
+                            <div class="p-4">
+                                <div id="estoque-body" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+                                    <div class="col-span-full p-8 text-center text-slate-400 text-xs font-bold">Carregando estoque...</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -793,7 +841,6 @@
                                             <span id="expiry-badge" class="hidden absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 bg-red-500 text-white text-[9px] font-black rounded-full items-center justify-center shadow leading-none"></span>
                                         </button>
                                     </div>
-                                    <button id="btn-nova-vacina" onclick="openVaccineModal()" class="px-4 py-2 bg-clinic-600 text-white rounded-xl hover:bg-clinic-700 font-black text-xs shadow-lg transition"><i class="fas fa-plus mr-2"></i>Nova Vacina</button>
                                 </div>
                             </div>
                             <div class="overflow-x-auto p-4">
@@ -838,6 +885,35 @@
                                         <button onclick="setLoteFilter('ambos')" id="lf-btn-ambos"
                                             class="lf-btn px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide transition text-slate-500 hover:bg-white">Ambos</button>
                                     </div>
+                                    <!-- Busca por vacina -->
+                                    <div class="relative" id="lote-vaccine-search-wrap">
+                                        <button onclick="toggleLoteVaccineSearch(event)" id="btn-lote-vaccine-search"
+                                            class="h-9 w-9 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 transition shadow-sm flex items-center justify-center"
+                                            title="Filtrar por vacina">
+                                            <i class="fas fa-search text-sm"></i>
+                                        </button>
+                                        <!-- Dropdown elegante -->
+                                        <div id="lote-vaccine-dropdown" class="hidden absolute right-0 top-11 z-50 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+                                            <div class="p-3 bg-gradient-to-br from-indigo-600 to-indigo-800">
+                                                <p class="text-white text-[10px] font-black uppercase tracking-widest mb-2"><i class="fas fa-syringe mr-1"></i>Filtrar por Vacina</p>
+                                                <div class="relative">
+                                                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-indigo-300 text-xs"></i>
+                                                    <input type="text" id="lote-vaccine-search-input" placeholder="Digite o nome da vacina..."
+                                                        oninput="filterLoteVaccineDropdown(this.value)"
+                                                        class="w-full pl-8 pr-3 py-2 bg-white/20 text-white placeholder-indigo-300 rounded-xl text-xs font-bold outline-none focus:bg-white/30 transition">
+                                                </div>
+                                            </div>
+                                            <div class="p-1.5">
+                                                <button onclick="selectLoteVaccineFilter(null, 'Buscar Vacina')"
+                                                    class="w-full text-left px-3 py-2 rounded-xl text-xs font-black text-slate-500 hover:bg-slate-100 transition flex items-center gap-2">
+                                                    <span class="h-5 w-5 bg-slate-100 rounded-lg flex items-center justify-center shrink-0"><i class="fas fa-list text-[9px] text-slate-400"></i></span>
+                                                    Todas as vacinas
+                                                </button>
+                                            </div>
+                                            <div class="border-t border-slate-100"></div>
+                                            <div id="lote-vaccine-dropdown-list" class="max-h-52 overflow-y-auto p-1.5 space-y-0.5"></div>
+                                        </div>
+                                    </div>
                                     <!-- Sino de alertas de vencimento -->
                                     <div class="relative">
                                         <button onclick="toggleExpiryPanel(event)" class="relative h-9 w-9 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600 transition shadow-sm flex items-center justify-center" title="Alertas de vencimento de lotes">
@@ -855,6 +931,7 @@
                                             <th class="p-3">Nº do Lote</th>
                                             <th class="p-3 text-center">Disponível</th>
                                             <th class="p-3 text-center">Reservado</th>
+                                            <th class="p-3 text-center">Saída</th>
                                             <th class="p-3 text-center">Total</th>
                                             <th class="p-3">Validade</th>
                                             <th class="p-3 text-center">Situação</th>
@@ -862,7 +939,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="alm-lotes-body" class="text-sm divide-y divide-slate-100">
-                                        <tr><td colspan="8" class="p-8 text-center text-slate-400 text-xs font-bold">Carregando lotes...</td></tr>
+                                        <tr><td colspan="9" class="p-8 text-center text-slate-400 text-xs font-bold">Carregando lotes...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -883,6 +960,39 @@
                                     </div>
                                 </div>
                                 <div class="flex gap-2 items-center">
+                                    <div class="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200 shadow-sm">
+                                        <button onclick="setMovFilter('ambos')" id="movf-ambos" class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition bg-navy-900 text-white shadow">Ambos</button>
+                                        <button onclick="setMovFilter('entrada')" id="movf-entrada" class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-500 hover:bg-white">Entrada</button>
+                                        <button onclick="setMovFilter('saida')" id="movf-saida" class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-500 hover:bg-white">Saída</button>
+                                    </div>
+                                    <!-- Lupa busca por vacina (movimentação) -->
+                                    <div class="relative" id="mov-vaccine-search-wrap">
+                                        <button onclick="toggleMovVaccineSearch(event)" id="btn-mov-vaccine-search"
+                                            class="h-9 w-9 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 transition shadow-sm flex items-center justify-center"
+                                            title="Filtrar por vacina">
+                                            <i class="fas fa-search text-sm"></i>
+                                        </button>
+                                        <div id="mov-vaccine-dropdown" class="hidden absolute right-0 top-11 z-50 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+                                            <div class="p-3 bg-gradient-to-br from-indigo-600 to-indigo-800">
+                                                <p class="text-white text-[10px] font-black uppercase tracking-widest mb-2"><i class="fas fa-syringe mr-1"></i>Filtrar por Vacina</p>
+                                                <div class="relative">
+                                                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-indigo-300 text-xs"></i>
+                                                    <input type="text" id="mov-vaccine-search-input" placeholder="Digite o nome da vacina..."
+                                                        oninput="filterMovVaccineDropdown(this.value)"
+                                                        class="w-full pl-8 pr-3 py-2 bg-white/20 text-white placeholder-indigo-300 rounded-xl text-xs font-bold outline-none focus:bg-white/30 transition">
+                                                </div>
+                                            </div>
+                                            <div class="p-1.5">
+                                                <button onclick="selectMovVaccineFilter(null)"
+                                                    class="w-full text-left px-3 py-2 rounded-xl text-xs font-black text-slate-500 hover:bg-slate-100 transition flex items-center gap-2">
+                                                    <span class="h-5 w-5 bg-slate-100 rounded-lg flex items-center justify-center shrink-0"><i class="fas fa-list text-[9px] text-slate-400"></i></span>
+                                                    Todas as vacinas
+                                                </button>
+                                            </div>
+                                            <div class="border-t border-slate-100"></div>
+                                            <div id="mov-vaccine-dropdown-list" class="max-h-52 overflow-y-auto p-1.5 space-y-0.5"></div>
+                                        </div>
+                                    </div>
                                     <button onclick="openMovModal('entrada')" class="px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-black text-xs shadow-lg transition"><i class="fas fa-arrow-down mr-2"></i>Entrada</button>
                                     <button onclick="openMovModal('saida')" class="px-4 py-2 bg-orange-600 text-white rounded-xl hover:bg-orange-700 font-black text-xs shadow-lg transition"><i class="fas fa-arrow-up mr-2"></i>Saída</button>
                                 </div>
@@ -897,10 +1007,11 @@
                                             <th class="p-3 text-center">Qtd.</th>
                                             <th class="p-3">Justificativa</th>
                                             <th class="p-3">Usuário</th>
+                                            <th class="p-3 text-center">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody id="mov-body" class="text-sm divide-y divide-slate-100">
-                                        <tr><td colspan="6" class="p-8 text-center text-slate-400 text-xs font-bold">Nenhuma movimentação registrada</td></tr>
+                                        <tr><td colspan="7" class="p-8 text-center text-slate-400 text-xs font-bold">Nenhuma movimentação registrada</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -909,6 +1020,19 @@
 
                 </div><!-- /área conteúdo -->
             </div><!-- /flex almoxarifado -->
+
+            <!-- FAB: Agendar (visível na aba agenda) -->
+            <button id="fab-agendar" onclick="openRecordModal()" class="hidden fixed bottom-8 right-8 z-40 h-14 w-14 bg-clinic-600 hover:bg-clinic-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95" title="Novo Agendamento">
+                <i class="fas fa-plus text-xl"></i>
+            </button>
+            <!-- FAB: Nova Vacina (visível só no módulo produtos) -->
+            <button id="fab-nova-vacina" onclick="openVaccineModal()" class="hidden fixed bottom-8 right-8 z-40 h-14 w-14 bg-clinic-600 hover:bg-clinic-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95" title="Nova vacina">
+                <i class="fas fa-plus text-xl"></i>
+            </button>
+            <!-- FAB: Novo Lote (visível só no módulo lotes) -->
+            <button id="fab-novo-lote" onclick="openAddLoteModal()" class="hidden fixed bottom-8 right-8 z-40 h-14 w-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95" title="Adicionar novo lote">
+                <i class="fas fa-plus text-xl"></i>
+            </button>
         </section>
     </main>
 
@@ -926,11 +1050,13 @@
                 <button onclick="document.getElementById('modal-movimentacao').classList.remove('active')" class="h-8 w-8 rounded-full hover:bg-white/15 flex justify-center items-center transition"><i class="fas fa-times"></i></button>
             </div>
             <form id="mov-form" onsubmit="confirmMovimentacao(event)" class="p-5 space-y-3 overflow-y-auto">
-                <div>
+                <div class="relative">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Vacina *</label>
-                    <select id="mov-vacina" onchange="onMovVaccineChange()" class="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm font-bold focus:ring-2 focus:ring-clinic-500 outline-none">
-                        <option value="">Selecione a vacina...</option>
-                    </select>
+                    <input type="text" id="mov-vacina-search" autocomplete="off" placeholder="Digite para buscar vacina..."
+                        oninput="filterMovVaccineSearch(this.value)" onfocus="showMovVaccineDropdown()" onblur="hideMovVaccineDropdown()"
+                        class="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm font-bold focus:ring-2 focus:ring-clinic-500 outline-none">
+                    <input type="hidden" id="mov-vacina">
+                    <div id="mov-vacina-dropdown" class="hidden absolute z-10 w-full bg-white border border-slate-200 rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto"></div>
                 </div>
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Lote *</label>
@@ -948,12 +1074,12 @@
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Quantidade *</label>
                     <input type="number" id="mov-qtd" min="1" placeholder="0" class="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm font-black focus:ring-2 focus:ring-clinic-500 outline-none">
                 </div>
-                <!-- Bloco descarte (só em saída) -->
+                <!-- Bloco tipo de saída (só em saída) -->
                 <div id="mov-descarte-wrap" class="hidden">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">É descarte?</label>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Tipo de saída</label>
                     <div class="flex gap-2">
-                        <button type="button" id="mov-descarte-nao" onclick="setMovDescarte(false)" class="flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-wide transition bg-slate-600 text-white shadow"><i class="fas fa-box mr-1"></i>Não (ajuste/saída)</button>
-                        <button type="button" id="mov-descarte-sim" onclick="setMovDescarte(true)" class="flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-wide transition text-slate-500 hover:bg-slate-100"><i class="fas fa-trash mr-1"></i>Sim, descarte</button>
+                        <button type="button" id="mov-descarte-nao" onclick="setMovDescarte(false)" class="flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-wide transition bg-slate-600 text-white shadow"><i class="fas fa-box mr-1"></i>Ajuste</button>
+                        <button type="button" id="mov-descarte-sim" onclick="setMovDescarte(true)" class="flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-wide transition text-slate-500 hover:bg-slate-100"><i class="fas fa-trash mr-1"></i>Descarte</button>
                     </div>
                 </div>
                 <div>
@@ -968,6 +1094,41 @@
         </div>
     </div>
     <!-- ════════════════════════════════════════════════════ -->
+
+    <!-- MODAL EDITAR MOVIMENTAÇÃO -->
+    <div id="modal-edit-mov" class="modal fixed inset-0 bg-navy-900/85 backdrop-blur-md z-[185] justify-center items-center p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div id="edit-mov-head" class="p-5 text-white flex items-center gap-3 bg-gradient-to-br from-slate-600 to-slate-800">
+                <div class="h-10 w-10 bg-white/15 rounded-xl flex items-center justify-center border border-white/20 shrink-0">
+                    <i id="edit-mov-icon" class="fas fa-pen text-white text-base"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-black uppercase tracking-tight text-base leading-tight">Editar Movimentação</h3>
+                    <p class="text-[10px] text-white/70 font-bold uppercase tracking-widest mt-0.5">Alterar quantidade e justificativa</p>
+                </div>
+                <button onclick="document.getElementById('modal-edit-mov').classList.remove('active')" class="h-8 w-8 rounded-full hover:bg-white/15 flex justify-center items-center transition"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-3 overflow-y-auto">
+                <input type="hidden" id="edit-mov-id">
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
+                    <p class="font-black text-slate-700" id="edit-mov-info-produto">—</p>
+                    <p class="text-slate-400 font-bold mt-0.5" id="edit-mov-info-data">—</p>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Quantidade *</label>
+                    <input type="number" id="edit-mov-qtd" min="1" placeholder="0" class="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm font-black focus:ring-2 focus:ring-slate-400 outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Justificativa / Observação</label>
+                    <textarea id="edit-mov-motivo" rows="2" placeholder="Descreva o motivo..." class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-slate-400 outline-none resize-none"></textarea>
+                </div>
+                <div class="flex gap-3 pt-1">
+                    <button onclick="salvarEdicaoMov()" class="flex-1 bg-navy-900 text-white font-black py-3 rounded-xl hover:bg-clinic-600 uppercase text-xs transition shadow-lg"><i class="fas fa-save mr-1"></i>Salvar</button>
+                    <button onclick="document.getElementById('modal-edit-mov').classList.remove('active')" class="px-5 py-3 border border-slate-200 text-slate-500 font-black rounded-xl hover:bg-slate-50 uppercase text-xs transition">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- PAINEL FLUTUANTE DE ALERTAS DE VENCIMENTO (fixed, fora de qualquer overflow-hidden) -->
     <div id="expiry-panel" class="hidden fixed w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-[500] overflow-hidden flex flex-col" style="max-height: 420px;">
@@ -1059,7 +1220,7 @@
                         <option value="">Selecione a vacina primeiro</option>
                     </select>
                     <p id="reg-lote-validade-hint" class="text-[9px] text-slate-500 mt-1 hidden"><i class="fas fa-calendar-alt mr-1"></i>Val: <span id="span-lote-validade" class="font-bold"></span></p>
-                    <p id="reg-lote-estoque-hint" class="text-[9px] text-slate-500 mt-1 hidden"><i class="fas fa-box-open mr-1"></i>Disponível: <span id="span-lote-disp" class="font-black"></span> · Reservado: <span id="span-lote-reserv" class="font-bold"></span></p>
+                    <p id="reg-lote-estoque-hint" class="text-[9px] text-slate-500 mt-1 hidden"><i class="fas fa-box-open mr-1"></i>Disponível: <span id="span-lote-disp" class="font-black"></span></p>
                     <p id="reg-lote-vencido-erro" class="text-[9px] text-red-600 font-black mt-1 hidden"><i class="fas fa-ban mr-1"></i>Lote vencido — selecione outro lote.</p>
                 </div>
                 <div class="col-span-1 md:col-span-1">
@@ -1176,6 +1337,46 @@
         </div>
     </div>
 
+    <!-- ══════ MODAL SEMANAL — CONFIRMAÇÃO DE MOVER AGENDAMENTO ══════ -->
+    <div id="modal-weekly-drop" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[350] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" style="animation:fadeSlideDown .18s ease;">
+            <div class="bg-gradient-to-br from-indigo-600 to-indigo-900 p-5 text-white flex items-center gap-3">
+                <div class="h-10 w-10 bg-white/15 rounded-xl flex items-center justify-center border border-white/20 shrink-0">
+                    <i class="fas fa-calendar-alt text-white text-base"></i>
+                </div>
+                <div>
+                    <h3 class="font-black uppercase tracking-tight text-base leading-tight">Mover Agendamento</h3>
+                    <p class="text-[10px] text-indigo-200 font-bold uppercase tracking-widest mt-0.5">Confirme a nova data</p>
+                </div>
+            </div>
+            <div class="h-1 bg-gradient-to-r from-indigo-400 via-indigo-300 to-transparent"></div>
+            <div class="p-5 space-y-4">
+                <div class="bg-slate-50 rounded-xl border border-slate-200 p-3 space-y-1">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Paciente</p>
+                    <p id="wdrop-patient" class="font-black text-navy-900 text-sm"></p>
+                    <p id="wdrop-vaccine" class="text-xs text-slate-500 font-bold"></p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex-1 bg-orange-50 border border-orange-200 rounded-xl p-3 text-center">
+                        <p class="text-[9px] font-black text-orange-400 uppercase tracking-wider mb-1">De</p>
+                        <p id="wdrop-from" class="font-black text-orange-700 text-sm"></p>
+                    </div>
+                    <div class="h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
+                        <i class="fas fa-arrow-right text-indigo-600 text-xs"></i>
+                    </div>
+                    <div class="flex-1 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                        <p class="text-[9px] font-black text-emerald-400 uppercase tracking-wider mb-1">Para</p>
+                        <p id="wdrop-to" class="font-black text-emerald-700 text-sm"></p>
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-1">
+                    <button onclick="cancelWeeklyDrop()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Cancelar</button>
+                    <button onclick="confirmWeeklyDrop()" class="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-black text-xs uppercase tracking-wider hover:bg-indigo-700 transition shadow-md">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ══════ MODAL KANBAN — MOTIVO DE CANCELAMENTO ══════ -->
     <div id="modal-kanban-cancel" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[350] justify-center items-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
@@ -1193,9 +1394,12 @@
                 <p id="kanban-cancel-info" class="text-sm font-bold text-slate-700 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200 truncate"></p>
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Motivo da Perda *</label>
-                    <select id="kanban-cancel-reason" class="w-full border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-700 focus:ring-2 focus:ring-red-400 outline-none bg-white">
-                        <option value="">Selecione o motivo...</option>
-                    </select>
+                    <div class="flex gap-2 items-center">
+                        <select id="kanban-cancel-reason" class="flex-1 border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-700 focus:ring-2 focus:ring-red-400 outline-none bg-white">
+                            <option value="">Selecione o motivo...</option>
+                        </select>
+                        <button type="button" onclick="openCancelReasonsModal()" id="btn-kanban-manage-reasons" class="h-10 w-10 shrink-0 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl flex items-center justify-center transition shadow-sm border border-red-200" title="Gerenciar motivos"><i class="fas fa-plus text-xs"></i></button>
+                    </div>
                     <p id="kanban-cancel-err" class="hidden text-[11px] text-red-500 font-bold mt-1"><i class="fas fa-exclamation-circle mr-1"></i>Selecione um motivo para continuar</p>
                 </div>
                 <div class="flex gap-3 pt-1">
@@ -1331,10 +1535,129 @@
                         <input type="text" id="vac-valor" required placeholder="0,00" oninput="maskCurrency(this)" inputmode="numeric" class="flex-1 py-2 px-3 outline-none text-sm font-bold">
                     </div>
                 </div>
-                <div class="col-span-1 md:col-span-2 mt-2">
-                    <button type="submit" class="w-full bg-navy-900 text-white font-black py-3 rounded-lg hover:bg-clinic-600 text-xs uppercase transition">Salvar Vacina</button>
+                <div class="col-span-1 md:col-span-2 mt-2 flex gap-3">
+                    <button type="button" id="btn-delete-vacina" onclick="deleteVaccineFromModal()" class="hidden px-4 bg-red-50 text-red-600 border border-red-200 font-black py-3 rounded-lg hover:bg-red-500 hover:text-white text-xs uppercase transition flex items-center gap-2"><i class="fas fa-trash"></i>Excluir</button>
+                    <button type="submit" class="flex-1 bg-navy-900 text-white font-black py-3 rounded-lg hover:bg-clinic-600 text-xs uppercase transition">Salvar Vacina</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- MODAL EXCLUIR MOVIMENTAÇÃO -->
+    <div id="modal-delete-mov" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[250] justify-center items-center p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="bg-gradient-to-br from-red-600 to-red-900 p-6 text-white relative overflow-hidden">
+                <div class="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/5 pointer-events-none"></div>
+                <div class="absolute -left-4 -bottom-8 h-20 w-20 rounded-full bg-white/5 pointer-events-none"></div>
+                <div class="flex items-center gap-4 relative">
+                    <div class="h-14 w-14 bg-white/15 rounded-2xl flex items-center justify-center border border-white/20 shrink-0 shadow-lg">
+                        <i class="fas fa-triangle-exclamation text-2xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-red-200 text-[10px] font-black uppercase tracking-widest">Exclusão permanente</p>
+                        <h3 class="font-black text-lg uppercase tracking-tight leading-tight">Excluir Movimentação</h3>
+                        <p class="text-red-200 text-xs font-bold mt-0.5">Esta ação não pode ser desfeita</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-5 space-y-3">
+                <div class="bg-red-50 border border-red-200 rounded-2xl p-4">
+                    <p class="text-[9px] font-black text-red-400 uppercase tracking-widest mb-2">Movimentação a excluir</p>
+                    <div class="flex items-center gap-3">
+                        <div id="delmov-icon" class="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 bg-red-100">
+                            <i class="fas fa-right-left text-red-500 text-sm"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p id="delmov-tipo" class="font-black text-slate-800 text-sm"></p>
+                            <p id="delmov-info" class="text-[10px] text-slate-500 font-bold mt-0.5"></p>
+                        </div>
+                        <span id="delmov-qtd" class="ml-auto font-black text-lg shrink-0"></span>
+                    </div>
+                </div>
+                <div id="delmov-aviso-negativo" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                    <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5 shrink-0"></i>
+                    <p class="text-xs font-bold text-amber-700">Não é possível excluir: o estoque ficaria negativo após esta exclusão.</p>
+                </div>
+                <div class="flex gap-3 pt-1">
+                    <button onclick="document.getElementById('modal-delete-mov').classList.remove('active')"
+                        class="flex-1 border border-slate-200 text-slate-500 py-2.5 rounded-xl font-black text-xs uppercase hover:bg-slate-50 transition">Cancelar</button>
+                    <button id="delmov-confirm-btn" onclick="confirmDeleteMovimentacao()"
+                        class="flex-1 bg-red-600 text-white py-2.5 rounded-xl font-black text-xs uppercase hover:bg-red-700 transition shadow">Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EXCLUSÃO CRÍTICA DE AGENDAMENTO (via visualizador de lote) -->
+    <div id="modal-delete-lote-apt" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[210] justify-center items-center p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden">
+            <!-- Header vermelho intenso -->
+            <div class="bg-gradient-to-br from-red-600 to-red-900 p-6 text-white relative overflow-hidden">
+                <div class="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/5 pointer-events-none"></div>
+                <div class="absolute -left-4 -bottom-8 h-20 w-20 rounded-full bg-white/5 pointer-events-none"></div>
+                <div class="flex items-center gap-4 relative">
+                    <div class="h-14 w-14 bg-white/15 rounded-2xl flex items-center justify-center border border-white/20 shrink-0 shadow-lg">
+                        <i class="fas fa-triangle-exclamation text-2xl text-white"></i>
+                    </div>
+                    <div>
+                        <p class="text-red-200 text-[10px] font-black uppercase tracking-widest">Alteração crítica</p>
+                        <h3 class="font-black text-xl uppercase tracking-tight leading-tight">Excluir Registro</h3>
+                        <p class="text-red-200 text-xs font-bold mt-0.5">Esta ação não pode ser desfeita</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Card do paciente -->
+            <div class="p-5 space-y-4">
+                <div class="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-2">
+                    <p class="text-[9px] font-black text-red-400 uppercase tracking-widest mb-1">Paciente afetado</p>
+                    <div class="flex items-center gap-3">
+                        <div class="h-10 w-10 bg-red-100 border border-red-200 rounded-xl flex items-center justify-center shrink-0">
+                            <i class="fas fa-user text-red-500"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p id="dla-pat-nome" class="font-black text-slate-800 text-sm truncate">—</p>
+                            <p id="dla-pat-info" class="text-[10px] text-slate-500 font-bold">—</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <div class="bg-white border border-red-100 rounded-xl p-2.5">
+                            <p class="text-[9px] font-black text-slate-400 uppercase">Vacina</p>
+                            <p id="dla-vac-nome" class="text-xs font-black text-slate-700 truncate mt-0.5">—</p>
+                        </div>
+                        <div class="bg-white border border-red-100 rounded-xl p-2.5">
+                            <p class="text-[9px] font-black text-slate-400 uppercase">Dose / Data</p>
+                            <p id="dla-apt-info" class="text-xs font-black text-slate-700 mt-0.5">—</p>
+                        </div>
+                        <div class="bg-white border border-red-100 rounded-xl p-2.5">
+                            <p class="text-[9px] font-black text-slate-400 uppercase">Status</p>
+                            <p id="dla-apt-status" class="text-xs font-black text-slate-700 mt-0.5">—</p>
+                        </div>
+                        <div class="bg-white border border-red-100 rounded-xl p-2.5">
+                            <p class="text-[9px] font-black text-slate-400 uppercase">Lote</p>
+                            <p id="dla-apt-lote" class="text-xs font-black text-slate-700 mt-0.5 font-mono">—</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex gap-3 items-start">
+                    <i class="fas fa-circle-info text-amber-500 mt-0.5 shrink-0"></i>
+                    <p class="text-xs text-amber-700 font-bold leading-relaxed">Ao excluir, o agendamento e a aplicação associada serão <span class="font-black">removidos permanentemente</span> do sistema. O estoque do lote será ajustado automaticamente.</p>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-1.5">Para confirmar, digite <span class="text-red-600 font-black">SIM</span></label>
+                    <input type="text" id="dla-confirm-input" placeholder="SIM" oninput="checkDlaConfirm()" autocomplete="off"
+                        class="w-full border-2 border-slate-200 rounded-xl py-3 px-4 text-center font-black text-base tracking-[0.3em] focus:outline-none focus:border-red-400 transition uppercase">
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('modal-delete-lote-apt').classList.remove('active')"
+                        class="flex-1 border border-slate-200 text-slate-500 font-black py-3 rounded-xl hover:bg-slate-50 uppercase text-xs transition">
+                        Cancelar
+                    </button>
+                    <button id="btn-dla-confirm" onclick="confirmDeleteLoteAppointment()" disabled
+                        class="flex-1 bg-red-200 text-red-400 font-black py-3 rounded-xl uppercase text-xs transition cursor-not-allowed">
+                        <i class="fas fa-trash mr-1"></i> Excluir definitivamente
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1488,6 +1811,42 @@
                         class="flex-1 border border-slate-200 text-slate-500 font-black py-3 rounded-xl hover:bg-slate-50 uppercase text-xs transition">
                         Cancelar
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ADICIONAR LOTE (FAB) -->
+    <div id="modal-add-lote-fab" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[200] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="bg-indigo-600 p-5 text-white flex justify-between items-center">
+                <h3 class="font-black uppercase tracking-tight text-base"><i class="fas fa-plus-circle mr-2"></i>Novo Lote</h3>
+                <button onclick="document.getElementById('modal-add-lote-fab').classList.remove('active')" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div class="relative">
+                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Vacina</label>
+                    <input type="text" id="fab-lote-vaccine-search" autocomplete="off" placeholder="Digite para buscar vacina..."
+                        oninput="filterFabLoteVaccines(this.value)" onfocus="showFabLoteDropdown()" onblur="hideFabLoteDropdown()"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold">
+                    <input type="hidden" id="fab-lote-vaccine">
+                    <div id="fab-lote-vaccine-dropdown" class="hidden absolute z-10 w-full bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto"></div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Nº do Lote</label>
+                    <input type="text" id="fab-lote-numero" placeholder="Ex: AB1234" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 uppercase font-bold">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Validade</label>
+                    <input type="date" id="fab-lote-validade" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Quantidade Inicial</label>
+                    <input type="number" id="fab-lote-qtd" min="1" placeholder="0" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-center">
+                </div>
+                <div class="flex gap-3 pt-1">
+                    <button onclick="salvarFabLote()" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-black text-xs uppercase hover:bg-indigo-700 transition shadow"><i class="fas fa-save mr-1"></i>Salvar</button>
+                    <button onclick="document.getElementById('modal-add-lote-fab').classList.remove('active')" class="flex-1 border border-slate-200 text-slate-500 py-2.5 rounded-xl font-black text-xs uppercase hover:bg-slate-50 transition">Cancelar</button>
                 </div>
             </div>
         </div>
@@ -1699,7 +2058,187 @@
         </div>
     </div>
 
+    <!-- ══════════════════ MODAL VISUALIZAR VACINA (ESTOQUE) ══════════════════ -->
+    <div id="modal-view-vaccine" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[168] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col" style="max-height:90vh">
+            <!-- Header -->
+            <div id="vv-header" class="p-5 text-white shrink-0 bg-gradient-to-br from-indigo-700 to-navy-900">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-center gap-3">
+                        <div class="h-11 w-11 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
+                            <i class="fas fa-syringe text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-indigo-200 text-[10px] font-black uppercase tracking-widest">Vacina</p>
+                            <h2 id="vv-nome" class="font-black text-lg leading-tight"></h2>
+                            <p id="vv-status-badge" class="text-[10px] font-black uppercase mt-0.5"></p>
+                        </div>
+                    </div>
+                    <button onclick="document.getElementById('modal-view-vaccine').classList.remove('active')" class="h-8 w-8 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center transition shrink-0">
+                        <i class="fas fa-times text-sm"></i>
+                    </button>
+                </div>
+                <!-- KPIs -->
+                <div class="grid grid-cols-3 gap-2 mt-4">
+                    <div class="bg-white/10 rounded-xl p-2.5 text-center">
+                        <p class="text-indigo-200 text-[9px] font-black uppercase">Disponível</p>
+                        <p id="vv-kpi-disp" class="text-white font-black text-xl leading-tight">0</p>
+                    </div>
+                    <div class="bg-white/10 rounded-xl p-2.5 text-center">
+                        <p class="text-indigo-200 text-[9px] font-black uppercase">Reservado</p>
+                        <p id="vv-kpi-reserv" class="text-white font-black text-xl leading-tight">0</p>
+                    </div>
+                    <div class="bg-white/10 rounded-xl p-2.5 text-center">
+                        <p class="text-indigo-200 text-[9px] font-black uppercase">Total</p>
+                        <p id="vv-kpi-total" class="text-white font-black text-xl leading-tight">0</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Abas -->
+            <div class="flex border-b border-slate-200 bg-slate-50 shrink-0">
+                <button onclick="switchVaccineViewTab('info')" id="vvtab-info" class="flex-1 py-3 text-xs font-black uppercase tracking-widest text-indigo-700 bg-white border-b-2 border-indigo-500 transition"><i class="fas fa-info-circle mr-1"></i>Informações</button>
+                <button onclick="switchVaccineViewTab('lotes')" id="vvtab-lotes" class="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-white border-b-2 border-transparent transition"><i class="fas fa-boxes-stacked mr-1"></i>Lotes</button>
+                <button onclick="switchVaccineViewTab('movs')" id="vvtab-movs" class="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-white border-b-2 border-transparent transition"><i class="fas fa-right-left mr-1"></i>Movimentação</button>
+            </div>
+            <!-- Conteúdo -->
+            <div class="overflow-y-auto flex-1">
+                <!-- Aba: Informações -->
+                <div id="vvpanel-info" class="p-5 space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-50 rounded-xl p-3">
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Doses</p>
+                            <p id="vv-info-doses" class="font-black text-slate-800 text-sm"></p>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-3">
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Tipo</p>
+                            <p id="vv-info-tipo" class="font-black text-slate-800 text-sm"></p>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-3">
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Idade Mínima</p>
+                            <p id="vv-info-idade" class="font-black text-slate-800 text-sm"></p>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-3">
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Valor</p>
+                            <p id="vv-info-valor" class="font-black text-slate-800 text-sm"></p>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-3">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Intervalos entre doses</p>
+                        <p id="vv-info-intervalos" class="font-bold text-slate-700 text-xs"></p>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-3">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Situação do Estoque</p>
+                        <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div id="vv-bar" class="h-full rounded-full transition-all duration-500 bg-indigo-500" style="width:0%"></div>
+                        </div>
+                        <p id="vv-bar-label" class="text-[9px] text-slate-400 font-bold mt-1"></p>
+                    </div>
+                </div>
+                <!-- Aba: Lotes -->
+                <div id="vvpanel-lotes" class="hidden">
+                    <div class="flex items-center gap-1 p-3 bg-slate-50 border-b border-slate-100">
+                        <button onclick="setVVLoteFilter('aberto')" id="vvlf-aberto" class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition bg-navy-900 text-white shadow">Aberto</button>
+                        <button onclick="setVVLoteFilter('fechado')" id="vvlf-fechado" class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-500 hover:bg-white">Fechado</button>
+                        <button onclick="setVVLoteFilter('ambos')" id="vvlf-ambos" class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-500 hover:bg-white">Ambos</button>
+                        <button onclick="openAddLoteFromVaccineView()" class="ml-auto px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-indigo-700 transition shadow flex items-center gap-1"><i class="fas fa-plus text-[9px]"></i>Adicionar Lote</button>
+                    </div>
+                    <div id="vv-lotes-list" class="p-3 space-y-2"></div>
+                    <div id="vv-lotes-pagination" class="flex items-center justify-between px-4 py-2 border-t border-slate-100 bg-slate-50 hidden">
+                        <button onclick="vvLotePage(-1)" id="vv-lote-prev" class="h-8 px-3 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-black hover:bg-slate-100 transition disabled:opacity-40"><i class="fas fa-chevron-left mr-1"></i>Ant.</button>
+                        <span id="vv-lote-page-info" class="text-[10px] font-black text-slate-500 uppercase"></span>
+                        <button onclick="vvLotePage(1)" id="vv-lote-next" class="h-8 px-3 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-black hover:bg-slate-100 transition disabled:opacity-40">Próx.<i class="fas fa-chevron-right ml-1"></i></button>
+                    </div>
+                </div>
+                <!-- Aba: Movimentação -->
+                <div id="vvpanel-movs" class="hidden">
+                    <div class="flex items-center gap-1 p-3 bg-slate-50 border-b border-slate-100">
+                        <button onclick="setVVMovFilter('ambos')" id="vvmf-ambos" class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition bg-navy-900 text-white shadow">Ambos</button>
+                        <button onclick="setVVMovFilter('entrada')" id="vvmf-entrada" class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-500 hover:bg-white">Entrada</button>
+                        <button onclick="setVVMovFilter('saida')" id="vvmf-saida" class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition text-slate-500 hover:bg-white">Saída</button>
+                        <div class="ml-auto flex gap-1">
+                            <button onclick="openVVMovEntrada()" class="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-[10px] font-black uppercase hover:bg-emerald-500 hover:text-white transition flex items-center gap-1"><i class="fas fa-arrow-down text-[9px]"></i>Entrada</button>
+                            <button onclick="openVVMovSaida()" class="px-2.5 py-1.5 bg-orange-50 text-orange-700 border border-orange-200 rounded-lg text-[10px] font-black uppercase hover:bg-orange-500 hover:text-white transition flex items-center gap-1"><i class="fas fa-arrow-up text-[9px]"></i>Saída</button>
+                        </div>
+                    </div>
+                    <div id="vv-movs-list" class="divide-y divide-slate-100"></div>
+                    <div id="vv-movs-pagination" class="flex items-center justify-between px-4 py-2 border-t border-slate-100 bg-slate-50 hidden">
+                        <button onclick="vvMovPage(-1)" id="vv-mov-prev" class="h-8 px-3 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-black hover:bg-slate-100 transition disabled:opacity-40"><i class="fas fa-chevron-left mr-1"></i>Ant.</button>
+                        <span id="vv-mov-page-info" class="text-[10px] font-black text-slate-500 uppercase"></span>
+                        <button onclick="vvMovPage(1)" id="vv-mov-next" class="h-8 px-3 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-black hover:bg-slate-100 transition disabled:opacity-40">Próx.<i class="fas fa-chevron-right ml-1"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ══════════════════ MODAL EDITAR LOTE ══════════════════ -->
+    <!-- MODAL VISUALIZAR LOTE -->
+    <div id="modal-view-lote" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[169] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col" style="max-height:88vh">
+            <!-- Header gradiente -->
+            <div id="view-lote-header" class="p-5 text-white shrink-0 bg-gradient-to-br from-indigo-600 to-indigo-900">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-center gap-3">
+                        <div class="h-11 w-11 bg-white/15 rounded-xl flex items-center justify-center border border-white/20 shrink-0">
+                            <i class="fas fa-boxes-stacked text-white text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-indigo-200 font-black uppercase tracking-widest">Lote</p>
+                            <h3 id="view-lote-numero" class="font-black text-xl tracking-tight leading-tight font-mono">—</h3>
+                            <p id="view-lote-vacina" class="text-indigo-200 text-xs font-bold mt-0.5">—</p>
+                        </div>
+                    </div>
+                    <button onclick="document.getElementById('modal-view-lote').classList.remove('active')" class="h-8 w-8 rounded-full hover:bg-white/15 flex justify-center items-center transition shrink-0"><i class="fas fa-times"></i></button>
+                </div>
+                <!-- Cards de estoque -->
+                <div class="grid grid-cols-5 gap-2 mt-4">
+                    <div class="bg-white/10 rounded-xl p-2.5 text-center border border-white/10">
+                        <p class="text-[9px] font-black text-indigo-200 uppercase tracking-widest">Disponível</p>
+                        <p id="view-lote-disp" class="text-xl font-black mt-0.5">—</p>
+                    </div>
+                    <div class="bg-white/10 rounded-xl p-2.5 text-center border border-white/10">
+                        <p class="text-[9px] font-black text-indigo-200 uppercase tracking-widest">Reservado</p>
+                        <p id="view-lote-reserv" class="text-xl font-black mt-0.5">—</p>
+                    </div>
+                    <div class="bg-white/10 rounded-xl p-2.5 text-center border border-white/10">
+                        <p class="text-[9px] font-black text-orange-200 uppercase tracking-widest">Saída</p>
+                        <p id="view-lote-saida" class="text-xl font-black mt-0.5">—</p>
+                    </div>
+                    <div class="bg-white/10 rounded-xl p-2.5 text-center border border-white/10">
+                        <p class="text-[9px] font-black text-indigo-200 uppercase tracking-widest">Total</p>
+                        <p id="view-lote-total" class="text-xl font-black mt-0.5">—</p>
+                    </div>
+                    <div class="bg-white/10 rounded-xl p-2.5 text-center border border-white/10">
+                        <p class="text-[9px] font-black text-indigo-200 uppercase tracking-widest">Validade</p>
+                        <p id="view-lote-validade-badge" class="text-[10px] font-black mt-0.5 leading-tight">—</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Filtro de movimentações -->
+            <div class="flex gap-1 p-3 bg-slate-50 border-b border-slate-100 shrink-0">
+                <button onclick="setViewLoteFilter('ambos')" id="vlf-ambos" class="vlf-btn flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide transition bg-indigo-600 text-white shadow">Ambos</button>
+                <button onclick="setViewLoteFilter('entrada')" id="vlf-entrada" class="vlf-btn flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide transition text-slate-500 hover:bg-white">Entradas</button>
+                <button onclick="setViewLoteFilter('saida')" id="vlf-saida" class="vlf-btn flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide transition text-slate-500 hover:bg-white">Saídas</button>
+            </div>
+            <!-- Lista de movimentações -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-2" id="view-lote-mov-list">
+                <p class="text-center text-slate-400 text-xs font-bold py-6">Nenhuma movimentação</p>
+            </div>
+            <!-- Rodapé com ações -->
+            <div class="shrink-0 p-4 bg-slate-50 border-t border-slate-100 space-y-2">
+                <div class="flex gap-2">
+                    <button onclick="openViewLoteEntrada()" class="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-200 font-black py-2 rounded-xl hover:bg-emerald-500 hover:text-white transition text-xs uppercase flex items-center justify-center gap-2"><i class="fas fa-arrow-down"></i>Entrada</button>
+                    <button onclick="openViewLoteSaida()" class="flex-1 bg-orange-50 text-orange-700 border border-orange-200 font-black py-2 rounded-xl hover:bg-orange-500 hover:text-white transition text-xs uppercase flex items-center justify-center gap-2"><i class="fas fa-arrow-up"></i>Saída</button>
+                </div>
+                <div class="flex gap-2">
+                    <button id="view-lote-btn-excluir" onclick="deleteLoteFromView()" class="px-4 py-2 bg-red-50 text-red-600 border border-red-200 font-black rounded-xl hover:bg-red-500 hover:text-white transition text-xs uppercase flex items-center gap-2"><i class="fas fa-trash"></i>Excluir</button>
+                    <button id="view-lote-btn-editar" onclick="editLoteFromView()" class="flex-1 bg-indigo-600 text-white font-black py-2 rounded-xl hover:bg-indigo-700 transition text-xs uppercase shadow flex items-center justify-center gap-2"><i class="fas fa-pen"></i>Editar Lote</button>
+                    <button id="view-lote-btn-toggle" onclick="toggleLoteFromView()" class="px-4 py-2 font-black rounded-xl transition text-xs uppercase flex items-center gap-2 border"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-edit-lote" class="modal fixed inset-0 bg-navy-900/70 backdrop-blur-sm z-[170] justify-center items-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
             <h3 class="font-black text-navy-900 text-base uppercase tracking-tight mb-4"><i class="fas fa-pen text-blue-500 mr-2"></i>Editar Lote</h3>

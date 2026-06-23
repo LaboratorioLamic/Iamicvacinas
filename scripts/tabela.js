@@ -150,24 +150,26 @@ function renderTable() {
         const isDelayed = a.data < todayStr && a.status === 'Agendado';
         let stClass = a.status==='Aplicado'?'bg-green-100 text-green-700':a.status==='Cancelado'?'bg-red-100 text-red-700':a.status==='Em negociação'?'bg-cyan-100 text-cyan-700':isDelayed?'bg-yellow-100 text-yellow-700 border border-yellow-300':'bg-blue-100 text-blue-700';
 
-        tbody.innerHTML += `<tr class="hover:bg-slate-50 transition">
-            <td class="p-4 font-bold text-slate-700 whitespace-nowrap">${a.data.split('-').reverse().join('/')}${a.hora ? ' <span class="text-[10px] text-slate-400 font-bold">'+a.hora+'</span>' : ''} ${isDelayed?'<i class="fas fa-exclamation-triangle text-yellow-500 ml-1" title="Atrasado"></i>':''}</td>
+        tbody.innerHTML += `<tr onclick="editRecord(${a.id})" class="cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-clinic-50 hover:shadow-md active:translate-y-0 active:bg-clinic-100 group">
+            <td class="p-4 font-bold text-slate-700 whitespace-nowrap group-hover:text-clinic-700">${a.data.split('-').reverse().join('/')}${a.hora ? ' <span class="text-[10px] text-slate-400 font-bold">'+a.hora+'</span>' : ''} ${isDelayed?'<i class="fas fa-exclamation-triangle text-yellow-500 ml-1" title="Atrasado"></i>':''}</td>
             <td class="p-4">
-                <div class="font-bold text-navy-900">${pat.nome}</div>
-                <div class="text-[10px] text-slate-500">Idade: ${getAge(pat.dtNasc)} anos | CPF: ${pat.cpf}</div>
+                <div class="flex items-center gap-2">
+                    <a href="https://wa.me/55${formatWa(pat.contato)}" target="_blank" onclick="event.stopPropagation()" class="h-7 w-7 shrink-0 bg-green-100 text-green-600 hover:bg-green-500 hover:text-white rounded-lg flex items-center justify-center transition shadow-sm" title="WhatsApp"><i class="fab fa-whatsapp text-sm"></i></a>
+                    <div>
+                        <div class="font-bold text-navy-900 group-hover:text-clinic-700">${pat.nome}</div>
+                        <div class="text-[10px] text-slate-500">Idade: ${getAge(pat.dtNasc)} anos | CPF: ${pat.cpf}</div>
+                    </div>
+                </div>
             </td>
             <td class="p-4">
                 <div class="font-bold whitespace-nowrap">${vac.nome}</div>
                 <div class="text-[10px] font-black text-clinic-600 bg-clinic-50 inline-block px-1 rounded">${a.doseAtual}</div>
             </td>
             <td class="p-4 text-center"><span class="px-2 py-1 rounded text-[10px] font-black uppercase whitespace-nowrap ${stClass}">${isDelayed ? 'Atrasado' : a.status}</span></td>
-            <td class="p-4 text-center">
+            <td class="p-4 text-center" onclick="event.stopPropagation()">
                 <div class="flex justify-center gap-2 flex-wrap">
-                    <a href="https://wa.me/55${formatWa(pat.contato)}" target="_blank" class="h-8 w-8 bg-green-100 text-green-600 hover:bg-green-600 hover:text-white rounded flex items-center justify-center transition shadow-sm" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
-                    ${permBtn('agendar', `<button onclick="editRecord(${a.id})" class="h-8 w-8 bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white rounded flex items-center justify-center transition shadow-sm" title="Abrir"><i class="fas fa-eye"></i></button>`)}
                     ${a.status === 'Em negociação' ? permBtn('criar_agendamento', `<button onclick="openAgendarModal(${a.id})" class="h-8 w-8 bg-blue-500 text-white hover:bg-blue-600 rounded flex items-center justify-center transition shadow-sm" title="Agendar"><i class="fas fa-calendar-check"></i></button>`) : ''}
                     ${a.status === 'Agendado' ? permBtn('aplicar', `<button onclick="openConcluirModal(${a.id})" class="h-8 w-8 bg-green-500 text-white hover:bg-green-600 rounded flex items-center justify-center transition shadow-sm" title="Aplicar"><i class="fas fa-syringe"></i></button>`) : ''}
-                    ${permBtn('excluir_agendamento', `<button onclick="openDeleteModal(${a.id})" class="h-8 w-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded flex items-center justify-center transition shadow-sm" title="Excluir"><i class="fas fa-trash"></i></button>`)}
                 </div>
             </td>
         </tr>`;

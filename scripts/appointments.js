@@ -190,9 +190,7 @@ function onLoteChange() {
         if (loteIdSel && typeof getLoteDisponivelParaAgendamento === 'function') {
             const editingId = document.getElementById('reg-id')?.value;
             const disp = Math.max(0, getLoteDisponivelParaAgendamento(Number(loteIdSel), editingId ? Number(editingId) : null));
-            const reserv = (typeof getLoteReservado === 'function') ? getLoteReservado(Number(loteIdSel)) : 0;
             document.getElementById('span-lote-disp').textContent = disp;
-            document.getElementById('span-lote-reserv').textContent = reserv;
             estoqueHint.classList.toggle('text-red-600', disp <= 0);
             estoqueHint.classList.toggle('text-slate-500', disp > 0);
             estoqueHint.classList.remove('hidden');
@@ -509,12 +507,14 @@ function confirmDeleteRecord() {
     logAudit('Excluído', 'agendamento', pendingDeleteId,
         `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a ? a.doseAtual : ''} | ${a ? a.data : ''}`);
     appointments = appointments.filter(x=>x.id !== pendingDeleteId);
+    if (typeof stockMovements !== 'undefined') stockMovements = stockMovements.filter(m => m.appointmentId != pendingDeleteId);
     pendingDeleteId = null;
     document.getElementById('modal-delete-confirm').classList.remove('active');
     document.getElementById('delete-confirm-input').value = '';
     if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
     saveAll(); renderCalendar(); renderTable(); renderDashboard(); renderPatients(); closeModals();
     if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+    if (typeof refreshOpenModals === 'function') refreshOpenModals();
     showNotification('Agendamento excluído com sucesso.', 'success');
 }
 
@@ -699,6 +699,13 @@ function renderCancelReasons() {
         </li>
     `).join('');
     populateCancelReasons();
+    // Atualiza o select do modal de cancelamento do kanban se estiver aberto
+    const kanbanSel = document.getElementById('kanban-cancel-reason');
+    if (kanbanSel) {
+        const cur = kanbanSel.value;
+        kanbanSel.innerHTML = '<option value="">Selecione o motivo...</option>' + cancelReasons.map(r=>`<option value="${r}">${r}</option>`).join('');
+        if (cur) kanbanSel.value = cur;
+    }
 }
 
 function addNewReason() {
@@ -852,6 +859,13 @@ function saveRecord(e) {
     }
 
     const statusVal = document.getElementById('reg-status').value;
+
+    // Bloqueio: salvar como Aplicado exige permissão de aplicador
+    if (statusVal === 'Aplicado' && !isCurrentUserAdmin() && !hasPerm('aplicar')) {
+        showNotification('Apenas usuários com permissão de aplicador podem registrar aplicações.', 'error');
+        return;
+    }
+
     const loteId = loteSel.value ? Number(loteSel.value) : null;
     const loteNumero = loteOpt && loteOpt.dataset.numero ? loteOpt.dataset.numero.toUpperCase() : '';
 
@@ -916,9 +930,11 @@ function saveRecord(e) {
         `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a.doseAtual} | ${a.data ? a.data.split('-').reverse().join('/') : '—'}`,
         isNew ? `Status: ${a.status}${a.vendedor ? ' | Vendedor: ' + a.vendedor : ''}` : null, appChanges);
     window._doseAnteriorConfirmado = false;
+    if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(a);
     if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
     saveAll(); renderCalendar(); renderTable(); renderDashboard(); renderPatients(); closeModals();
     if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+    if (typeof refreshOpenModals === 'function') refreshOpenModals();
     if (typeof updateExpiryBadge === 'function') updateExpiryBadge();
     showNotification('Agendamento salvo com sucesso!', 'success');
 }

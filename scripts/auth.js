@@ -153,11 +153,16 @@ function applyPermissions() {
     const canVac     = admin || hasPerm('vacinas_crud');
     const canPdf     = admin || hasPerm('baixar_pdf');
 
+    // Sub-views de agenda — Planilha/Kanban requerem ver_tabela
+    ['btn-agendaview-planilha', 'btn-agendaview-kanban'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.style.display = canTabela ? '' : 'none';
+    });
+
     // Tabs — oculta botões sem permissão
     const tabVisibility = {
         'btn-dashboard': canDash,
         'btn-agenda':    canAgenda,
-        'btn-dados':     canTabela,
         'btn-pacientes': canPacTab,
         'btn-vacinas':   canVacTab,
     };
@@ -216,7 +221,7 @@ function applyPermissions() {
     if (el('btn-novo-tabela'))    el('btn-novo-tabela').style.display    = canAgendar ? '' : 'none';
     if (el('btn-view-kanban'))    el('btn-view-kanban').style.display    = canAgendar ? '' : 'none';
     if (el('btn-novo-paciente'))  el('btn-novo-paciente').style.display  = canPac     ? '' : 'none';
-    if (el('btn-nova-vacina'))    el('btn-nova-vacina').style.display    = canVac     ? '' : 'none';
+    if (el('fab-nova-vacina'))    el('fab-nova-vacina').style.display    = canVac     ? '' : 'none';
     if (el('btn-pdf-prontuario')) el('btn-pdf-prontuario').style.display = canPdf     ? '' : 'none';
 
     // Botão "Agendar neste dia" no modal do dia

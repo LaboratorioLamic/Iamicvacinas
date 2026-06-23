@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════════════════
 //  ALMOXARIFADO — Controle de Estoque, Lotes, Reservas e Movimentação
 // ═══════════════════════════════════════════════════════════════════════════
 //
@@ -37,9 +37,11 @@ function getLoteReservado(loteId) {
 }
 
 // Saídas manuais (descarte / ajuste) registradas na movimentação
+// Movs gerados automaticamente por agendamento (appointmentId presente) são excluídos
+// pois já entram no cálculo via getLoteAplicado / getLoteReservado
 function getLoteSaidasManuais(loteId) {
     return stockMovements
-        .filter(m => m.loteId == loteId && m.tipo === 'saida')
+        .filter(m => m.loteId == loteId && m.tipo === 'saida' && !m.appointmentId)
         .reduce((s, m) => s + (Number(m.qtd) || 0), 0);
 }
 
@@ -75,6 +77,39 @@ function getLoteDisponivelParaAgendamento(loteId, ignoreAppointmentId) {
     const reservado  = appointments.filter(a => a.loteId == loteId && a.status === 'Agendado' && a.id != ignoreAppointmentId).length;
     const saidaManual = getLoteSaidasManuais(loteId);
     return total - aplicado - reservado - saidaManual;
+}
+
+// ─── MOVIMENTAÇÃO AUTOMÁTICA POR AGENDAMENTO ─────────────────────────────────
+// Mantém exatamente 1 stockMovement por agendamento (appointmentId = a.id).
+// - loteId preenchido + status Agendado  → tipo 'reserva'
+// - loteId preenchido + status Aplicado  → tipo 'saida'
+// - loteId removido ou status Cancelado  → remove o mov
+// Movs de tipo 'reserva' e 'saida' com appointmentId NÃO entram em getLoteSaidasManuais.
+function syncAppointmentMovement(appointment) {
+    const { id, loteId, vaccineId, status } = appointment;
+    // Remove mov anterior deste agendamento (garante 1 por card)
+    stockMovements = stockMovements.filter(m => m.appointmentId != id);
+
+    if (!loteId || status === 'Cancelado') return;
+
+    let tipo;
+    if (status === 'Agendado') tipo = 'reserva';
+    else if (status === 'Aplicado') tipo = 'saida';
+    else return; // outros status não geram mov
+
+    const lote = vaccineLots.find(l => l.id == loteId);
+    stockMovements.push({
+        id: Date.now(),
+        appointmentId: id,
+        loteId: Number(loteId),
+        vaccineId: lote ? Number(lote.vaccineId) : (vaccineId ? Number(vaccineId) : null),
+        tipo,
+        qtd: 1,
+        motivo: tipo === 'reserva' ? 'Reserva automática (agendamento)' : 'Saída automática (aplicação)',
+        descarte: false,
+        data: new Date().toISOString(),
+        usuario: currentUser ? currentUser.nome : '—'
+    });
 }
 
 // ─── DESATIVAÇÃO / REATIVAÇÃO AUTOMÁTICA DE LOTES ──────────────────────────────
@@ -128,6 +163,10 @@ function switchAlmoxModulo(modulo) {
         const icon = activeBtn.querySelector('.alm-btn-icon');
         if (icon) icon.style.background = 'rgba(255,255,255,0.2)';
     }
+    const fab = document.getElementById('fab-novo-lote');
+    if (fab) fab.classList.toggle('hidden', modulo !== 'lotes');
+    const fabVac = document.getElementById('fab-nova-vacina');
+    if (fabVac) fabVac.classList.toggle('hidden', modulo !== 'produtos');
     if (modulo === 'estoque')           renderEstoqueDashboard();
     else if (modulo === 'produtos')     renderVaccines();
     else if (modulo === 'lotes')        renderAlmoxLotes();
@@ -147,68 +186,271 @@ function refreshAlmoxIfActive() {
 //  MÓDULO: ESTOQUE (Dashboard)
 // ═══════════════════════════════════════════════════════════════════════════
 let estoqueSearch = '';
+let estoqueFilter = 'todos'; // 'todos' | 'baixo' | 'sem'
 
 function setEstoqueSearch(val) { estoqueSearch = normalizeStr(val); renderEstoqueDashboard(); }
+
+function toggleEstoqueSearch() {
+    const wrap = document.getElementById('wrap-estoque-search');
+    const input = document.getElementById('input-estoque-search');
+    const isOpen = wrap.style.maxWidth !== '0px' && wrap.style.maxWidth !== '0';
+    if (isOpen) {
+        wrap.style.maxWidth = '0'; wrap.style.opacity = '0';
+        input.value = ''; setEstoqueSearch('');
+    } else {
+        wrap.style.maxWidth = '200px'; wrap.style.opacity = '1';
+        setTimeout(() => input.focus(), 50);
+    }
+}
+
+function setEstoqueFilter(filter) {
+    estoqueFilter = filter;
+    ['todos', 'baixo', 'sem'].forEach(f => {
+        const btn = document.getElementById(`estoque-filter-${f}`);
+        if (!btn) return;
+        const active = f === filter;
+        btn.className = `px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition ${active ? 'bg-navy-900 text-white shadow' : 'text-slate-500 hover:bg-white'}`;
+    });
+    renderEstoqueDashboard();
+}
 
 function renderEstoqueDashboard() {
     const ativos = vaccines.filter(v => v.ativo !== false);
     // KPIs gerais
-    let kTotal = 0, kDisp = 0, kReserv = 0, kAplic = 0, lotesVencidos = 0, lotesVencendo = 0;
+    let kDisp = 0, kReserv = 0, lotesVencidos = 0, lotesVencendo = 0;
     const today = new Date(); today.setHours(0,0,0,0);
     const twoMonths = new Date(); twoMonths.setMonth(twoMonths.getMonth() + 2); twoMonths.setHours(0,0,0,0);
     vaccineLots.forEach(l => {
         const e = getLoteEstoque(l.id);
-        kTotal += e.total; kDisp += e.disponivel; kReserv += e.reservado; kAplic += e.aplicado;
+        kDisp += e.disponivel; kReserv += e.reservado;
         if (l.validade) {
             const exp = new Date(l.validade + 'T00:00:00');
             if (exp < today && e.disponivel > 0) lotesVencidos++;
             else if (exp <= twoMonths && e.disponivel > 0) lotesVencendo++;
         }
     });
-    setText('estoque-kpi-total', kTotal);
+    const kBaixo = ativos.filter(v => { const e = getVaccineEstoque(v.id); return e.disponivel > 0 && e.disponivel <= 5; }).length;
+    const kSem   = ativos.filter(v => getVaccineEstoque(v.id).disponivel <= 0).length;
     setText('estoque-kpi-disponivel', kDisp);
     setText('estoque-kpi-reservado', kReserv);
-    setText('estoque-kpi-aplicado', kAplic);
+    setText('estoque-kpi-baixo', kBaixo);
+    setText('estoque-kpi-sem', kSem);
     setText('estoque-kpi-vencidos', lotesVencidos);
     setText('estoque-kpi-vencendo', lotesVencendo);
 
-    // Tabela por produto
-    const tbody = document.getElementById('estoque-body');
-    if (!tbody) return;
+    // Cards por produto
+    const grid = document.getElementById('estoque-body');
+    if (!grid) return;
     const rows = ativos
         .filter(v => !estoqueSearch || normalizeStr(v.nome).includes(estoqueSearch))
         .map(v => ({ v, e: getVaccineEstoque(v.id) }))
+        .filter(({ e }) => {
+            if (estoqueFilter === 'sem')   return e.disponivel <= 0;
+            if (estoqueFilter === 'baixo') return e.disponivel > 0 && e.disponivel <= 5;
+            return true;
+        })
         .sort((a, b) => a.v.nome.localeCompare(b.v.nome, 'pt-BR'));
 
     if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">Nenhum produto encontrado</td></tr>`;
+        grid.innerHTML = `<div class="col-span-full p-10 text-center text-slate-400 text-xs font-bold uppercase tracking-wider"><i class="fas fa-box-open text-3xl mb-3 block text-slate-300"></i>Nenhum produto encontrado</div>`;
         return;
     }
-    tbody.innerHTML = rows.map(({ v, e }) => {
+
+    grid.innerHTML = rows.map(({ v, e }) => {
         const semEstoque = e.disponivel <= 0;
         const baixo = !semEstoque && e.disponivel <= 5;
-        const dispCls = semEstoque ? 'bg-red-100 text-red-700' : baixo ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
-        const statusBadge = semEstoque
-            ? `<span class="px-2 py-1 rounded-full text-[9px] font-black uppercase bg-red-100 text-red-600">Sem estoque</span>`
-            : baixo
-                ? `<span class="px-2 py-1 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-700">Estoque baixo</span>`
-                : `<span class="px-2 py-1 rounded-full text-[9px] font-black uppercase bg-green-100 text-green-700">Disponível</span>`;
-        return `<tr class="hover:bg-slate-50 transition">
-            <td class="p-3 font-bold text-slate-700">${v.nome}
-                <span class="block text-[10px] text-slate-400 font-bold mt-0.5">${e.lotesAtivos} lote(s) ativo(s) de ${e.lotesTotal}</span>
-            </td>
-            <td class="p-3 text-center"><span class="px-3 py-1 rounded-full text-xs font-black ${dispCls}">${e.disponivel}</span></td>
-            <td class="p-3 text-center text-xs font-bold text-indigo-600">${e.reservado}</td>
-            <td class="p-3 text-center text-xs font-bold text-slate-500">${e.aplicado}</td>
-            <td class="p-3 text-center text-xs font-bold text-slate-700">${e.total}</td>
-            <td class="p-3 text-center">${statusBadge}</td>
-        </tr>`;
+
+        // Paleta clara e suave por situação
+        const tema = semEstoque ? {
+            card:       'bg-red-50 border-red-200',
+            iconBg:     'bg-red-100 text-red-500',
+            acento:     'text-red-500',
+            label:      'text-red-400',
+            valor:      'text-red-700',
+            badge:      'bg-red-100 text-red-600 border-red-200',
+            bar:        'bg-red-300',
+            barBg:      'bg-red-100',
+            rodape:     'bg-red-50 border-red-100',
+            divisor:    'border-red-100',
+            statusBg:   'bg-red-100 text-red-600 border-red-200',
+            statusIcon: 'fa-circle-xmark',
+            statusLabel:'Sem estoque',
+            hover:      'hover:shadow-red-100',
+        } : baixo ? {
+            card:       'bg-amber-50 border-amber-200',
+            iconBg:     'bg-amber-100 text-amber-500',
+            acento:     'text-amber-500',
+            label:      'text-amber-400',
+            valor:      'text-amber-700',
+            badge:      'bg-amber-100 text-amber-600 border-amber-200',
+            bar:        'bg-amber-400',
+            barBg:      'bg-amber-100',
+            rodape:     'bg-amber-50 border-amber-100',
+            divisor:    'border-amber-100',
+            statusBg:   'bg-amber-100 text-amber-600 border-amber-200',
+            statusIcon: 'fa-triangle-exclamation',
+            statusLabel:'Estoque baixo',
+            hover:      'hover:shadow-amber-100',
+        } : {
+            card:       'bg-sky-50 border-sky-200',
+            iconBg:     'bg-sky-100 text-sky-500',
+            acento:     'text-sky-500',
+            label:      'text-sky-400',
+            valor:      'text-sky-700',
+            badge:      'bg-sky-100 text-sky-600 border-sky-200',
+            bar:        'bg-sky-400',
+            barBg:      'bg-sky-100',
+            rodape:     'bg-sky-50 border-sky-100',
+            divisor:    'border-sky-100',
+            statusBg:   'bg-emerald-100 text-emerald-600 border-emerald-200',
+            statusIcon: 'fa-circle-check',
+            statusLabel:'Disponível',
+            hover:      'hover:shadow-sky-100',
+        };
+
+        const pct = e.total > 0 ? Math.round((e.disponivel / e.total) * 100) : 0;
+
+        const today = new Date(); today.setHours(0,0,0,0);
+        const twoMonths = new Date(); twoMonths.setMonth(twoMonths.getMonth() + 2); twoMonths.setHours(0,0,0,0);
+        const lotesVac = vaccineLots.filter(l => l.vaccineId == v.id && l.status === 'aberto');
+        const lotesVencidos = lotesVac.filter(l => l.validade && new Date(l.validade + 'T00:00:00') < today).length;
+        const lotesVencendo = lotesVac.filter(l => { const d = new Date(l.validade + 'T00:00:00'); return d >= today && d <= twoMonths; }).length;
+        const proximaValidade = lotesVac.filter(l => l.validade).sort((a, b) => new Date(a.validade) - new Date(b.validade))[0];
+        const proxVal = proximaValidade ? proximaValidade.validade.split('-').reverse().join('/') : null;
+        const valorStr = v.valor ? `R$ ${String(v.valor).replace('R$','').trim()}` : null;
+
+        const alertaHtml = (lotesVencidos > 0 || lotesVencendo > 0) ? `
+            <div class="flex flex-wrap gap-1 mt-2">
+                ${lotesVencidos > 0 ? `<span class="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 border border-red-200 text-red-600 rounded-full text-[8px] font-black"><i class="fas fa-skull-crossbones"></i>${lotesVencidos} vencido${lotesVencidos > 1 ? 's' : ''}</span>` : ''}
+                ${lotesVencendo > 0 ? `<span class="flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 border border-amber-200 text-amber-600 rounded-full text-[8px] font-black"><i class="fas fa-hourglass-half"></i>${lotesVencendo} vencendo</span>` : ''}
+            </div>` : '';
+
+        return `
+        <div class="group relative bg-white border ${tema.card} rounded-2xl shadow-sm ${tema.hover} overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+             onclick="openVaccineViewModal(${v.id})">
+
+            <!-- Topo -->
+            <div class="p-3.5 pb-2">
+                <div class="flex items-start justify-between gap-2 mb-1.5">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div class="h-8 w-8 ${tema.iconBg} rounded-xl flex items-center justify-center shrink-0">
+                            <i class="fas fa-syringe text-xs"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="font-black text-slate-800 text-xs leading-tight truncate" title="${v.nome}">${v.nome}</h3>
+                            <p class="${tema.label} text-[9px] font-bold">${v.numDoses || 1} dose${(v.numDoses || 1) > 1 ? 's' : ''}${v.reforco ? ' + reforço' : ''}${v.doseUnica ? ' · única' : ''}</p>
+                        </div>
+                    </div>
+                    <span class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 ${tema.statusBg} border rounded-lg text-[8px] font-black uppercase whitespace-nowrap">
+                        <i class="fas ${tema.statusIcon} text-[8px]"></i>${tema.statusLabel}
+                    </span>
+                </div>
+                ${alertaHtml}
+            </div>
+
+            <!-- Disponível em destaque -->
+            <div class="px-3.5 pb-2">
+                <div class="flex items-baseline gap-1.5">
+                    <span class="text-4xl font-black ${tema.acento} leading-none">${e.disponivel}</span>
+                    <span class="text-slate-400 text-[10px] font-bold">disponíveis</span>
+                </div>
+                <div class="mt-1.5 h-1 ${tema.barBg} rounded-full overflow-hidden">
+                    <div class="${tema.bar} h-full rounded-full transition-all duration-500" style="width:${pct}%"></div>
+                </div>
+                <p class="text-slate-400 text-[8px] font-bold mt-0.5">${pct}% do total</p>
+            </div>
+
+            <!-- Divisor -->
+            <div class="mx-3.5 border-t ${tema.divisor}"></div>
+
+            <!-- Métricas -->
+            <div class="grid grid-cols-2 px-3.5 py-2">
+                <div class="text-center">
+                    <p class="text-slate-400 text-[8px] font-black uppercase tracking-wide">Reserv.</p>
+                    <p class="text-slate-700 font-black text-sm leading-tight">${e.reservado}</p>
+                </div>
+                <div class="text-center border-l ${tema.divisor}">
+                    <p class="text-slate-400 text-[8px] font-black uppercase tracking-wide">Total</p>
+                    <p class="text-slate-700 font-black text-sm leading-tight">${e.total}</p>
+                </div>
+            </div>
+
+            <!-- Rodapé -->
+            <div class="border-t ${tema.divisor} px-3.5 py-2 flex items-center justify-between gap-1">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-slate-400 text-[8px] font-black flex items-center gap-0.5 whitespace-nowrap">
+                        <i class="fas fa-layer-group text-[8px]"></i>${e.lotesAtivos} lote${e.lotesAtivos !== 1 ? 's' : ''}
+                    </span>
+                    ${proxVal ? `<span class="text-slate-400 text-[8px] font-black flex items-center gap-0.5 truncate"><i class="fas fa-calendar-alt text-[8px]"></i>${proxVal}</span>` : ''}
+                </div>
+                ${valorStr ? `<span class="${tema.valor} font-black text-[9px] bg-white border ${tema.badge.split(' ').slice(2).join(' ')} px-1.5 py-0.5 rounded-lg whitespace-nowrap">${valorStr}</span>` : ''}
+            </div>
+        </div>`;
     }).join('');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  MÓDULO: LOTES
 // ═══════════════════════════════════════════════════════════════════════════
+let _loteVaccineFilter = null; // null = todas, number = vaccineId
+
+function toggleLoteVaccineSearch(e) {
+    e && e.stopPropagation();
+    const dd = document.getElementById('lote-vaccine-dropdown');
+    const isOpen = !dd.classList.contains('hidden');
+    if (isOpen) {
+        dd.classList.add('hidden');
+    } else {
+        dd.classList.remove('hidden');
+        document.getElementById('lote-vaccine-search-input').value = '';
+        filterLoteVaccineDropdown('');
+        setTimeout(() => document.getElementById('lote-vaccine-search-input').focus(), 50);
+    }
+}
+
+function filterLoteVaccineDropdown(q) {
+    const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+    const list = vaccines
+        .filter(v => v.ativo !== false && (!q || norm(v.nome).includes(norm(q))))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    const el = document.getElementById('lote-vaccine-dropdown-list');
+    if (!list.length) {
+        el.innerHTML = '<p class="text-center text-slate-400 text-xs font-bold py-4">Nenhuma vacina encontrada</p>';
+        return;
+    }
+    el.innerHTML = list.map(v => {
+        const isActive = _loteVaccineFilter == v.id;
+        return `<button onclick="selectLoteVaccineFilter(${v.id}, '${v.nome.replace(/'/g, "\\'")}')"
+            class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${isActive ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-indigo-50 hover:text-indigo-700'}">
+            <span class="h-5 w-5 ${isActive ? 'bg-white/20' : 'bg-slate-100'} rounded-lg flex items-center justify-center shrink-0">
+                <i class="fas fa-syringe text-[9px] ${isActive ? 'text-white' : 'text-slate-400'}"></i>
+            </span>
+            ${v.nome}
+        </button>`;
+    }).join('');
+}
+
+function selectLoteVaccineFilter(vaccineId, label) {
+    _loteVaccineFilter = vaccineId;
+    const btn = document.getElementById('btn-lote-vaccine-search');
+    const hasFilter = vaccineId !== null;
+    btn.className = `h-9 w-9 border rounded-xl transition shadow-sm flex items-center justify-center ${
+        hasFilter ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600'
+    }`;
+    btn.title = hasFilter ? `Filtro: ${label}` : 'Filtrar por vacina';
+    document.getElementById('lote-vaccine-dropdown').classList.add('hidden');
+    renderAlmoxLotes();
+}
+
+// Fecha dropdown ao clicar fora
+document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('lote-vaccine-search-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+        const dd = document.getElementById('lote-vaccine-dropdown');
+        if (dd) dd.classList.add('hidden');
+    }
+});
+
 function setLoteFilter(tipo) {
     loteFilter = tipo;
     document.querySelectorAll('.lf-btn').forEach(b => {
@@ -232,13 +474,14 @@ function renderAlmoxLotes() {
 
     const filtered = allLotes.filter(({ lote }) => {
         const ativo = lote.status === 'aberto';
-        if (loteFilter === 'ativos')   return ativo;
-        if (loteFilter === 'inativos') return !ativo;
+        if (loteFilter === 'ativos')   { if (!ativo) return false; }
+        else if (loteFilter === 'inativos') { if (ativo) return false; }
+        if (_loteVaccineFilter !== null && lote.vaccineId != _loteVaccineFilter) return false;
         return true;
     });
 
     if (!filtered.length) {
-        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">Nenhum lote encontrado</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">Nenhum lote encontrado</td></tr>`;
         return;
     }
 
@@ -249,29 +492,113 @@ function renderAlmoxLotes() {
 
     tbody.innerHTML = filtered.map(({ lote, vaccineName, estoque }) => {
         const ativo = lote.status === 'aberto';
-        const vencido = lote.validade && new Date(lote.validade + 'T00:00:00') < today;
-        const validade = lote.validade ? lote.validade.split('-').reverse().join('/') : '—';
+        const exp = lote.validade ? new Date(lote.validade + 'T00:00:00') : null;
+        const twoMonths = new Date(today); twoMonths.setMonth(twoMonths.getMonth() + 2);
+        const vencido   = exp && exp < today;
+        const vencendo  = exp && !vencido && exp <= twoMonths;
+        const validade  = lote.validade ? lote.validade.split('-').reverse().join('/') : '—';
+        const validadeCel = vencido
+            ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-red-100 text-red-700 font-black text-xs"><i class="fas fa-skull-crossbones text-[9px]"></i>${validade}</span>`
+            : vencendo
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 text-amber-700 font-black text-xs"><i class="fas fa-hourglass-half text-[9px]"></i>${validade}</span>`
+                : `<span class="text-slate-600 text-xs">${validade}</span>`;
         const dispCls = estoque.disponivel <= 0 ? 'bg-slate-100 text-slate-400' : estoque.disponivel <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
-        return `<tr class="hover:bg-slate-50 transition ${!ativo ? 'opacity-60' : ''}">
+        const saidaTotal = estoque.aplicado + estoque.saidaManual;
+        return `<tr class="hover:bg-slate-50 transition cursor-pointer ${!ativo ? 'opacity-60' : ''}" onclick="editLote(${lote.id})">
             <td class="p-3 font-bold text-slate-700">${vaccineName}</td>
             <td class="p-3 text-xs font-mono font-bold">${lote.numero || '—'}</td>
             <td class="p-3 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-black ${dispCls}">${estoque.disponivel}</span></td>
             <td class="p-3 text-center text-xs font-bold text-indigo-600">${estoque.reservado}</td>
+            <td class="p-3 text-center text-xs font-bold text-orange-600">${saidaTotal}</td>
             <td class="p-3 text-center text-xs font-bold text-slate-700">${estoque.total}</td>
-            <td class="p-3 text-xs ${vencido ? 'text-red-600 font-black' : 'text-slate-600'}">${validade}${vencido ? ' <i class="fas fa-exclamation-triangle ml-1"></i>' : ''}</td>
+            <td class="p-3">${validadeCel}</td>
             <td class="p-3 text-center">
                 <span class="px-2 py-1 rounded-full text-[10px] font-black uppercase ${ativo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${ativo ? 'Ativo' : 'Inativo'}</span>
                 ${(!ativo && lote._autoFechado) ? '<span class="block text-[8px] text-slate-400 font-bold mt-0.5">zerado</span>' : ''}
             </td>
-            <td class="p-3 text-center">
+            <td class="p-3 text-center" onclick="event.stopPropagation()">
                 <div class="flex justify-center gap-1.5">
                     ${permBtn('lotes_fechar_abrir', `<button onclick="openMovimentacaoEntrada(${lote.id})" class="h-8 w-8 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded transition shadow-sm" title="Registrar entrada"><i class="fas fa-arrow-down text-[10px]"></i></button>`)}
                     ${permBtn('lotes_fechar_abrir', `<button onclick="openMovimentacaoSaida(${lote.id})" class="h-8 w-8 bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white rounded transition shadow-sm" title="Registrar saída / descarte"><i class="fas fa-arrow-up text-[10px]"></i></button>`)}
-                    ${permBtn('lotes_fechar_abrir', `<button onclick="openLoteModal(${lote.vaccineId})" class="h-8 w-8 bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white rounded transition shadow-sm" title="Gerenciar lotes da vacina"><i class="fas fa-list-check text-[10px]"></i></button>`)}
                 </div>
             </td>
         </tr>`;
     }).join('');
+}
+
+let _fabLoteVaccines = [];
+
+function openAddLoteModal() {
+    if (!checkPerm('lotes_fechar_abrir')) return;
+    _fabLoteVaccines = vaccines.filter(v => v.ativo !== false).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    document.getElementById('fab-lote-vaccine-search').value = '';
+    document.getElementById('fab-lote-vaccine').value = '';
+    document.getElementById('fab-lote-numero').value = '';
+    document.getElementById('fab-lote-validade').value = '';
+    document.getElementById('fab-lote-qtd').value = '';
+    document.getElementById('modal-add-lote-fab').classList.add('active');
+}
+
+function _renderFabLoteDropdown(list) {
+    const dd = document.getElementById('fab-lote-vaccine-dropdown');
+    if (!list.length) {
+        dd.innerHTML = '<p class="px-3 py-2 text-xs text-slate-400 font-bold">Nenhuma vacina encontrada</p>';
+    } else {
+        dd.innerHTML = list.map(v => `
+            <button type="button" onmousedown="selectFabLoteVaccine(${v.id}, '${v.nome.replace(/'/g,"\\'")}')
+"
+                class="w-full text-left px-3 py-2 text-sm font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition">
+                ${v.nome}
+            </button>`).join('');
+    }
+    dd.classList.remove('hidden');
+}
+
+function showFabLoteDropdown() {
+    _renderFabLoteDropdown(_fabLoteVaccines);
+}
+
+function hideFabLoteDropdown() {
+    setTimeout(() => document.getElementById('fab-lote-vaccine-dropdown').classList.add('hidden'), 150);
+}
+
+function filterFabLoteVaccines(q) {
+    const norm = normalizeStr(q);
+    const filtered = norm ? _fabLoteVaccines.filter(v => normalizeStr(v.nome).includes(norm)) : _fabLoteVaccines;
+    document.getElementById('fab-lote-vaccine').value = '';
+    _renderFabLoteDropdown(filtered);
+}
+
+function selectFabLoteVaccine(id, nome) {
+    document.getElementById('fab-lote-vaccine').value = id;
+    document.getElementById('fab-lote-vaccine-search').value = nome;
+    document.getElementById('fab-lote-vaccine-dropdown').classList.add('hidden');
+    document.getElementById('fab-lote-vaccine-search').classList.remove('border-red-400');
+}
+
+function salvarFabLote() {
+    const vaccineId = parseInt(document.getElementById('fab-lote-vaccine').value);
+    if (!vaccineId) {
+        document.getElementById('fab-lote-vaccine-search').classList.add('border-red-400');
+        document.getElementById('fab-lote-vaccine-search').focus();
+        showNotification('Selecione uma vacina.', 'error'); return;
+    }
+    const numero = document.getElementById('fab-lote-numero').value.trim().toUpperCase();
+    const validade = document.getElementById('fab-lote-validade').value;
+    const qtd = parseInt(document.getElementById('fab-lote-qtd').value) || 0;
+    if (!numero || !validade) { showNotification('Preencha número e validade.', 'error'); return; }
+    const newId = Date.now();
+    const novoLote = { id: newId, vaccineId, numero, validade, status: 'aberto' };
+    vaccineLots.push(novoLote);
+    if (qtd > 0) {
+        stockMovements.push({ id: Date.now() + 1, loteId: newId, vaccineId: vaccineId, tipo: 'entrada', qtd: qtd, motivo: 'Cadastro inicial', descarte: false, data: new Date().toISOString(), usuario: currentUser ? currentUser.nome : '—' });
+    }
+    const v = vaccines.find(x => x.id == vaccineId);
+    logAudit('Criado', 'lote', String(vaccineId), `Lote ${numero}`, `Vacina: ${v ? v.nome : vaccineId} | Validade: ${validade} | Qtd: ${qtd}`);
+    saveAll(); renderAlmoxLotes(); updateExpiryBadge();
+    document.getElementById('modal-add-lote-fab').classList.remove('active');
+    refreshVaccineViewModal(vaccineId);
+    showNotification('Lote cadastrado com sucesso!', 'success');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -280,11 +607,28 @@ function renderAlmoxLotes() {
 let _movPendingTipo = 'entrada';   // entrada | saida
 let _movPendingLoteId = null;
 let _movSaidaDescarte = false;
+let _movFilter = 'ambos'; // ambos | entrada | saida
+let _movVaccineFilter = null; // null = todas, number = vaccineId
+
+function setMovFilter(f) {
+    _movFilter = f;
+    ['ambos','entrada','saida'].forEach(x => {
+        const btn = document.getElementById(`movf-${x}`);
+        if (btn) btn.className = `px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition ${x === f ? 'bg-navy-900 text-white shadow' : 'text-slate-500 hover:bg-white'}`;
+    });
+    renderMovimentacao();
+}
 
 function renderMovimentacao() {
     const tbody = document.getElementById('mov-body');
     if (!tbody) return;
-    const movs = [...stockMovements].sort((a, b) => new Date(b.data) - new Date(a.data));
+    let movs = [...stockMovements].sort((a, b) => new Date(b.data) - new Date(a.data));
+    if (_movFilter === 'entrada') movs = movs.filter(m => m.tipo === 'entrada');
+    if (_movFilter === 'saida')   movs = movs.filter(m => m.tipo !== 'entrada');
+    if (_movVaccineFilter !== null) movs = movs.filter(m => {
+        const lote = vaccineLots.find(l => l.id == m.loteId);
+        return lote && lote.vaccineId == _movVaccineFilter;
+    });
     if (!movs.length) {
         tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">Nenhuma movimentação registrada</td></tr>`;
         return;
@@ -293,19 +637,35 @@ function renderMovimentacao() {
         const lote = vaccineLots.find(l => l.id == m.loteId);
         const v = lote ? vaccines.find(x => x.id == lote.vaccineId) : null;
         const isEntrada = m.tipo === 'entrada';
+        const isReserva = m.tipo === 'reserva';
+        const isAuto    = !!m.appointmentId;
+        const isAplicado = m.tipo === 'saida' && isAuto;
         const tipoBadge = isEntrada
             ? `<span class="px-2 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-700"><i class="fas fa-arrow-down mr-1"></i>Entrada</span>`
-            : m.descarte
-                ? `<span class="px-2 py-1 rounded-full text-[10px] font-black uppercase bg-red-100 text-red-700"><i class="fas fa-trash mr-1"></i>Descarte</span>`
-                : `<span class="px-2 py-1 rounded-full text-[10px] font-black uppercase bg-orange-100 text-orange-700"><i class="fas fa-arrow-up mr-1"></i>Saída</span>`;
+            : isReserva
+                ? `<span class="px-2 py-1 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-700"><i class="fas fa-calendar-check mr-1"></i>Reservado</span>`
+                : isAplicado
+                    ? `<span class="px-2 py-1 rounded-full text-[10px] font-black uppercase bg-violet-100 text-violet-700"><i class="fas fa-syringe mr-1"></i>Aplicado</span>`
+                    : m.descarte
+                        ? `<span class="px-2 py-1 rounded-full text-[10px] font-black uppercase bg-red-100 text-red-700"><i class="fas fa-trash mr-1"></i>Descarte</span>`
+                        : `<span class="px-2 py-1 rounded-full text-[10px] font-black uppercase bg-orange-100 text-orange-700"><i class="fas fa-arrow-up mr-1"></i>Saída</span>`;
+        const qtdColor = isEntrada ? 'text-emerald-600' : isReserva ? 'text-blue-600' : isAplicado ? 'text-violet-600' : 'text-orange-600';
+        const qtdSign  = isEntrada ? '+' : '−';
         const dataStr = m.data ? new Date(m.data).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+        const acoes = isAuto
+            ? `<button onclick="editRecord(${m.appointmentId})" class="h-8 w-8 bg-slate-50 text-slate-400 hover:bg-clinic-50 hover:text-clinic-600 border border-slate-200 rounded transition shadow-sm flex items-center justify-center mx-auto" title="Ver agendamento"><i class="fas fa-eye text-[10px]"></i></button>`
+            : `<div class="flex justify-center gap-1.5">
+                ${permBtn('lotes_fechar_abrir', `<button onclick="openEditMovModal(${m.id})" class="h-8 w-8 bg-slate-100 text-slate-600 hover:bg-clinic-600 hover:text-white rounded transition shadow-sm" title="Editar"><i class="fas fa-pen text-[10px]"></i></button>`)}
+                ${permBtn('lotes_fechar_abrir', `<button onclick="deleteMovimentacao(${m.id})" class="h-8 w-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded transition shadow-sm" title="Excluir"><i class="fas fa-trash text-[10px]"></i></button>`)}
+               </div>`;
         return `<tr class="hover:bg-slate-50 transition">
             <td class="p-3 text-xs text-slate-500 font-bold whitespace-nowrap">${dataStr}</td>
             <td class="p-3">${tipoBadge}</td>
             <td class="p-3 font-bold text-slate-700 text-xs">${v ? v.nome : '—'}<span class="block text-[10px] text-slate-400 font-mono">Lote ${lote ? lote.numero : '—'}</span></td>
-            <td class="p-3 text-center"><span class="font-black ${isEntrada ? 'text-emerald-600' : 'text-orange-600'}">${isEntrada ? '+' : '−'}${m.qtd}</span></td>
+            <td class="p-3 text-center"><span class="font-black ${qtdColor}">${qtdSign}${m.qtd}</span></td>
             <td class="p-3 text-xs text-slate-600">${m.motivo || '—'}</td>
             <td class="p-3 text-xs text-slate-400 font-bold">${m.usuario || '—'}</td>
+            <td class="p-3 text-center">${acoes}</td>
         </tr>`;
     }).join('');
 }
@@ -336,28 +696,74 @@ function openMovModal(tipo, loteId) {
     document.getElementById('mov-motivo-label').textContent = isEntrada ? 'Observação (opcional)' : 'Justificativa *';
     setMovDescarte(false);
 
-    // Popula select de vacina → lote
-    populateMovVaccineSelect();
+    // Reset campo de vacina
+    document.getElementById('mov-vacina-search').value = '';
+    document.getElementById('mov-vacina').value = '';
+    document.getElementById('mov-vacina-dropdown').classList.add('hidden');
+    document.getElementById('mov-vacina-search').classList.remove('border-red-400');
+
     if (loteId) {
         const lote = vaccineLots.find(l => l.id == loteId);
         if (lote) {
+            const v = vaccines.find(x => x.id == lote.vaccineId);
             document.getElementById('mov-vacina').value = lote.vaccineId;
+            if (v) document.getElementById('mov-vacina-search').value = v.nome;
             populateMovLoteSelect(lote.vaccineId);
             document.getElementById('mov-lote').value = loteId;
             onMovLoteChange();
         }
+    } else if (arguments[2]) {
+        const vaccineId = arguments[2];
+        const v = vaccines.find(x => x.id == vaccineId);
+        document.getElementById('mov-vacina').value = vaccineId;
+        if (v) document.getElementById('mov-vacina-search').value = v.nome;
+        populateMovLoteSelect(vaccineId);
     } else {
         populateMovLoteSelect(null);
     }
     document.getElementById('modal-movimentacao').classList.add('active');
 }
 
-function populateMovVaccineSelect() {
-    const sel = document.getElementById('mov-vacina');
-    sel.innerHTML = '<option value="">Selecione a vacina...</option>';
-    vaccines.filter(v => v.ativo !== false).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).forEach(v => {
-        sel.innerHTML += `<option value="${v.id}">${v.nome}</option>`;
-    });
+let _movVaccineList = [];
+
+function _renderMovVaccineDropdown(list) {
+    const dd = document.getElementById('mov-vacina-dropdown');
+    if (!list.length) {
+        dd.innerHTML = '<p class="px-3 py-2 text-xs text-slate-400 font-bold">Nenhuma vacina encontrada</p>';
+    } else {
+        dd.innerHTML = list.map(v => `
+            <button type="button" onmousedown="selectMovVaccine(${v.id},'${v.nome.replace(/'/g,"\\'")}')"
+                class="w-full text-left px-3 py-2 text-sm font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2">
+                <i class="fas fa-syringe text-[10px] text-slate-300"></i>${v.nome}
+            </button>`).join('');
+    }
+    dd.classList.remove('hidden');
+}
+
+function showMovVaccineDropdown() {
+    _movVaccineList = vaccines.filter(v => v.ativo !== false).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+    _renderMovVaccineDropdown(_movVaccineList);
+}
+
+function hideMovVaccineDropdown() {
+    setTimeout(() => document.getElementById('mov-vacina-dropdown').classList.add('hidden'), 150);
+}
+
+function filterMovVaccineSearch(q) {
+    const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+    _movVaccineList = vaccines.filter(v => v.ativo !== false).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+    const filtered = q ? _movVaccineList.filter(v => norm(v.nome).includes(norm(q))) : _movVaccineList;
+    document.getElementById('mov-vacina').value = '';
+    _renderMovVaccineDropdown(filtered);
+}
+
+function selectMovVaccine(id, nome) {
+    document.getElementById('mov-vacina').value = id;
+    document.getElementById('mov-vacina-search').value = nome;
+    document.getElementById('mov-vacina-dropdown').classList.add('hidden');
+    document.getElementById('mov-vacina-search').classList.remove('border-red-400');
+    populateMovLoteSelect(id);
+    onMovLoteChange();
 }
 
 function onMovVaccineChange() {
@@ -413,6 +819,11 @@ function confirmMovimentacao(e) {
     const motivo = document.getElementById('mov-motivo').value.trim();
     const isEntrada = _movPendingTipo === 'entrada';
 
+    if (!document.getElementById('mov-vacina').value) {
+        document.getElementById('mov-vacina-search').classList.add('border-red-400');
+        document.getElementById('mov-vacina-search').focus();
+        showNotification('Selecione a vacina.', 'error'); return;
+    }
     if (!loteId) { showNotification('Selecione o lote.', 'error'); return; }
     if (!qtd || qtd <= 0) { showNotification('Informe uma quantidade válida (maior que zero).', 'error'); return; }
 
@@ -456,8 +867,459 @@ function confirmMovimentacao(e) {
     document.getElementById('modal-movimentacao').classList.remove('active');
     renderMovimentacao(); renderAlmoxLotes(); renderEstoqueDashboard(); renderVaccines();
     updateExpiryBadge();
+    if (lote) refreshVaccineViewModal(lote.vaccineId);
+    if (typeof refreshOpenModals === 'function') refreshOpenModals();
     showNotification(`${acao} registrada com sucesso!`, 'success');
+}
+
+function openEditMovModal(movId) {
+    if (!checkPerm('lotes_fechar_abrir')) return;
+    const m = stockMovements.find(x => x.id == movId);
+    if (!m) return;
+    const lote = vaccineLots.find(l => l.id == m.loteId);
+    const v = lote ? vaccines.find(x => x.id == lote.vaccineId) : null;
+    const dataStr = m.data ? new Date(m.data).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    const tipoStr = m.tipo === 'entrada' ? 'Entrada' : m.descarte ? 'Descarte' : 'Saída';
+    document.getElementById('edit-mov-id').value = m.id;
+    document.getElementById('edit-mov-qtd').value = m.qtd;
+    document.getElementById('edit-mov-motivo').value = m.motivo || '';
+    document.getElementById('edit-mov-info-produto').textContent = `${tipoStr} — ${v ? v.nome : '—'} | Lote ${lote ? lote.numero : '—'}`;
+    document.getElementById('edit-mov-info-data').textContent = dataStr;
+    const isEntrada = m.tipo === 'entrada';
+    const head = document.getElementById('edit-mov-head');
+    head.className = `p-5 text-white flex items-center gap-3 ${isEntrada ? 'bg-gradient-to-br from-emerald-600 to-emerald-800' : 'bg-gradient-to-br from-orange-600 to-orange-800'}`;
+    document.getElementById('edit-mov-icon').className = `fas ${isEntrada ? 'fa-arrow-down' : 'fa-arrow-up'} text-white text-base`;
+    document.getElementById('modal-edit-mov').classList.add('active');
+}
+
+function salvarEdicaoMov() {
+    const id = document.getElementById('edit-mov-id').value;
+    const qtd = parseInt(document.getElementById('edit-mov-qtd').value);
+    const motivo = document.getElementById('edit-mov-motivo').value.trim();
+    if (!qtd || qtd < 1) { showNotification('Quantidade inválida.', 'error'); return; }
+    const idx = stockMovements.findIndex(x => x.id == id);
+    if (idx === -1) return;
+    const old = {...stockMovements[idx]};
+
+    // Valida se a alteração resultaria em estoque negativo
+    // Para entradas: reduzir qtd diminui o total disponível
+    // Para saídas manuais: aumentar qtd diminui o disponível
+    const est = getLoteEstoque(old.loteId);
+    let dispSimulado;
+    if (old.tipo === 'entrada') {
+        // disponível atual considera qtd antiga; nova qtd pode ser menor
+        dispSimulado = est._disponivelRaw - (old.qtd - qtd); // delta = old - new aplicado ao disponível
+    } else {
+        // saída/descarte manual: aumentar qtd reduz disponível
+        dispSimulado = est._disponivelRaw - (qtd - old.qtd);
+    }
+    if (dispSimulado < 0) {
+        const loteBlk = vaccineLots.find(l => l.id == old.loteId);
+        showNotification(
+            `Alteração bloqueada: resultaria em estoque negativo no lote ${loteBlk ? loteBlk.numero : old.loteId} (−${Math.abs(dispSimulado)} dose${Math.abs(dispSimulado) > 1 ? 's' : ''}).`,
+            'error'
+        );
+        return;
+    }
+
+    stockMovements[idx].qtd = qtd;
+    stockMovements[idx].motivo = motivo;
+    const lote = vaccineLots.find(l => l.id == old.loteId);
+    const v = lote ? vaccines.find(x => x.id == lote.vaccineId) : null;
+    logAudit('Editado', 'lote', String(lote ? lote.vaccineId : old.loteId),
+        `Lote ${lote ? lote.numero : old.loteId}`,
+        `Movimentação editada | Qtd: ${old.qtd}→${qtd}${motivo ? ' | ' + motivo : ''}`);
+    saveAll();
+    syncLoteStatus(old.loteId);
+    renderMovimentacao(); renderAlmoxLotes(); renderEstoqueDashboard(); renderVaccines();
+    updateExpiryBadge();
+    if (typeof refreshOpenModals === 'function') refreshOpenModals();
+    document.getElementById('modal-edit-mov').classList.remove('active');
+    showNotification('Movimentação atualizada!', 'success');
+}
+
+let _pendingDeleteMovId = null;
+
+function deleteMovimentacao(movId) {
+    if (!checkPerm('lotes_fechar_abrir')) return;
+    const m = stockMovements.find(x => x.id == movId);
+    if (!m) return;
+    const lote  = vaccineLots.find(l => l.id == m.loteId);
+    const v     = lote ? vaccines.find(x => x.id == lote.vaccineId) : null;
+
+    // Verifica se exclusão deixaria estoque negativo
+    // Entradas reduzem total, saídas manuais reduzem consumo
+    const est   = getLoteEstoque(m.loteId);
+    let ficariaNegativo = false;
+    if (m.tipo === 'entrada') {
+        ficariaNegativo = (est._disponivelRaw - Number(m.qtd)) < 0;
+    }
+
+    const tipoLabels = { entrada: 'Entrada', saida: 'Saída', reserva: 'Reserva', descarte: 'Descarte' };
+    const tipoLabel  = tipoLabels[m.tipo] || m.tipo;
+    const sinal      = m.tipo === 'entrada' ? '+' : '−';
+    const qtdColor   = m.tipo === 'entrada' ? 'text-emerald-600' : 'text-orange-600';
+    const dataStr    = m.data ? new Date(m.data).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+
+    document.getElementById('delmov-tipo').textContent = tipoLabel + (m.motivo ? ` — ${m.motivo}` : '');
+    document.getElementById('delmov-info').textContent = `Lote ${lote ? lote.numero : '—'} · ${v ? v.nome : '—'} · ${dataStr}`;
+    document.getElementById('delmov-qtd').className    = `ml-auto font-black text-lg shrink-0 ${qtdColor}`;
+    document.getElementById('delmov-qtd').textContent  = `${sinal}${m.qtd}`;
+
+    const avisoEl  = document.getElementById('delmov-aviso-negativo');
+    const confirmBtn = document.getElementById('delmov-confirm-btn');
+    avisoEl.classList.toggle('hidden', !ficariaNegativo);
+    confirmBtn.disabled = ficariaNegativo;
+    confirmBtn.className = ficariaNegativo
+        ? 'flex-1 bg-slate-300 text-slate-500 py-2.5 rounded-xl font-black text-xs uppercase cursor-not-allowed'
+        : 'flex-1 bg-red-600 text-white py-2.5 rounded-xl font-black text-xs uppercase hover:bg-red-700 transition shadow';
+
+    _pendingDeleteMovId = movId;
+    document.getElementById('modal-delete-mov').classList.add('active');
+}
+
+function confirmDeleteMovimentacao() {
+    if (!_pendingDeleteMovId) return;
+    const m = stockMovements.find(x => x.id == _pendingDeleteMovId);
+    if (!m) return;
+    const lote = vaccineLots.find(l => l.id == m.loteId);
+    logAudit('Excluído', 'lote', String(lote ? lote.vaccineId : m.loteId),
+        `Lote ${lote ? lote.numero : m.loteId}`,
+        `Movimentação removida | Tipo: ${m.tipo} | Qtd: ${m.qtd}`);
+    const vaccineId = lote ? lote.vaccineId : null;
+    stockMovements = stockMovements.filter(x => x.id != _pendingDeleteMovId);
+    _pendingDeleteMovId = null;
+    document.getElementById('modal-delete-mov').classList.remove('active');
+    saveAll();
+    syncLoteStatus(m.loteId);
+    renderMovimentacao(); renderAlmoxLotes(); renderEstoqueDashboard(); renderVaccines();
+    updateExpiryBadge();
+    if (vaccineId) refreshVaccineViewModal(vaccineId);
+    // Atualiza viewer de lote se estiver aberto
+    if (typeof renderViewLoteMov === 'function' && document.getElementById('modal-view-lote')?.classList.contains('active')) {
+        renderViewLoteMov();
+        if (typeof _refreshViewLoteHeader === 'function') _refreshViewLoteHeader();
+    }
+    showNotification('Movimentação excluída!', 'success');
 }
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+
+// Sincroniza modais de lotes e de visualização de vacina que possam estar abertos.
+// Chamado após qualquer alteração de agendamento para manter abas em sincronia.
+function refreshOpenModals() {
+    // Modal de listagem de lotes (openLoteModal)
+    if (document.getElementById('modal-lotes')?.classList.contains('active')) {
+        if (typeof renderLoteLists === 'function') renderLoteLists();
+    }
+    // Modal de visualização de lote (editLote)
+    if (document.getElementById('modal-view-lote')?.classList.contains('active')) {
+        if (typeof renderViewLoteMov === 'function') renderViewLoteMov();
+        if (typeof _refreshViewLoteHeader === 'function') _refreshViewLoteHeader();
+        if (typeof _viewLoteId !== 'undefined' && typeof getLoteEstoque === 'function') {
+            const est = getLoteEstoque(_viewLoteId);
+            if (est) {
+                setText('view-lote-disp',   est.disponivel);
+                setText('view-lote-reserv', est.reservado);
+                setText('view-lote-saida',  est.aplicado + est.saidaManual);
+                setText('view-lote-total',  est.total);
+            }
+        }
+    }
+    // Modal de visualização de vacina (openVaccineViewModal)
+    if (document.getElementById('modal-view-vaccine')?.classList.contains('active') && typeof _vvVaccineId !== 'undefined') {
+        if (typeof refreshVaccineViewModal === 'function') refreshVaccineViewModal(_vvVaccineId);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  MODAL VISUALIZAR VACINA (cards do Estoque)
+// ═══════════════════════════════════════════════════════════════════════════
+let _vvVaccineId  = null;
+let _vvLoteFilter = 'aberto';
+let _vvLotePage   = 0;
+let _vvMovFilter  = 'ambos';
+let _vvMovPage    = 0;
+const _VV_PAGE_SIZE = 10;
+
+function openVaccineViewModal(vaccineId) {
+    _vvVaccineId  = vaccineId;
+    _vvLoteFilter = 'aberto';
+    _vvLotePage   = 0;
+    _vvMovFilter  = 'ambos';
+    _vvMovPage    = 0;
+
+    const v = vaccines.find(x => x.id == vaccineId);
+    if (!v) return;
+    const e = getVaccineEstoque(vaccineId);
+
+    // Header
+    document.getElementById('vv-nome').textContent = v.nome;
+    const statusTxt = v.ativo !== false ? '● Ativa' : '● Inativa';
+    const statusEl = document.getElementById('vv-status-badge');
+    statusEl.textContent = statusTxt;
+    statusEl.className = v.ativo !== false ? 'text-[10px] font-black uppercase mt-0.5 text-emerald-300' : 'text-[10px] font-black uppercase mt-0.5 text-red-300';
+    document.getElementById('vv-kpi-disp').textContent  = e.disponivel;
+    document.getElementById('vv-kpi-reserv').textContent = e.reservado;
+    document.getElementById('vv-kpi-total').textContent  = e.total;
+
+    // Header color por estoque
+    const hdr = document.getElementById('vv-header');
+    hdr.className = `p-5 text-white shrink-0 bg-gradient-to-br ${e.disponivel <= 0 ? 'from-red-700 to-red-900' : e.disponivel <= 5 ? 'from-amber-600 to-amber-900' : 'from-indigo-700 to-navy-900'}`;
+
+    // Aba info
+    const numDoses = v.numDoses || 1;
+    document.getElementById('vv-info-doses').textContent = `${numDoses} dose${numDoses > 1 ? 's' : ''}${v.reforco ? ' + reforço' : ''}`;
+    document.getElementById('vv-info-tipo').textContent  = v.doseUnica ? 'Dose única' : (v.reforco ? 'Multidose c/ reforço' : 'Multidose');
+    const idadeMin = (v.idadeMinimaAnos || 0) > 0 ? `${v.idadeMinimaAnos} ano${v.idadeMinimaAnos > 1 ? 's' : ''}` : (v.idadeMinimaMeses || 0) > 0 ? `${v.idadeMinimaMeses} meses` : '—';
+    document.getElementById('vv-info-idade').textContent = idadeMin;
+    document.getElementById('vv-info-valor').textContent = v.valor ? `R$ ${String(v.valor).replace('R$','').trim()}` : '—';
+    const intervalosStr = v.intervalos && v.intervalos.length
+        ? v.intervalos.map((x, i) => `D${i+1}→D${i+2}: ${x} dias`).join(' · ')
+        : (v.intervaloDias > 0 ? `${v.intervaloDias} dias` : '—');
+    document.getElementById('vv-info-intervalos').textContent = intervalosStr;
+    const pct = e.total > 0 ? Math.round((e.disponivel / e.total) * 100) : 0;
+    document.getElementById('vv-bar').style.width = pct + '%';
+    document.getElementById('vv-bar').className = `h-full rounded-full transition-all duration-500 ${e.disponivel <= 0 ? 'bg-red-400' : e.disponivel <= 5 ? 'bg-amber-400' : 'bg-indigo-500'}`;
+    document.getElementById('vv-bar-label').textContent = `${e.disponivel} disponíveis de ${e.total} (${pct}%)`;
+
+    switchVaccineViewTab('info');
+    document.getElementById('modal-view-vaccine').classList.add('active');
+}
+
+function switchVaccineViewTab(tab) {
+    ['info','lotes','movs'].forEach(t => {
+        const panel = document.getElementById(`vvpanel-${t}`);
+        const btn   = document.getElementById(`vvtab-${t}`);
+        const active = t === tab;
+        if (panel) panel.classList.toggle('hidden', !active);
+        if (btn) {
+            btn.className = `flex-1 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition ${
+                active ? 'text-indigo-700 bg-white border-indigo-500' : 'text-slate-500 hover:bg-white border-transparent'
+            }`;
+        }
+    });
+    if (tab === 'lotes') renderVVLotes();
+    if (tab === 'movs')  renderVVMovs();
+}
+
+function setVVLoteFilter(f) {
+    _vvLoteFilter = f;
+    _vvLotePage   = 0;
+    ['aberto','fechado','ambos'].forEach(x => {
+        const btn = document.getElementById(`vvlf-${x}`);
+        if (btn) btn.className = `px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition ${x === f ? 'bg-navy-900 text-white shadow' : 'text-slate-500 hover:bg-white'}`;
+    });
+    renderVVLotes();
+}
+
+function vvLotePage(dir) {
+    _vvLotePage = Math.max(0, _vvLotePage + dir);
+    renderVVLotes();
+}
+
+function renderVVLotes() {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const twoMonths = new Date(); twoMonths.setMonth(twoMonths.getMonth() + 2); twoMonths.setHours(0,0,0,0);
+
+    let lotes = vaccineLots.filter(l => l.vaccineId == _vvVaccineId);
+    if (_vvLoteFilter === 'aberto')  lotes = lotes.filter(l => l.status === 'aberto');
+    if (_vvLoteFilter === 'fechado') lotes = lotes.filter(l => l.status !== 'aberto');
+    lotes.sort((a, b) => new Date(a.validade || 0) - new Date(b.validade || 0));
+
+    const total = lotes.length;
+    const pages = Math.ceil(total / _VV_PAGE_SIZE) || 1;
+    _vvLotePage = Math.min(_vvLotePage, pages - 1);
+    const slice = lotes.slice(_vvLotePage * _VV_PAGE_SIZE, (_vvLotePage + 1) * _VV_PAGE_SIZE);
+
+    const list = document.getElementById('vv-lotes-list');
+    if (!slice.length) {
+        list.innerHTML = '<p class="text-center text-slate-400 text-xs font-bold py-8">Nenhum lote encontrado.</p>';
+    } else {
+        list.innerHTML = slice.map(l => {
+            const est     = getLoteEstoque(l.id);
+            const exp     = l.validade ? new Date(l.validade + 'T00:00:00') : null;
+            const vencido = exp && exp < today;
+            const vencendo = exp && !vencido && exp <= twoMonths;
+            const valStr  = l.validade ? l.validade.split('-').reverse().join('/') : '—';
+            const dispCls = est.disponivel <= 0 ? 'bg-red-100 text-red-700' : est.disponivel <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
+            const badge   = vencido ? '<span class="px-1.5 py-0.5 rounded text-[8px] font-black bg-red-100 text-red-600 ml-1">VENCIDO</span>'
+                          : vencendo ? '<span class="px-1.5 py-0.5 rounded text-[8px] font-black bg-amber-100 text-amber-600 ml-1">VENCENDO</span>' : '';
+            return `<div class="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer" onclick="editLote(${l.id})">
+                <div>
+                    <p class="font-black text-slate-800 text-sm">Lote ${l.numero || '—'}${badge}</p>
+                    <p class="text-[10px] text-slate-500 font-bold mt-0.5">Val: ${valStr} · <span class="${l.status === 'aberto' ? 'text-emerald-600' : 'text-slate-400'}">${l.status === 'aberto' ? 'Aberto' : 'Fechado'}</span></p>
+                </div>
+                <div class="text-right">
+                    <span class="px-2.5 py-1 rounded-full text-xs font-black ${dispCls}">${est.disponivel} disp.</span>
+                    <p class="text-[9px] text-slate-400 font-bold mt-0.5">${est.reservado} reserv. · ${est.total} total</p>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    const pag = document.getElementById('vv-lotes-pagination');
+    pag.classList.toggle('hidden', pages <= 1);
+    document.getElementById('vv-lote-page-info').textContent = `Página ${_vvLotePage + 1} de ${pages}`;
+    document.getElementById('vv-lote-prev').disabled = _vvLotePage === 0;
+    document.getElementById('vv-lote-next').disabled = _vvLotePage >= pages - 1;
+}
+
+function setVVMovFilter(f) {
+    _vvMovFilter = f;
+    _vvMovPage   = 0;
+    ['ambos','entrada','saida'].forEach(x => {
+        const btn = document.getElementById(`vvmf-${x}`);
+        if (btn) btn.className = `px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition ${x === f ? 'bg-navy-900 text-white shadow' : 'text-slate-500 hover:bg-white'}`;
+    });
+    renderVVMovs();
+}
+
+function vvMovPage(dir) {
+    _vvMovPage = Math.max(0, _vvMovPage + dir);
+    renderVVMovs();
+}
+
+function renderVVMovs() {
+    let movs = stockMovements.filter(m => {
+        const lote = vaccineLots.find(l => l.id == m.loteId);
+        return lote && lote.vaccineId == _vvVaccineId;
+    });
+    if (_vvMovFilter === 'entrada') movs = movs.filter(m => m.tipo === 'entrada');
+    if (_vvMovFilter === 'saida')   movs = movs.filter(m => m.tipo !== 'entrada');
+    movs.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    const total = movs.length;
+    const pages = Math.ceil(total / _VV_PAGE_SIZE) || 1;
+    _vvMovPage  = Math.min(_vvMovPage, pages - 1);
+    const slice = movs.slice(_vvMovPage * _VV_PAGE_SIZE, (_vvMovPage + 1) * _VV_PAGE_SIZE);
+
+    const list = document.getElementById('vv-movs-list');
+    const pag  = document.getElementById('vv-movs-pagination');
+
+    if (!slice.length) {
+        list.innerHTML = '<p class="text-center text-slate-400 text-xs font-bold py-8">Nenhuma movimentação.</p>';
+        if (pag) pag.classList.add('hidden');
+        return;
+    }
+
+    list.innerHTML = slice.map(m => {
+        const lote      = vaccineLots.find(l => l.id == m.loteId);
+        const isEntrada = m.tipo === 'entrada';
+        const isReserva = m.tipo === 'reserva';
+        const tipoBadge = isEntrada
+            ? `<span class="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-700"><i class="fas fa-arrow-down mr-0.5"></i>Entrada</span>`
+            : isReserva
+                ? `<span class="px-2 py-0.5 rounded-full text-[9px] font-black bg-indigo-100 text-indigo-700"><i class="fas fa-lock mr-0.5"></i>Reserva</span>`
+                : m.descarte
+                    ? `<span class="px-2 py-0.5 rounded-full text-[9px] font-black bg-red-100 text-red-700"><i class="fas fa-trash mr-0.5"></i>Descarte</span>`
+                    : `<span class="px-2 py-0.5 rounded-full text-[9px] font-black bg-orange-100 text-orange-700"><i class="fas fa-arrow-up mr-0.5"></i>Saída</span>`;
+        const qtdColor = isEntrada ? 'text-emerald-600' : isReserva ? 'text-indigo-600' : 'text-orange-600';
+        const dataStr  = m.data ? new Date(m.data).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+        const isAuto   = !!m.appointmentId;
+        const acoesBtns = isAuto
+            ? `<button onclick="editRecord(${m.appointmentId})" class="h-7 w-7 bg-slate-50 border border-slate-200 text-slate-400 hover:text-clinic-600 rounded-lg flex items-center justify-center transition" title="Ver agendamento"><i class="fas fa-eye text-[10px]"></i></button>`
+            : `<div class="flex gap-1">
+                ${permBtn('lotes_fechar_abrir', `<button onclick="openEditMovModal(${m.id})" class="h-7 w-7 bg-slate-100 text-slate-600 hover:bg-clinic-600 hover:text-white rounded-lg flex items-center justify-center transition" title="Editar"><i class="fas fa-pen text-[10px]"></i></button>`)}
+                ${permBtn('lotes_fechar_abrir', `<button onclick="deleteMovimentacao(${m.id})" class="h-7 w-7 bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-lg flex items-center justify-center transition" title="Excluir"><i class="fas fa-trash text-[10px]"></i></button>`)}
+               </div>`;
+        return `<div class="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition">
+            <div class="shrink-0">${tipoBadge}</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-slate-700 truncate">${m.motivo || '—'}</p>
+                <p class="text-[9px] text-slate-400 font-bold">Lote ${lote ? lote.numero : '—'} · ${dataStr}</p>
+            </div>
+            <span class="font-black text-sm ${qtdColor} shrink-0">${isEntrada ? '+' : '−'}${m.qtd}</span>
+            ${acoesBtns}
+        </div>`;
+    }).join('');
+
+    if (pag) {
+        pag.classList.toggle('hidden', pages <= 1);
+        document.getElementById('vv-mov-page-info').textContent  = `Página ${_vvMovPage + 1} de ${pages}`;
+        document.getElementById('vv-mov-prev').disabled = _vvMovPage === 0;
+        document.getElementById('vv-mov-next').disabled = _vvMovPage >= pages - 1;
+    }
+}
+
+function openAddLoteFromVaccineView() {
+    if (!checkPerm('lotes_fechar_abrir')) return;
+    const v = vaccines.find(x => x.id == _vvVaccineId);
+    if (!v) return;
+    _fabLoteVaccines = vaccines.filter(x => x.ativo !== false).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    document.getElementById('fab-lote-vaccine-search').value = v.nome;
+    document.getElementById('fab-lote-vaccine').value = v.id;
+    document.getElementById('fab-lote-numero').value = '';
+    document.getElementById('fab-lote-validade').value = '';
+    document.getElementById('fab-lote-qtd').value = '';
+    document.getElementById('modal-add-lote-fab').classList.add('active');
+}
+
+function openVVMovEntrada() { openMovModal('entrada', null, _vvVaccineId); }
+function openVVMovSaida()   { openMovModal('saida',   null, _vvVaccineId); }
+// ─── Busca por vacina na aba Movimentação ─────────────────────────────────────
+function toggleMovVaccineSearch(e) {
+    e && e.stopPropagation();
+    const dd = document.getElementById('mov-vaccine-dropdown');
+    const isOpen = !dd.classList.contains('hidden');
+    if (isOpen) {
+        dd.classList.add('hidden');
+    } else {
+        dd.classList.remove('hidden');
+        document.getElementById('mov-vaccine-search-input').value = '';
+        filterMovVaccineDropdown('');
+        setTimeout(() => document.getElementById('mov-vaccine-search-input').focus(), 50);
+    }
+}
+
+function filterMovVaccineDropdown(q) {
+    const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+    const list = vaccines
+        .filter(v => v.ativo !== false && (!q || norm(v.nome).includes(norm(q))))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    const el = document.getElementById('mov-vaccine-dropdown-list');
+    if (!list.length) {
+        el.innerHTML = '<p class="text-center text-slate-400 text-xs font-bold py-4">Nenhuma vacina encontrada</p>';
+        return;
+    }
+    el.innerHTML = list.map(v => {
+        const isActive = _movVaccineFilter == v.id;
+        return `<button onclick="selectMovVaccineFilter(${v.id},'${v.nome.replace(/'/g,"\\'")}')"
+            class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${isActive ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-indigo-50 hover:text-indigo-700'}">
+            <span class="h-5 w-5 ${isActive ? 'bg-white/20' : 'bg-slate-100'} rounded-lg flex items-center justify-center shrink-0">
+                <i class="fas fa-syringe text-[9px] ${isActive ? 'text-white' : 'text-slate-400'}"></i>
+            </span>
+            ${v.nome}
+        </button>`;
+    }).join('');
+}
+
+function selectMovVaccineFilter(vaccineId, label) {
+    _movVaccineFilter = vaccineId || null;
+    const btn = document.getElementById('btn-mov-vaccine-search');
+    const hasFilter = _movVaccineFilter !== null;
+    btn.className = `h-9 w-9 border rounded-xl transition shadow-sm flex items-center justify-center ${
+        hasFilter ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600'
+    }`;
+    btn.title = hasFilter ? `Filtro: ${label}` : 'Filtrar por vacina';
+    document.getElementById('mov-vaccine-dropdown').classList.add('hidden');
+    renderMovimentacao();
+}
+
+document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('mov-vaccine-search-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+        const dd = document.getElementById('mov-vaccine-dropdown');
+        if (dd) dd.classList.add('hidden');
+    }
+});
+function refreshVaccineViewModal(vaccineId) {
+    const modal = document.getElementById('modal-view-vaccine');
+    if (!modal || !modal.classList.contains('active')) return;
+    if (_vvVaccineId != vaccineId) return;
+    openVaccineViewModal(vaccineId);
+    // Restaura a aba que estava aberta
+    const activeTab = ['info','lotes','movs'].find(t => !document.getElementById('vvpanel-' + t)?.classList.contains('hidden'));
+    if (activeTab && activeTab !== 'info') switchVaccineViewTab(activeTab);
+}

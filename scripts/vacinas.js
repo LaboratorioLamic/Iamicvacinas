@@ -81,7 +81,7 @@ function renderVaccines() {
                     ${permBtn('vacinas_crud', `<button onclick="editVaccine(${v.id})" class="h-8 w-8 bg-slate-100 hover:bg-clinic-600 hover:text-white rounded transition shadow-sm" title="Editar"><i class="fas fa-pen text-[10px]"></i></button>`)}
                     ${permBtn('lotes_fechar_abrir', `<button onclick="openLoteModal(${v.id})" class="h-8 w-8 bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white rounded transition shadow-sm" title="Gerenciar Lotes"><i class="fas fa-list-check text-[10px]"></i></button>`)}
                     ${permBtn('vacinas_ativar', `<button onclick="toggleVaccineStatus(${v.id})" class="h-8 w-8 ${ativo ? 'bg-green-50 text-green-600 hover:bg-green-500' : 'bg-orange-50 text-orange-500 hover:bg-orange-500'} hover:text-white rounded transition shadow-sm" title="${ativo ? 'Desativar' : 'Ativar'}"><i class="fas ${ativo ? 'fa-toggle-on' : 'fa-toggle-off'} text-[10px]"></i></button>`)}
-                    ${!hasAppointments ? permBtn('excluir_vacina', `<button onclick="deleteVaccine(${v.id})" class="h-8 w-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded transition shadow-sm" title="Excluir"><i class="fas fa-trash text-[10px]"></i></button>`) : ''}
+
                 </div>
             </td>
         </tr>`;
@@ -197,6 +197,8 @@ function openVaccineModal() {
     document.getElementById('vac-id').value = '';
     _esquemas = [];
     renderEsquemas();
+    const btnDel = document.getElementById('btn-delete-vacina');
+    if (btnDel) btnDel.classList.add('hidden');
     document.getElementById('modal-vacina').classList.add('active');
 }
 
@@ -208,7 +210,6 @@ function editVaccine(id) {
     document.getElementById('vac-reforco').checked = v.reforco;
     document.getElementById('vac-unica').checked = v.doseUnica;
     document.getElementById('vac-valor').value = String(v.valor || '').replace('R$', '').trim();
-    // Migração: vacinas antigas sem esquemas recebem um esquema padrão derivado dos campos legados
     if (v.esquemas && v.esquemas.length) {
         _esquemas = JSON.parse(JSON.stringify(v.esquemas));
     } else {
@@ -216,18 +217,32 @@ function editVaccine(id) {
         _esquemas = [{ minAnos: v.idadeMinimaAnos || 0, minMeses: v.idadeMinimaMeses || 0, maxAnos: null, maxMeses: null, numDoses: v.numDoses || 1, intervalos }];
     }
     renderEsquemas();
+    const btnDel = document.getElementById('btn-delete-vacina');
+    if (btnDel) {
+        const canDel = isCurrentUserAdmin() || hasPerm('excluir_vacina');
+        const inUse = appointments.some(a => a.vaccineId == id);
+        btnDel.classList.toggle('hidden', !canDel || inUse);
+    }
     document.getElementById('modal-vacina').classList.add('active');
+}
+
+function deleteVaccineFromModal() {
+    const id = document.getElementById('vac-id').value;
+    if (!id) return;
+    deleteVaccine(Number(id));
+    document.getElementById('modal-vacina').classList.remove('active');
 }
 
 function saveVaccine(e) {
     e.preventDefault();
-    if (!_esquemas.length) { showNotification('Adicione ao menos um esquema vacinal antes de salvar.', 'error'); return; }
+    const doseUnica = document.getElementById('vac-unica').checked;
+    if (!_esquemas.length && !doseUnica) { showNotification('Adicione ao menos um esquema vacinal antes de salvar, ou habilite "Dose Única".', 'error'); return; }
     const id = document.getElementById('vac-id').value;
     const existing = vaccines.find(x => x.id == id);
     // numDoses e intervalos derivados do maior esquema (retrocompatibilidade com agendamentos)
-    const maiorEsquema = _esquemas.reduce((a, b) => (b.numDoses || 1) > (a.numDoses || 1) ? b : a, _esquemas[0]);
-    const n = maiorEsquema.numDoses || 1;
-    const intervalosBase = maiorEsquema.intervalos && maiorEsquema.intervalos.length ? maiorEsquema.intervalos : [];
+    const maiorEsquema = _esquemas.length ? _esquemas.reduce((a, b) => (b.numDoses || 1) > (a.numDoses || 1) ? b : a, _esquemas[0]) : null;
+    const n = maiorEsquema ? (maiorEsquema.numDoses || 1) : 1;
+    const intervalosBase = maiorEsquema && maiorEsquema.intervalos && maiorEsquema.intervalos.length ? maiorEsquema.intervalos : [];
     // Retrocompatibilidade de idadeMinima
     const primeiroEsquema = _esquemas.find(esq => esq.minAnos != null);
     const idadeMinimaAnos = primeiroEsquema ? (primeiroEsquema.minAnos || 0) : 0;
@@ -317,7 +332,7 @@ function renderLoteLists() {
         if (expired) badgeHtml = `<span class="px-2 py-0.5 rounded text-[9px] font-black bg-red-100 text-red-600">VENCIDO</span>`;
         else if (nearExpiry) badgeHtml = `<span class="px-2 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-600">VENCENDO</span>`;
         return `
-        <div class="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition">
+        <div class="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer" onclick="editLote(${l.id})">
             <div>
                 <p class="font-black text-navy-900 text-sm">Lote: ${l.numero}</p>
                 <p class="text-[10px] text-slate-500 font-bold">Validade: ${l.validade.split('-').reverse().join('/')} ${badgeHtml}</p>
@@ -328,12 +343,11 @@ function renderLoteLists() {
                 </p>
                 ${emUso ? '<p class="text-[9px] text-slate-400 font-bold mt-0.5"><i class="fas fa-link mr-1"></i>Em uso em agendamentos</p>' : ''}
             </div>
-            <div class="flex gap-2">
+            <div class="flex gap-2" onclick="event.stopPropagation()">
                 ${isAberto
                     ? permBtn('lotes_fechar_abrir', `<button onclick="toggleLoteStatus(${l.id},'fechado')" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black hover:bg-slate-200 transition" title="Fechar lote"><i class="fas fa-lock mr-1"></i>Fechar</button>`)
                     : permBtn('lotes_fechar_abrir', `<button onclick="toggleLoteStatus(${l.id},'aberto')" class="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-[10px] font-black hover:bg-green-100 transition" title="Abrir lote"><i class="fas fa-lock-open mr-1"></i>Abrir</button>`)
                 }
-                ${!emUso ? permBtn('lotes_fechar_abrir', `<button onclick="editLote(${l.id})" class="h-7 w-7 bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white rounded-lg text-[10px] flex items-center justify-center transition" title="Editar lote"><i class="fas fa-pen"></i></button>`) : ''}
                 ${!emUso ? permBtn('excluir_lote', `<button onclick="deleteLote(${l.id})" class="h-7 w-7 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-[10px] flex items-center justify-center transition"><i class="fas fa-trash"></i></button>`) : ''}
             </div>
         </div>`;
@@ -353,8 +367,10 @@ function addLote() {
     if (!numero || !validade) { showNotification('Informe o número do lote e a validade.', 'error'); return; }
     if (quantidade <= 0) { showNotification('Informe a quantidade inicial do lote (maior que zero).', 'error'); return; }
     if (!currentLoteModalVaccineId) return;
-    const novoLote = { id: Date.now(), vaccineId: currentLoteModalVaccineId, numero, validade, quantidade, status: 'aberto' };
+    const newId = Date.now();
+    const novoLote = { id: newId, vaccineId: currentLoteModalVaccineId, numero, validade, status: 'aberto' };
     vaccineLots.push(novoLote);
+    stockMovements.push({ id: newId + 1, loteId: newId, vaccineId: currentLoteModalVaccineId, tipo: 'entrada', qtd: quantidade, motivo: 'Cadastro inicial', descarte: false, data: new Date().toISOString(), usuario: currentUser ? currentUser.nome : '—' });
     const vacLote = vaccines.find(v => v.id == currentLoteModalVaccineId);
     logAudit('Criado', 'lote', String(currentLoteModalVaccineId), `Lote ${numero}`, `Vacina: ${vacLote ? vacLote.nome : '—'} | Validade: ${validade} | Qtd inicial: ${quantidade}`);
     document.getElementById('novo-lote-numero').value = '';
@@ -370,6 +386,13 @@ function toggleLoteStatus(loteId, newStatus) {
     if (newStatus === 'fechado') {
         const lote = vaccineLots.find(l => l.id == loteId);
         const vac  = lote ? vaccines.find(v => v.id == lote.vaccineId) : null;
+        if (typeof getLoteEstoque === 'function') {
+            const est = getLoteEstoque(loteId);
+            if (est.disponivel > 0) {
+                showNotification(`Não é possível fechar: o lote ${lote ? lote.numero : ''} ainda possui ${est.disponivel} unidade(s) disponíveis. Zere o estoque antes de fechar.`, 'error');
+                return;
+            }
+        }
         document.getElementById('fechar-lote-numero').textContent   = lote ? lote.numero : '—';
         document.getElementById('fechar-lote-vacina').textContent   = vac  ? vac.nome   : '—';
         document.getElementById('fechar-lote-validade').textContent = lote ? lote.validade.split('-').reverse().join('/') : '—';
@@ -395,14 +418,316 @@ function deleteLote(loteId) {
     saveAll(); renderLoteLists(); updateExpiryBadge(); showNotification('Lote excluído.', 'success');
 }
 
+let _viewLoteId = null;
+let _viewLoteFilter = 'ambos';
+let _viewLotePage = 0;
+const _VIEW_LOTE_PAGE_SIZE = 10;
+
+function _refreshViewLoteHeader() {
+    const l = vaccineLots.find(x => x.id == _viewLoteId);
+    if (!l) return;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const twoMonths = new Date(today); twoMonths.setMonth(twoMonths.getMonth() + 2);
+    const exp = l.validade ? new Date(l.validade + 'T00:00:00') : null;
+    const vencido  = exp && exp < today;
+    const vencendo = exp && !vencido && exp <= twoMonths;
+    const header = document.getElementById('view-lote-header');
+    header.className = `p-5 text-white shrink-0 ${vencido ? 'bg-gradient-to-br from-red-700 to-red-900' : vencendo ? 'bg-gradient-to-br from-amber-500 to-amber-700' : l.status === 'aberto' ? 'bg-gradient-to-br from-indigo-600 to-indigo-900' : 'bg-gradient-to-br from-slate-600 to-slate-800'}`;
+    // botão toggle
+    const btn = document.getElementById('view-lote-btn-toggle');
+    const canToggle = isCurrentUserAdmin() || hasPerm('lotes_fechar_abrir');
+    if (btn) {
+        btn.classList.toggle('hidden', !canToggle);
+        if (l.status === 'aberto') {
+            btn.className = 'px-4 py-2.5 font-black rounded-xl transition text-xs uppercase flex items-center gap-2 border bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-600 hover:text-white';
+            btn.innerHTML = '<i class="fas fa-lock"></i>Fechar lote';
+        } else {
+            btn.className = 'px-4 py-2.5 font-black rounded-xl transition text-xs uppercase flex items-center gap-2 border bg-green-50 text-green-700 border-green-200 hover:bg-green-600 hover:text-white';
+            btn.innerHTML = '<i class="fas fa-lock-open"></i>Abrir';
+        }
+    }
+}
+
 function editLote(loteId) {
-    if (!checkPerm('lotes_fechar_abrir')) return;
     const l = vaccineLots.find(x => x.id == loteId);
+    if (!l) return;
+    _viewLoteId = loteId;
+    _viewLoteFilter = 'ambos';
+    _viewLotePage = 0;
+    const v = vaccines.find(x => x.id == l.vaccineId);
+    const est = (typeof getLoteEstoque === 'function') ? getLoteEstoque(loteId) : { disponivel: 0, reservado: 0, total: 0 };
+    const today = new Date(); today.setHours(0,0,0,0);
+    const twoMonths = new Date(today); twoMonths.setMonth(twoMonths.getMonth() + 2);
+    const exp = l.validade ? new Date(l.validade + 'T00:00:00') : null;
+    const vencido  = exp && exp < today;
+    const vencendo = exp && !vencido && exp <= twoMonths;
+    const validadeStr = l.validade ? l.validade.split('-').reverse().join('/') : '—';
+    const validadeBadge = vencido
+        ? `${validadeStr}<span class="block text-[9px] text-red-300 font-black mt-0.5"><i class="fas fa-skull-crossbones mr-1"></i>VENCIDO</span>`
+        : vencendo
+            ? `${validadeStr}<span class="block text-[9px] text-amber-200 font-black mt-0.5"><i class="fas fa-hourglass-half mr-1"></i>VENCENDO</span>`
+            : validadeStr;
+
+    document.getElementById('view-lote-numero').textContent = l.numero || '—';
+    document.getElementById('view-lote-vacina').textContent = v ? v.nome : '—';
+    document.getElementById('view-lote-disp').textContent = est.disponivel;
+    document.getElementById('view-lote-reserv').textContent = est.reservado;
+    document.getElementById('view-lote-saida').textContent = est.aplicado + est.saidaManual;
+    document.getElementById('view-lote-total').textContent = est.total;
+    document.getElementById('view-lote-validade-badge').innerHTML = validadeBadge;
+
+    _refreshViewLoteHeader();
+
+    // botão excluir: só sem movimentações e agendamentos
+    const hasMov = stockMovements.some(m => m.loteId == loteId) || appointments.some(a => a.loteId == loteId);
+    const canDel = isCurrentUserAdmin() || hasPerm('excluir_lote');
+    document.getElementById('view-lote-btn-excluir').classList.toggle('hidden', !canDel || hasMov);
+
+    // botão editar
+    const canEdit = isCurrentUserAdmin() || hasPerm('lotes_fechar_abrir');
+    document.getElementById('view-lote-btn-editar').classList.toggle('hidden', !canEdit);
+
+    setViewLoteFilter('ambos');
+    document.getElementById('modal-view-lote').classList.add('active');
+}
+
+function _buildLoteEventos(loteId) {
+    // Movimentações manuais (exclui automáticas vinculadas a agendamentos)
+    const manual = stockMovements.filter(m => m.loteId == loteId && !m.appointmentId).map(m => ({
+        _tipo: m.tipo === 'entrada' ? 'entrada' : 'saida',
+        _subtipo: m.descarte ? 'descarte' : m.tipo === 'entrada' ? 'entrada' : 'ajuste',
+        _movId: m.id,
+        qtd: m.qtd,
+        data: m.data,
+        motivo: m.motivo || '',
+        usuario: m.usuario || '',
+        extra: null
+    }));
+
+    // Agendamentos vinculados ao lote
+    const appts = appointments.filter(a => a.loteId == loteId).map(a => {
+        const pat = patients.find(p => p.id == a.patientId);
+        const isAplic = a.status === 'Aplicado';
+        const isRes   = a.status === 'Agendado';
+        if (!isAplic && !isRes) return null;
+        return {
+            _tipo: 'saida',
+            _subtipo: isAplic ? 'aplicado' : 'reserva',
+            _appointmentId: a.id,
+            qtd: 1,
+            data: isAplic ? (a.dataAplicacao || a.data) : a.data,
+            motivo: isAplic ? `Aplicação — ${a.doseAtual || ''}` : `Reserva — ${a.doseAtual || ''}`,
+            usuario: isAplic ? (a.aplicador || a.vendedor || '') : (a.vendedor || ''),
+            extra: pat ? pat.nome : null,
+            _pat: pat,
+            _apt: a
+        };
+    }).filter(Boolean);
+
+    return [...manual, ...appts].sort((a, b) => new Date(b.data) - new Date(a.data));
+}
+
+function setViewLoteFilter(f) {
+    _viewLoteFilter = f;
+    _viewLotePage = 0;
+    ['ambos','entrada','saida'].forEach(k => {
+        const btn = document.getElementById('vlf-' + k);
+        if (!btn) return;
+        btn.className = `vlf-btn flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide transition ${k === f ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:bg-white'}`;
+    });
+    renderViewLoteMov();
+}
+
+function renderViewLoteMov() {
+    const list = document.getElementById('view-lote-mov-list');
+    if (!list) return;
+
+    let eventos = _buildLoteEventos(_viewLoteId);
+    if (_viewLoteFilter === 'entrada') eventos = eventos.filter(e => e._tipo === 'entrada');
+    if (_viewLoteFilter === 'saida')   eventos = eventos.filter(e => e._tipo === 'saida');
+
+    const total = eventos.length;
+    const totalPages = Math.max(1, Math.ceil(total / _VIEW_LOTE_PAGE_SIZE));
+    _viewLotePage = Math.min(_viewLotePage, totalPages - 1);
+    const paginated = eventos.slice(_viewLotePage * _VIEW_LOTE_PAGE_SIZE, (_viewLotePage + 1) * _VIEW_LOTE_PAGE_SIZE);
+
+    if (!total) {
+        list.innerHTML = `<p class="text-center text-slate-400 text-xs font-bold py-8"><i class="fas fa-inbox mr-2"></i>Nenhuma movimentação encontrada</p>`;
+        return;
+    }
+
+    const subtipoCfg = {
+        entrada:  { cls: 'bg-emerald-100 text-emerald-700', icon: 'fa-arrow-down',       label: 'Entrada',   sinal: '+', sinalCls: 'text-emerald-600' },
+        ajuste:   { cls: 'bg-orange-100 text-orange-700',   icon: 'fa-arrow-up',          label: 'Saída',     sinal: '−', sinalCls: 'text-orange-600' },
+        descarte: { cls: 'bg-red-100 text-red-700',         icon: 'fa-trash',             label: 'Descarte',  sinal: '−', sinalCls: 'text-red-600' },
+        aplicado: { cls: 'bg-violet-100 text-violet-700',   icon: 'fa-syringe',           label: 'Aplicado',  sinal: '−', sinalCls: 'text-violet-600' },
+        reserva:  { cls: 'bg-blue-100 text-blue-700',       icon: 'fa-calendar-check',    label: 'Reservado', sinal: '−', sinalCls: 'text-blue-600' },
+    };
+
+    const canEditApt = isCurrentUserAdmin() || hasPerm('agendar') || hasPerm('criar_agendamento');
+    const canEditMov = isCurrentUserAdmin() || hasPerm('lotes_fechar_abrir');
+
+    const cardsHtml = paginated.map(ev => {
+        const cfg = subtipoCfg[ev._subtipo] || subtipoCfg.ajuste;
+        const dataStr = ev.data ? new Date(ev.data).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+        const isApt  = !!ev._appointmentId;
+        const isMov  = !!ev._movId && !isApt;
+        let acoesBtns = '';
+        if (isApt && canEditApt) {
+            acoesBtns = `<div class="flex gap-1.5 mt-2">
+                <button onclick="editRecord(${ev._appointmentId})" class="flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 hover:bg-indigo-500 hover:text-white rounded-lg text-[10px] font-black uppercase transition"><i class="fas fa-pen text-[9px]"></i>Editar</button>
+            </div>`;
+        } else if (isMov && canEditMov) {
+            acoesBtns = `<div class="flex gap-1.5 mt-2">
+                <button onclick="openEditMovModal(${ev._movId})" class="flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 hover:bg-indigo-500 hover:text-white rounded-lg text-[10px] font-black uppercase transition"><i class="fas fa-pen text-[9px]"></i>Editar</button>
+                <button onclick="deleteMovimentacao(${ev._movId})" class="flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white rounded-lg text-[10px] font-black uppercase transition"><i class="fas fa-trash text-[9px]"></i>Excluir</button>
+            </div>`;
+        }
+        return `<div class="flex items-start gap-3 p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition">
+            <div class="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${cfg.cls}">
+                <i class="fas ${cfg.icon} text-sm"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${cfg.cls}">${cfg.label}</span>
+                    <span class="font-black text-base ${cfg.sinalCls}">${cfg.sinal}${ev.qtd}</span>
+                </div>
+                <p class="text-[10px] text-slate-400 font-bold mt-1">${dataStr}</p>
+                ${ev.extra ? `<p class="text-xs font-bold text-slate-700 mt-0.5 truncate"><i class="fas fa-user-circle text-slate-300 mr-1"></i>${ev.extra}</p>` : ''}
+                ${ev.motivo ? `<p class="text-xs text-slate-500 mt-0.5 truncate" title="${ev.motivo}"><i class="fas fa-comment-alt text-slate-300 mr-1"></i>${ev.motivo}</p>` : ''}
+                ${ev.usuario ? `<p class="text-[10px] text-slate-400 font-bold mt-0.5"><i class="fas fa-user text-slate-300 mr-1"></i>${ev.usuario}</p>` : ''}
+                ${acoesBtns}
+            </div>
+        </div>`;
+    }).join('');
+
+    // Paginação
+    const paginacaoHtml = totalPages > 1 ? `
+        <div class="flex items-center justify-between pt-1 mt-1 border-t border-slate-100">
+            <button onclick="_viewLotePage=Math.max(0,_viewLotePage-1);renderViewLoteMov()" ${_viewLotePage === 0 ? 'disabled' : ''}
+                class="h-8 w-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition">
+                <i class="fas fa-chevron-left text-[10px]"></i>
+            </button>
+            <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                Página ${_viewLotePage + 1} de ${totalPages} &nbsp;·&nbsp; ${total} registros
+            </span>
+            <button onclick="_viewLotePage=Math.min(${totalPages-1},_viewLotePage+1);renderViewLoteMov()" ${_viewLotePage >= totalPages - 1 ? 'disabled' : ''}
+                class="h-8 w-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition">
+                <i class="fas fa-chevron-right text-[10px]"></i>
+            </button>
+        </div>` : '';
+
+    list.innerHTML = cardsHtml + paginacaoHtml;
+}
+
+function toggleLoteFromView() {
+    if (!checkPerm('lotes_fechar_abrir')) return;
+    const l = vaccineLots.find(x => x.id == _viewLoteId);
+    if (!l) return;
+    const novoStatus = l.status === 'aberto' ? 'fechado' : 'aberto';
+    if (novoStatus === 'fechado') {
+        if (typeof getLoteEstoque === 'function') {
+            const est = getLoteEstoque(_viewLoteId);
+            if (est.disponivel > 0) {
+                showNotification(`Não é possível fechar: o lote ${l.numero} ainda possui ${est.disponivel} unidade(s) disponíveis. Zere o estoque antes de fechar.`, 'error');
+                return;
+            }
+        }
+        // usa o modal de confirmação existente
+        const v = vaccines.find(x => x.id == l.vaccineId);
+        document.getElementById('fechar-lote-numero').textContent   = l.numero;
+        document.getElementById('fechar-lote-vacina').textContent   = v ? v.nome : '—';
+        document.getElementById('fechar-lote-validade').textContent = l.validade ? l.validade.split('-').reverse().join('/') : '—';
+        document.getElementById('btn-confirmar-fechar-lote').onclick = () => {
+            document.getElementById('modal-fechar-lote-aviso').classList.remove('active');
+            const idx = vaccineLots.findIndex(x => x.id == _viewLoteId);
+            if (idx > -1) {
+                vaccineLots[idx].status = 'fechado';
+                vaccineLots[idx]._autoFechado = false;
+                saveAll(); renderLoteLists(); renderAlmoxLotes && renderAlmoxLotes(); updateExpiryBadge();
+                _refreshViewLoteHeader();
+                showNotification('Lote fechado com sucesso!', 'success');
+            }
+        };
+        document.getElementById('modal-fechar-lote-aviso').classList.add('active');
+    } else {
+        const idx = vaccineLots.findIndex(x => x.id == _viewLoteId);
+        if (idx > -1) {
+            vaccineLots[idx].status = 'aberto';
+            vaccineLots[idx]._autoFechado = false;
+            saveAll(); renderLoteLists(); renderAlmoxLotes && renderAlmoxLotes(); updateExpiryBadge();
+            _refreshViewLoteHeader();
+            showNotification('Lote aberto com sucesso!', 'success');
+        }
+    }
+}
+
+function editLoteFromView() {
+    document.getElementById('modal-view-lote').classList.remove('active');
+    const l = vaccineLots.find(x => x.id == _viewLoteId);
     if (!l) return;
     document.getElementById('edit-lote-id').value = l.id;
     document.getElementById('edit-lote-numero').value = l.numero;
     document.getElementById('edit-lote-validade').value = l.validade;
     document.getElementById('modal-edit-lote').classList.add('active');
+}
+
+function deleteLoteFromView() {
+    document.getElementById('modal-view-lote').classList.remove('active');
+    deleteLote(_viewLoteId);
+}
+
+let _dlaAppointmentId = null;
+
+function openDeleteLoteAppointment(aptId) {
+    if (!checkPerm('excluir_agendamento')) return;
+    const a = appointments.find(x => x.id == aptId);
+    if (!a) return;
+    _dlaAppointmentId = aptId;
+    const pat = patients.find(p => p.id == a.patientId);
+    const vac = vaccines.find(v => v.id == a.vaccineId);
+    const lote = vaccineLots.find(l => l.id == a.loteId);
+    const dataStr = a.data ? a.data.split('-').reverse().join('/') : '—';
+
+    document.getElementById('dla-pat-nome').textContent  = pat ? pat.nome : '—';
+    document.getElementById('dla-pat-info').textContent  = pat ? `CPF: ${pat.cpf || '—'} · Nasc.: ${pat.dtNasc ? pat.dtNasc.split('-').reverse().join('/') : '—'}` : '—';
+    document.getElementById('dla-vac-nome').textContent  = vac ? vac.nome : '—';
+    document.getElementById('dla-apt-info').textContent  = `${a.doseAtual || '—'} · ${dataStr}`;
+    document.getElementById('dla-apt-status').textContent = a.status || '—';
+    document.getElementById('dla-apt-lote').textContent  = lote ? lote.numero : '—';
+    document.getElementById('dla-confirm-input').value   = '';
+    checkDlaConfirm();
+    document.getElementById('modal-delete-lote-apt').classList.add('active');
+}
+
+function checkDlaConfirm() {
+    const ok = document.getElementById('dla-confirm-input').value.trim().toUpperCase() === 'SIM';
+    const btn = document.getElementById('btn-dla-confirm');
+    btn.disabled = !ok;
+    btn.className = ok
+        ? 'flex-1 bg-red-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-red-700 cursor-pointer shadow-md'
+        : 'flex-1 bg-red-200 text-red-400 font-black py-3 rounded-xl uppercase text-xs transition cursor-not-allowed';
+}
+
+function confirmDeleteLoteAppointment() {
+    if (!_dlaAppointmentId) return;
+    const a = appointments.find(x => x.id == _dlaAppointmentId);
+    const pat = a ? patients.find(p => p.id == a.patientId) : null;
+    const vac = a ? vaccines.find(v => v.id == a.vaccineId) : null;
+    logAudit('Excluído', 'agendamento', _dlaAppointmentId,
+        `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a ? a.doseAtual : ''} | ${a ? a.data : ''}`);
+    const loteId = a ? a.loteId : null;
+    appointments = appointments.filter(x => x.id != _dlaAppointmentId);
+    _dlaAppointmentId = null;
+    document.getElementById('modal-delete-lote-apt').classList.remove('active');
+    if (typeof syncAllLoteStatus === 'function' && loteId) syncAllLoteStatus();
+    saveAll();
+    if (typeof renderCalendar === 'function') renderCalendar();
+    if (typeof renderTable === 'function') renderTable();
+    if (typeof renderDashboard === 'function') renderDashboard();
+    if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+    if (typeof refreshOpenModals === 'function') refreshOpenModals();
+    showNotification('Agendamento excluído com sucesso.', 'success');
 }
 
 function salvarEdicaoLote() {
@@ -438,6 +763,16 @@ function getExpiryAlerts() {
     return alerts.sort((a, b) => a.daysLeft - b.daysLeft);
 }
 
+function openViewLoteEntrada() {
+    document.getElementById('modal-view-lote').classList.remove('active');
+    if (typeof openMovimentacaoEntrada === 'function') openMovimentacaoEntrada(_viewLoteId);
+}
+
+function openViewLoteSaida() {
+    document.getElementById('modal-view-lote').classList.remove('active');
+    if (typeof openMovimentacaoSaida === 'function') openMovimentacaoSaida(_viewLoteId);
+}
+
 function renderExpiryPanel() {
     const alerts = getExpiryAlerts();
     updateExpiryBadge();
@@ -451,7 +786,7 @@ function renderExpiryPanel() {
             ? `<span class="shrink-0 px-2 py-0.5 rounded text-[9px] font-black bg-red-100 text-red-600 whitespace-nowrap">VENCIDO há ${Math.abs(daysLeft)} dia(s)</span>`
             : `<span class="shrink-0 px-2 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-700 whitespace-nowrap">Vence em ${daysLeft} dia(s)</span>`;
         const borderCls = expired ? 'border-red-200 hover:border-red-400 bg-red-50 hover:bg-red-100' : 'border-amber-200 hover:border-amber-400 bg-amber-50 hover:bg-amber-100';
-        return `<button onclick="const _p=document.getElementById('expiry-panel');_p.classList.add('hidden');_p.classList.remove('flex'); openLoteModal(${vaccine.id});" class="w-full text-left p-3 rounded-xl border ${borderCls} transition group">
+        return `<button onclick="const _p=document.getElementById('expiry-panel');_p.classList.add('hidden');_p.classList.remove('flex'); editLote(${lot.id});" class="w-full text-left p-3 rounded-xl border ${borderCls} transition group">
             <div class="flex justify-between items-center gap-2">
                 <div class="min-w-0 flex-1">
                     <p class="font-black text-navy-900 text-xs truncate group-hover:text-clinic-700">${vaccine.nome}</p>

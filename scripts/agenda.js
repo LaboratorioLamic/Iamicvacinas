@@ -1,14 +1,325 @@
 // ─── CALENDAR & KANBAN (from index.html lines ~3133-3967) ────────────────────
 
+let _calView = 'mensal'; // 'mensal' | 'semanal'
+let _weekStart = null; // Date do domingo da semana atual
+
+function switchCalView(view) {
+    _calView = view;
+    const btnM = document.getElementById('btn-cal-mensal');
+    const btnS = document.getElementById('btn-cal-semanal');
+    const active   = 'px-3 h-8 rounded-lg text-xs font-black uppercase tracking-wider transition bg-navy-900 text-white shadow';
+    const inactive = 'px-3 h-8 rounded-lg text-xs font-black uppercase tracking-wider transition text-slate-500 hover:bg-white';
+    if (btnM) btnM.className = view === 'mensal' ? active : inactive;
+    if (btnS) btnS.className = view === 'semanal' ? active : inactive;
+    document.getElementById('cal-view-mensal').classList.toggle('hidden', view !== 'mensal');
+    document.getElementById('cal-view-semanal').classList.toggle('hidden', view !== 'semanal');
+    if (view === 'semanal') {
+        if (!_weekStart) _weekStart = _getSundayOf(new Date());
+        renderWeekly();
+    } else {
+        renderCalendar();
+    }
+}
+
+function calNavPrev() { if (_calView === 'semanal') { _weekStart.setDate(_weekStart.getDate() - 7); renderWeekly(); } else { changeMonth(-1); } }
+function calNavNext() { if (_calView === 'semanal') { _weekStart.setDate(_weekStart.getDate() + 7); renderWeekly(); } else { changeMonth(1); } }
+
+function _getSundayOf(date) {
+    const d = new Date(date); d.setHours(0,0,0,0);
+    d.setDate(d.getDate() - d.getDay());
+    return d;
+}
+
+function renderWeekly() {
+    const board = document.getElementById('weekly-board');
+    if (!board) return;
+    const DAY_NAMES = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    const _gray = { grad: 'from-slate-100 to-gray-100', light: '#f8fafc', border: '#e2e8f0', text: '#64748b', header: '#475569' };
+    const _blue = { grad: 'from-blue-50 to-slate-100', light: '#f8fafc', border: '#e2e8f0', text: '#2563eb', header: '#1d4ed8' };
+    const DAY_COLORS = [
+        { grad: 'from-rose-100 to-red-100', light: '#fff5f5', border: '#fecdd3', text: '#e11d48', header: '#be123c' }, // domingo
+        _blue, _blue, _blue, _blue, _blue, _blue, // seg–sáb
+    ];
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Atualiza label do cabeçalho
+    const sunday = new Date(_weekStart);
+    const saturday = new Date(_weekStart); saturday.setDate(saturday.getDate() + 6);
+    const fmt = d => d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+    const lbl = document.getElementById('current-month-label');
+    if (lbl) lbl.textContent = `${fmt(sunday)} – ${fmt(saturday)}`;
+
+    board.innerHTML = Array.from({ length: 7 }, (_, i) => {
+        const day = new Date(_weekStart); day.setDate(day.getDate() + i);
+        const dateStr = day.toISOString().split('T')[0];
+        const isToday = dateStr === todayStr;
+        const col = DAY_COLORS[i];
+        const dayApps = appointments.filter(a => a.data === dateStr && a.status !== 'Cancelado');
+
+        const cardsHtml = dayApps.map(a => {
+            const pat = patients.find(p => p.id == a.patientId);
+            const vac = vaccines.find(v => v.id == a.vaccineId);
+            if (!pat || !vac) return '';
+            const stColor = a.status === 'Aplicado' ? '#16a34a' : a.status === 'Agendado' ? '#2563eb' : '#0891b2';
+            const btnAgendar = a.status === 'Em negociação'
+                ? permBtn('criar_agendamento', `<button onclick="event.stopPropagation();openAgendarModal(${a.id})" class="h-6 w-6 rounded-lg bg-blue-500 text-white hover:bg-blue-600 flex items-center justify-center transition shrink-0" title="Agendar"><i class="fas fa-calendar-check text-[9px]"></i></button>`)
+                : '';
+            const btnAplicar = a.status === 'Agendado'
+                ? permBtn('aplicar', `<button onclick="event.stopPropagation();openConcluirModal(${a.id})" class="h-6 w-6 rounded-lg bg-green-500 text-white hover:bg-green-600 flex items-center justify-center transition shrink-0" title="Aplicar"><i class="fas fa-syringe text-[9px]"></i></button>`)
+                : '';
+            return `<div draggable="true"
+                ondragstart="weeklyDragStart(event,${a.id})"
+                ondragend="weeklyDragEnd(event)"
+                onclick="event.stopPropagation();editRecord(${a.id})"
+                class="bg-white rounded-xl border border-slate-200 p-2.5 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all duration-150 hover:-translate-y-0.5 select-none"
+                style="border-left:3px solid ${stColor};">
+                <div class="flex items-start justify-between gap-1">
+                    <p class="font-black text-navy-900 text-xs truncate flex-1">${pat.nome}</p>
+                    ${btnAgendar || btnAplicar ? `<div class="flex gap-1 shrink-0">${btnAgendar}${btnAplicar}</div>` : ''}
+                </div>
+                <p class="text-[10px] text-slate-400 mt-0.5 truncate">${vac.nome} · ${a.doseAtual}</p>
+                ${a.hora ? `<p class="text-[10px] font-bold text-slate-500 mt-0.5"><i class="far fa-clock mr-1"></i>${a.hora}</p>` : ''}
+            </div>`;
+        }).join('');
+
+        const emptyHtml = `<div class="flex flex-col items-center justify-center py-6 opacity-40">
+            <i class="fas fa-calendar-day text-2xl mb-1" style="color:${col.text};"></i>
+            <p class="text-[10px] font-black uppercase" style="color:${col.text};">Sem registros</p>
+        </div>`;
+
+        return `<div class="flex flex-col rounded-2xl overflow-hidden border shadow-md transition-all duration-200 flex-1 min-w-[130px]"
+            style="border-color:${col.border};${isToday ? 'box-shadow:0 0 0 2px #2563eb,0 4px 16px rgba(37,99,235,.15);' : ''}"
+            ondragover="weeklyDragOver(event)"
+            ondragleave="weeklyDragLeave(event)"
+            ondrop="weeklyDrop(event,'${dateStr}')"
+            data-date="${dateStr}">
+            <div class="px-3 py-2.5 shrink-0 bg-gradient-to-br ${col.grad} flex flex-col items-center border-b" style="border-color:${col.border};">
+                <span class="text-[9px] font-black uppercase tracking-widest" style="color:${col.header};opacity:0.7;">${DAY_NAMES[i]}</span>
+                <span class="font-black text-xl leading-none" style="color:${col.header};">${day.getDate()}</span>
+                ${isToday ? `<span class="text-[8px] font-black px-1.5 py-0.5 rounded-full mt-1 uppercase tracking-wider" style="background:${col.border};color:${col.header};">Hoje</span>` : ''}
+                ${dayApps.length ? `<span class="text-[9px] font-black px-2 py-0.5 rounded-full mt-1" style="background:${col.border};color:${col.header};">${dayApps.length}</span>` : ''}
+            </div>
+            <div class="flex-1 overflow-y-auto p-2 space-y-2 bg-white/80" style="background:${col.light};">
+                ${dayApps.length ? cardsHtml : emptyHtml}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// Drag & Drop semanal
+let _weeklyDragId = null;
+function weeklyDragStart(e, id) { _weeklyDragId = id; e.dataTransfer.effectAllowed = 'move'; e.currentTarget.style.opacity = '0.5'; }
+function weeklyDragEnd(e) { e.currentTarget.style.opacity = ''; document.querySelectorAll('#weekly-board > div').forEach(c => c.style.outline = ''); }
+function weeklyDragOver(e) { e.preventDefault(); e.currentTarget.style.outline = '2px solid #2563eb'; }
+function weeklyDragLeave(e) { e.currentTarget.style.outline = ''; }
+let _weeklyPendingDrop = null; // { appointmentId, targetDate }
+
+function weeklyDrop(e, dateStr) {
+    e.preventDefault(); e.currentTarget.style.outline = '';
+    if (!_weeklyDragId) return;
+    const a = appointments.find(x => x.id == _weeklyDragId);
+    _weeklyDragId = null;
+    if (!a) return;
+
+    // Mesmo dia — sem ação
+    if (a.data === dateStr) return;
+
+    // Bloqueio: lote vinculado vencido na data destino
+    if (a.loteId) {
+        const lote = vaccineLots.find(l => l.id == a.loteId);
+        if (lote && lote.validade) {
+            const exp  = new Date(lote.validade + 'T00:00:00');
+            const dest = new Date(dateStr + 'T00:00:00');
+            if (exp < dest) {
+                const vac = vaccines.find(v => v.id == a.vaccineId);
+                showNotification(
+                    `Bloqueado: lote ${lote.numero} da ${vac ? vac.nome : 'vacina'} vence em ${lote.validade.split('-').reverse().join('/')} — anterior à data destino.`,
+                    'error'
+                );
+                renderWeekly();
+                return;
+            }
+        }
+    }
+
+    // Abre modal de confirmação
+    const pat = patients.find(p => p.id == a.patientId);
+    const vac = vaccines.find(v => v.id == a.vaccineId);
+    const fmtDate = d => d.split('-').reverse().join('/');
+    document.getElementById('wdrop-from').textContent = fmtDate(a.data);
+    document.getElementById('wdrop-to').textContent   = fmtDate(dateStr);
+    document.getElementById('wdrop-patient').textContent = pat ? pat.nome : '—';
+    document.getElementById('wdrop-vaccine').textContent = vac ? `${vac.nome} · ${a.doseAtual}` : '—';
+    _weeklyPendingDrop = { appointmentId: a.id, targetDate: dateStr };
+    document.getElementById('modal-weekly-drop').classList.add('active');
+}
+
+function confirmWeeklyDrop() {
+    if (!_weeklyPendingDrop) return;
+    const { appointmentId, targetDate } = _weeklyPendingDrop;
+    _weeklyPendingDrop = null;
+    document.getElementById('modal-weekly-drop').classList.remove('active');
+    const idx = appointments.findIndex(a => a.id == appointmentId);
+    if (idx > -1) {
+        appointments[idx].data = targetDate;
+        if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
+        saveAll();
+        renderWeekly();
+        if (typeof renderCalendar === 'function') renderCalendar();
+        showNotification('Agendamento movido com sucesso!', 'success');
+    }
+}
+
+function cancelWeeklyDrop() {
+    _weeklyPendingDrop = null;
+    document.getElementById('modal-weekly-drop').classList.remove('active');
+    renderWeekly();
+}
+
 function changeMonth(dir) { currentDate.setMonth(currentDate.getMonth() + dir); renderCalendar(); }
 function jumpToMonth(val) { if(!val) return; const [y, m] = val.split('-'); currentDate = new Date(y, parseInt(m)-1, 1); renderCalendar(); }
+
+// ─── MONTH/YEAR PICKER ────────────────────────────────────────────────────────
+const MONTHS_PICKER = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const MONTHS_FULL   = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let _pickerYear  = new Date().getFullYear();
+let _pickerMonth = new Date().getMonth(); // usado apenas no modo semanal
+
+function _positionPicker() {
+    const picker = document.getElementById('month-year-picker');
+    const btn = document.getElementById('current-month-label')?.closest('button');
+    if (!picker || !btn) return;
+    const rect = btn.getBoundingClientRect();
+    const pickerW = 288;
+    let left = rect.left + rect.width / 2 - pickerW / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - pickerW - 8));
+    picker.style.position = 'fixed';
+    picker.style.top  = (rect.bottom + 8) + 'px';
+    picker.style.left = left + 'px';
+    picker.style.right = 'auto';
+    picker.style.zIndex = '99999';
+}
+
+function toggleMonthYearPicker() {
+    const picker = document.getElementById('month-year-picker');
+    const isHidden = picker.classList.contains('hidden');
+    if (isHidden) {
+        // Mover picker para body para escapar de backdrop-filter/stacking contexts
+        if (picker.parentElement !== document.body) {
+            document.body.appendChild(picker);
+        }
+        if (_calView === 'semanal') {
+            const ref = _weekStart || new Date();
+            _pickerYear  = ref.getFullYear();
+            _pickerMonth = ref.getMonth();
+            _renderPickerWeekMode();
+        } else {
+            _pickerYear = currentDate.getFullYear();
+            _renderPickerMonthMode();
+        }
+        _positionPicker();
+        picker.classList.remove('hidden');
+        setTimeout(() => document.addEventListener('click', _closPickerOutside), 10);
+    } else {
+        picker.classList.add('hidden');
+        document.removeEventListener('click', _closPickerOutside);
+    }
+}
+
+function _closPickerOutside(e) {
+    const picker = document.getElementById('month-year-picker');
+    const triggerBtn = document.getElementById('current-month-label')?.closest('button');
+    if (picker && !picker.contains(e.target) && !triggerBtn?.contains(e.target)) {
+        picker.classList.add('hidden');
+        document.removeEventListener('click', _closPickerOutside);
+    }
+}
+
+function pickerChangeYear(dir) {
+    _pickerYear += dir;
+    if (_calView === 'semanal') _renderPickerWeekMode();
+    else _renderPickerMonthMode();
+}
+
+function pickerChangeMonth(dir) {
+    _pickerMonth += dir;
+    if (_pickerMonth < 0)  { _pickerMonth = 11; _pickerYear--; }
+    if (_pickerMonth > 11) { _pickerMonth = 0;  _pickerYear++; }
+    _renderPickerWeekMode();
+}
+
+function _renderPickerMonthMode() {
+    document.getElementById('picker-months-grid').classList.remove('hidden');
+    document.getElementById('picker-week-mode').classList.add('hidden');
+    document.getElementById('picker-year-label').textContent = _pickerYear;
+    const curMonth = currentDate.getMonth();
+    const curYear  = currentDate.getFullYear();
+    const grid = document.getElementById('picker-months-grid');
+    grid.innerHTML = MONTHS_PICKER.map((m, i) => {
+        const isActive = i === curMonth && _pickerYear === curYear;
+        return `<button onclick="pickerSelectMonth(${i})" class="py-2 rounded-xl text-xs font-black uppercase transition ${isActive ? 'bg-clinic-600 text-white shadow-md' : 'text-slate-600 hover:bg-clinic-50 hover:text-clinic-700'}">${m}</button>`;
+    }).join('');
+}
+
+function _renderPickerWeekMode() {
+    document.getElementById('picker-months-grid').classList.add('hidden');
+    document.getElementById('picker-week-mode').classList.remove('hidden');
+    document.getElementById('picker-year-label').textContent = _pickerYear;
+    document.getElementById('picker-month-label').textContent = `${MONTHS_FULL[_pickerMonth]} ${_pickerYear}`;
+
+    const activeWeekSunday = _weekStart ? new Date(_weekStart) : null;
+    const firstDay = new Date(_pickerYear, _pickerMonth, 1).getDay();
+    const daysInMonth = new Date(_pickerYear, _pickerMonth + 1, 0).getDate();
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    let cells = '';
+    for (let i = 0; i < firstDay; i++) cells += '<div></div>';
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateObj = new Date(_pickerYear, _pickerMonth, d);
+        const weekSun = _getSundayOf(dateObj);
+        const dateStr = dateObj.toISOString().split('T')[0];
+        const isToday = dateStr === todayStr;
+        const isInActiveWeek = activeWeekSunday && weekSun.getTime() === activeWeekSunday.getTime();
+        const isSun = dateObj.getDay() === 0;
+
+        let cls = 'h-7 w-7 mx-auto flex items-center justify-center rounded-lg text-[11px] font-black cursor-pointer transition ';
+        if (isInActiveWeek) {
+            cls += isSun ? 'bg-red-500 text-white' : 'bg-clinic-600 text-white';
+        } else if (isToday) {
+            cls += 'ring-2 ring-clinic-400 text-clinic-700';
+        } else {
+            cls += isSun ? 'text-red-400 hover:bg-red-50' : 'text-slate-600 hover:bg-clinic-50 hover:text-clinic-700';
+        }
+
+        cells += `<div onclick="pickerSelectWeek(${_pickerYear},${_pickerMonth},${d})" class="${cls}">${d}</div>`;
+    }
+
+    document.getElementById('picker-week-days-grid').innerHTML = cells;
+}
+
+function pickerSelectMonth(monthIndex) {
+    currentDate = new Date(_pickerYear, monthIndex, 1);
+    renderCalendar();
+    document.getElementById('month-year-picker').classList.add('hidden');
+    document.removeEventListener('click', _closPickerOutside);
+}
+
+function pickerSelectWeek(year, month, day) {
+    const clicked = new Date(year, month, day);
+    _weekStart = _getSundayOf(clicked);
+    renderWeekly();
+    document.getElementById('month-year-picker').classList.add('hidden');
+    document.removeEventListener('click', _closPickerOutside);
+}
+
+function renderMonthYearPicker() { _renderPickerMonthMode(); }
 
 function renderCalendar() {
     const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     const year = currentDate.getFullYear(); const month = currentDate.getMonth();
 
     document.getElementById('current-month-label').innerText = `${MONTHS[month]} ${year}`;
-    document.getElementById('agenda-month-picker').value = `${year}-${String(month+1).padStart(2,'0')}`;
 
     const first = new Date(year, month, 1).getDay(); const days = new Date(year, month + 1, 0).getDate();
     const todayStr = new Date().toISOString().split('T')[0];
@@ -136,7 +447,11 @@ function setQuickStatus(id, status) {
     let idx = appointments.findIndex(a=>a.id==id);
     if(idx > -1) {
         appointments[idx].status = status;
+        if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
+        if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
         saveAll(); renderCalendar(); renderTable(); renderDashboard();
+        if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+        if (typeof refreshOpenModals === 'function') refreshOpenModals();
         showNotification('Status modificado com sucesso!','success');
         if(selectedDayDate) {
             const [y, m, d] = selectedDayDate.split('-');
@@ -206,9 +521,11 @@ function confirmAgendar() {
         appointments[idx].data = data;
         pendingAgendarId = null;
         document.getElementById('modal-agendar').classList.remove('active');
+        if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
         saveAll(); renderCalendar(); renderTable(); renderDashboard();
         if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+        if (typeof refreshOpenModals === 'function') refreshOpenModals();
         showNotification('Agendamento confirmado!', 'success');
         if (selectedDayDate && tableView !== 'kanban') {
             const [y, m, d] = selectedDayDate.split('-');
@@ -220,6 +537,11 @@ function confirmAgendar() {
 // ─── CONCLUIR VACINAÇÃO ───────────────────────────────────────────────────────
 function openConcluirModal(id) {
     if (!checkPerm('aplicar')) return;
+    // Bloqueio: apenas usuários com permissão 'aplicar' podem aplicar
+    if (!isCurrentUserAdmin() && !hasPerm('aplicar')) {
+        showNotification('Apenas usuários com permissão de aplicador podem registrar aplicações.', 'error');
+        return;
+    }
     pendingConcluirId = id;
     const a = appointments.find(x => x.id == id);
     if (!a) return;
@@ -227,7 +549,9 @@ function openConcluirModal(id) {
     const vac = vaccines.find(v => v.id == a.vaccineId);
 
     document.getElementById('concluir-info').innerText = pat && vac ? `${pat.nome} — ${vac.nome} (${a.doseAtual})` : '';
-    document.getElementById('concluir-aplicador').value = a.aplicador || '';
+    // Pré-preenche com o nome do usuário logado se ele tem permissão de aplicador
+    const nomeAplicador = a.aplicador || (currentUser ? currentUser.nome : '');
+    document.getElementById('concluir-aplicador').value = nomeAplicador;
 
     // Populate lote select with open lots for this vaccine
     const loteSel = document.getElementById('concluir-lote');
@@ -297,6 +621,11 @@ function checkConcluirLote() {
 }
 
 function confirmConcluir() {
+    // Bloqueio no save: apenas aplicadores podem confirmar
+    if (!isCurrentUserAdmin() && !hasPerm('aplicar')) {
+        showNotification('Apenas usuários com permissão de aplicador podem registrar aplicações.', 'error');
+        return;
+    }
     const loteId = document.getElementById('concluir-lote').value;
     const aplicador = document.getElementById('concluir-aplicador').value.trim();
     if (!loteId || !aplicador) {
@@ -323,12 +652,14 @@ function confirmConcluir() {
         appointments[idx].aplicador = aplicador.toUpperCase();
         pendingConcluirId = null;
         document.getElementById('modal-concluir').classList.remove('active');
+        if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
         saveAll(); renderCalendar(); renderTable(); renderDashboard();
         if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+        if (typeof refreshOpenModals === 'function') refreshOpenModals();
         if (typeof updateExpiryBadge === 'function') updateExpiryBadge();
         showNotification('Vacinação concluída com sucesso!', 'success');
-        if (selectedDayDate) {
+        if (selectedDayDate && tableView !== 'kanban') {
             const [y, m, d] = selectedDayDate.split('-');
             openDayModal(selectedDayDate, d, parseInt(m) - 1, y);
         }
@@ -340,23 +671,17 @@ function switchTableView(view) {
     tableView = view;
     const vPlan = document.getElementById('view-planilhas');
     const vKan  = document.getElementById('view-kanban');
-    const btnPl = document.getElementById('btn-view-planilhas');
-    const btnKn = document.getElementById('btn-view-kanban');
     const statusSel = document.getElementById('filter-status-agenda');
 
     if (view === 'kanban') {
-        vPlan.classList.add('hidden');
-        vKan.classList.remove('hidden');
-        if (statusSel) statusSel.closest('select') && (statusSel.style.display = 'none');
-        btnPl.className = 'flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50';
-        btnKn.className = 'flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-navy-800 bg-navy-900 text-white';
+        if (vPlan) vPlan.classList.add('hidden');
+        if (vKan)  { vKan.style.display = 'flex'; vKan.style.flexDirection = 'column'; }
+        if (statusSel) statusSel.style.display = 'none';
         renderKanban();
     } else {
-        vPlan.classList.remove('hidden');
-        vKan.classList.add('hidden');
+        if (vPlan) vPlan.classList.remove('hidden');
+        if (vKan)  vKan.style.display = 'none';
         if (statusSel) statusSel.style.display = '';
-        btnPl.className = 'flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-navy-800 bg-navy-900 text-white';
-        btnKn.className = 'flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50';
         renderTable();
     }
 }
@@ -450,8 +775,6 @@ function renderKanban() {
                 <div class="px-3 pb-3 flex items-center gap-1.5 border-t border-slate-100 pt-2 mt-0">
                     <a href="${waLink}" target="_blank" onclick="event.stopPropagation()" class="h-7 w-7 rounded-lg bg-green-50 text-green-600 hover:bg-green-500 hover:text-white flex items-center justify-center transition text-xs shrink-0" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
                     ${permBtn('agendar', `<button onclick="editRecord(${a.id})" class="h-7 w-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white flex items-center justify-center transition text-xs shrink-0" title="Abrir"><i class="fas fa-eye text-[11px]"></i></button>`)}
-                    ${a.status === 'Em negociação' ? permBtn('criar_agendamento', `<button onclick="openAgendarModal(${a.id})" class="h-7 w-7 rounded-lg bg-blue-500 text-white hover:bg-blue-600 flex items-center justify-center transition text-xs shrink-0" title="Agendar"><i class="fas fa-calendar-check text-[11px]"></i></button>`) : ''}
-                    ${a.status === 'Agendado' ? permBtn('aplicar', `<button onclick="openConcluirModal(${a.id})" class="h-7 w-7 rounded-lg bg-green-500 text-white hover:bg-green-600 flex items-center justify-center transition text-xs shrink-0" title="Aplicar"><i class="fas fa-syringe text-[11px]"></i></button>`) : ''}
                 </div>
             </div>`;
         }).join('');
@@ -465,7 +788,7 @@ function renderKanban() {
 
         const sortIconClass = _kanbanSortDir === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up-alt';
 
-        return `<div class="kanban-col flex flex-col rounded-2xl overflow-hidden shadow-md border border-slate-200/60 min-w-[280px] w-[280px] shrink-0 transition-all duration-200"
+        return `<div class="kanban-col flex flex-col rounded-2xl overflow-hidden shadow-md border border-slate-200/60 transition-all duration-200" style="height:100%;flex:1 1 0;min-width:220px;"
             ondragover="kanbanDragOver(event)"
             ondragleave="kanbanDragLeave(event)"
             ondrop="kanbanDrop(event,'${col.key}')"
@@ -484,7 +807,7 @@ function renderKanban() {
                 </div>
             </div>
             <!-- Drop zone body -->
-            <div class="kanban-col-body flex-1 overflow-y-auto p-3 space-y-3 bg-white/70 backdrop-blur-sm" style="max-height:560px;">
+            <div class="kanban-col-body flex-1 overflow-y-auto p-3 space-y-3 bg-white/70 backdrop-blur-sm">
                 ${cards.length ? cardsHtml : emptyHtml}
             </div>
         </div>`;
@@ -546,10 +869,12 @@ function kanbanDrop(event, targetStatus) {
         const idx = appointments.findIndex(x => x.id == id);
         if (idx > -1) {
             appointments[idx].status = targetStatus;
+            if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
             if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
             saveAll(); renderCalendar(); renderDashboard();
             renderKanban();
             if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+            if (typeof refreshOpenModals === 'function') refreshOpenModals();
             showNotification('Status atualizado!', 'success');
         }
     }
@@ -568,6 +893,8 @@ function openKanbanCancelModal(id) {
     const sel = document.getElementById('kanban-cancel-reason');
     sel.innerHTML = '<option value="">Selecione o motivo...</option>' + cancelReasons.map(r=>`<option value="${r}">${r}</option>`).join('');
     document.getElementById('kanban-cancel-err').classList.add('hidden');
+    const btnManage = document.getElementById('btn-kanban-manage-reasons');
+    if (btnManage) btnManage.classList.toggle('hidden', !(isCurrentUserAdmin() || hasPerm('criar_agendamento')));
     document.getElementById('modal-kanban-cancel').classList.add('active');
 }
 
@@ -587,10 +914,12 @@ function confirmKanbanCancel() {
         appointments[idx].status = 'Cancelado';
         appointments[idx].motivoCancelamento = reason;
         closeKanbanCancelModal();
+        if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
         saveAll(); renderCalendar(); renderDashboard();
         renderKanban();
         if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+        if (typeof refreshOpenModals === 'function') refreshOpenModals();
         showNotification('Atendimento cancelado.', 'info');
     }
 }
