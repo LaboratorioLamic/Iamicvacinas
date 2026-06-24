@@ -210,7 +210,11 @@ function savePatient(e) {
     const reopenRecord = _patientModalOpenedFromRecord;
     saveAll(); renderPatients(); closeModals(); showNotification('Paciente salvo com sucesso!','success');
     populatePatientDatalist();
-    if(reopenRecord) { document.getElementById('modal-record').classList.add('active'); autoFillPatient(); }
+    if(reopenRecord) {
+        document.getElementById('modal-record').classList.add('active');
+        document.getElementById('reg-patient-search').value = `${p.cpf} - ${p.nome}`;
+        autoFillPatient();
+    }
 }
 
 async function downloadVaccineCalendarPDF() {
@@ -358,7 +362,10 @@ async function downloadVaccineCalendarPDF() {
             return numA !== numB ? numA - numB : a.doseAtual.localeCompare(b.doseAtual, 'pt-BR');
         });
         doses.forEach(a => {
-            rows.push([vacNome, a.doseAtual, a.lote || '—', a.data.split('-').reverse().join('/'), a.status]);
+            const loteObj = vaccineLots.find(l => l.vaccineId == (vaccines.find(v => v.nome === vacNome)?.id) && l.numero === a.lote);
+            const fab = loteObj?.fabricante || '';
+            const forn = loteObj?.fornecedor || '';
+            rows.push([vacNome, fab, forn, a.doseAtual, a.lote || '—', a.data.split('-').reverse().join('/'), a.status]);
         });
     });
 
@@ -407,21 +414,37 @@ async function downloadVaccineCalendarPDF() {
 
             if (idx % 2 === 0) {
                 doc.setFillColor(248, 250, 252);
-                doc.rect(12, curY, W - 24, 8, 'F');
+                doc.rect(12, curY, W - 24, 10, 'F');
             }
 
-            const status = row[4];
+            // row: [0]=vacNome [1]=fab [2]=forn [3]=dose [4]=lote [5]=data [6]=status
+            const status = row[6];
             const btnColor = status === 'Aplicado' ? [22, 163, 74] : [37, 99, 235];
+
+            // Nome da vacina
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8.5);
             doc.setTextColor(...navy);
-            doc.text(row[0], colX[0], curY + 5.5, { maxWidth: colW[0] - 2 });
-            doc.text(row[1], colX[1], curY + 5.5);
+            doc.text(row[0], colX[0], curY + 4.5, { maxWidth: colW[0] - 2 });
+
+            // Fabricante / fornecedor discretos abaixo do nome
+            const subInfo = [row[1], row[2]].filter(Boolean).join(' · ');
+            if (subInfo) {
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(5.5);
+                doc.setTextColor(148, 163, 184);
+                doc.text(subInfo, colX[0], curY + 8.5, { maxWidth: colW[0] - 2 });
+            }
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(...navy);
+            doc.text(row[3], colX[1], curY + 5.5);
             doc.setTextColor(100, 116, 139);
-            doc.text(row[2], colX[2], curY + 5.5);
+            doc.text(row[4], colX[2], curY + 5.5);
             doc.setTextColor(...btnColor);
             doc.setFont('helvetica', 'bold');
-            doc.text(row[3], colX[3] + colW[3] / 2, curY + 5.5, { align: 'center' });
+            doc.text(row[5], colX[3] + colW[3] / 2, curY + 5.5, { align: 'center' });
 
             // Badge STATUS
             const statusColors = {
@@ -447,9 +470,9 @@ async function downloadVaccineCalendarPDF() {
 
             doc.setDrawColor(...border);
             doc.setLineWidth(0.15);
-            doc.line(12, curY + 8, W - 12, curY + 8);
+            doc.line(12, curY + 10, W - 12, curY + 10);
 
-            curY += 8;
+            curY += 10;
         });
     }
 

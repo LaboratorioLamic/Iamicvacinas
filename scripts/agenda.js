@@ -160,6 +160,45 @@ function weeklyDrop(e, dateStr) {
         }
     }
 
+    // Bloqueio de aprazamento: data destino inferior à data mínima da dose
+    if (a.doseAtual && a.doseAtual.includes('ª Dose') && a.doseAtual !== '1ª Dose') {
+        const doseNum = Number((a.doseAtual.match(/(\d+)/) || [])[1] || 2);
+        const v       = vaccines.find(x => String(x.id) === String(a.vaccineId));
+        if (v && doseNum >= 2) {
+            const pat2   = patients.find(p => String(p.id) === String(a.patientId));
+            const esq    = (typeof getEsquemaPaciente === 'function') ? getEsquemaPaciente(v, pat2 ? pat2.dtNasc : null) : null;
+            const ints   = (esq && esq.intervalos && esq.intervalos.length)
+                ? esq.intervalos
+                : (v.intervalos && v.intervalos.length ? v.intervalos : (v.intervaloDias > 0 ? [v.intervaloDias] : []));
+            let intervalo = ints.length
+                ? (ints[doseNum - 2] != null ? ints[doseNum - 2] : ints[ints.length - 1])
+                : 0;
+            if (!intervalo || intervalo <= 0) intervalo = 30;
+            {
+                const prevDoseStr = `${doseNum - 1}ª Dose`;
+                const prevApp = appointments.filter(x =>
+                    String(x.patientId) === String(a.patientId) &&
+                    String(x.vaccineId) === String(a.vaccineId) &&
+                    String(x.id) !== String(a.id) &&
+                    x.doseAtual === prevDoseStr
+                ).sort((x, y) => new Date(y.data) - new Date(x.data))[0];
+                if (prevApp) {
+                    const minDate = new Date(prevApp.data + 'T00:00:00');
+                    minDate.setDate(minDate.getDate() + intervalo);
+                    const minIso = minDate.toISOString().split('T')[0];
+                    if (dateStr < minIso) {
+                        showNotification(
+                            `Bloqueado: data mínima para ${a.doseAtual} é ${minIso.split('-').reverse().join('/')} (${intervalo} dias após a dose anterior de ${prevApp.data.split('-').reverse().join('/')}).`,
+                            'error'
+                        );
+                        renderWeekly();
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     // Abre modal de confirmação
     const pat = patients.find(p => p.id == a.patientId);
     const vac = vaccines.find(v => v.id == a.vaccineId);

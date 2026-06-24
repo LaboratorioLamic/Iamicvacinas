@@ -224,3 +224,48 @@ body.lite-mode .lite-toggle-thumb {
 body.lite-mode .lite-toggle-track {
     transition: background 0.15s ease !important;
 }
+
+/* ── Toggles de Permissão (Grupos & Permissões) ─────────── */
+.perm-label-row .perm-toggle {
+    position: relative;
+    width: 32px;
+    height: 16px;
+    border-radius: 9999px;
+    background: #e2e8f0;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+.perm-label-row .perm-dot {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+.perm-label-row.is-checked .perm-dot {
+    transform: translateX(16px);
+}
+
+/* Cores por categoria */
+.perm-cat-block[data-cat="blue"] .perm-label-row.is-checked .perm-toggle    { background: #3b82f6; }
+.perm-cat-block[data-cat="emerald"] .perm-label-row.is-checked .perm-toggle { background: #10b981; }
+.perm-cat-block[data-cat="violet"] .perm-label-row.is-checked .perm-toggle  { background: #8b5cf6; }
+.perm-cat-block[data-cat="orange"] .perm-label-row.is-checked .perm-toggle  { background: #f97316; }
+.perm-cat-block[data-cat="amber"] .perm-label-row.is-checked .perm-toggle   { background: #f59e0b; }
+.perm-cat-block[data-cat="red"] .perm-label-row.is-checked .perm-toggle     { background: #ef4444; }
+.perm-cat-block[data-cat="slate"] .perm-label-row.is-checked .perm-toggle   { background: #475569; }
+
+/* Sub-perm financeiro mantém cor própria */
+#sub-perm-dash-financeiro .perm-label-row.is-checked .perm-toggle { background: #10b981; }
+
+body.lite-mode .perm-dot,
+body.lite-mode .perm-toggle { transition: none !important; }
+
+/* Hover em labels de permissão */
+.perm-label-row:hover p { color: #1e3a8a; }
+.perm-label-row:hover .perm-toggle { box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }

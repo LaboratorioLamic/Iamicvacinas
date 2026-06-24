@@ -266,41 +266,150 @@ function confirmDeleteUser() {
 }
 
 // ─── CRUD GRUPOS ──────────────────────────────────────────────────────────────
+
+const _CAT_COLORS = {
+    agendar: 'blue', criar_agendamento: 'blue', aplicar: 'blue', definir_feriados: 'blue',
+    adicionar_paciente: 'emerald', editar_paciente: 'emerald',
+    leitura_estoque: 'violet', criar_produtos: 'violet', edicao_lotes: 'violet', edicao_movimentacao: 'violet',
+    baixar_pdf: 'orange',
+    ver_dashboard: 'amber', ver_dash_financeiro: 'emerald', ver_agenda: 'amber', ver_tabela: 'amber', ver_pacientes: 'amber', ver_vacinas: 'amber', ver_configuracoes: 'amber',
+    excluir_agendamento: 'red', excluir_paciente: 'red',
+    excluir_produto: 'red', excluir_lote: 'red', excluir_movimentacao: 'red',
+    criar_editar_usuarios: 'slate', criar_editar_grupos: 'slate', backup: 'slate', alterar_propria_senha: 'slate',
+};
+
+const _COLOR_PILL = {
+    blue:    'bg-blue-50 text-blue-700 border-blue-200',
+    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    violet:  'bg-violet-50 text-violet-700 border-violet-200',
+    orange:  'bg-orange-50 text-orange-700 border-orange-200',
+    amber:   'bg-amber-50 text-amber-700 border-amber-200',
+    red:     'bg-red-50 text-red-700 border-red-200',
+    slate:   'bg-slate-100 text-slate-600 border-slate-200',
+};
+
 function renderGroupsList() {
     const el = document.getElementById('groups-list');
+    const badge = document.getElementById('groups-count-badge');
     if (!el) return;
+    if (badge) badge.textContent = appGroups.length + (appGroups.length === 1 ? ' grupo' : ' grupos');
     if (appGroups.length === 0) {
-        el.innerHTML = '<p class="text-sm text-slate-400 font-bold text-center py-8 bg-slate-50 rounded-xl border border-slate-100"><i class="fas fa-layer-group text-slate-300 text-2xl block mb-2"></i>Nenhum grupo cadastrado.</p>';
+        el.innerHTML = `<div class="flex flex-col items-center justify-center py-16 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                <i class="fas fa-layer-group text-slate-300 text-2xl"></i>
+            </div>
+            <p class="text-sm font-black text-slate-400 uppercase tracking-wider">Nenhum grupo</p>
+            <p class="text-xs text-slate-300 mt-1">Crie um grupo no painel ao lado</p>
+        </div>`;
         return;
     }
     const canEditGroups = isCurrentUserAdmin() || hasPerm('criar_editar_grupos');
     el.innerHTML = appGroups.map(g => {
         const usersCount = appUsers.filter(u => u.grupoId == g.id).length;
-        const permsHtml = (g.permissions || []).length
-            ? (g.permissions.map(p => `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-black rounded border border-slate-200">${PERM_LABELS[p] || p}</span>`).join(''))
-            : '<span class="text-[10px] text-slate-400 italic">Sem permissões</span>';
-        return `<div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition">
-            <div class="flex justify-between items-start mb-2">
-                <div>
-                    <h5 class="font-black text-navy-900 text-sm">${g.nome}</h5>
-                    <p class="text-[10px] text-slate-400 font-bold">${usersCount} usuário(s) neste grupo</p>
+        const perms = g.permissions || [];
+        const permsHtml = perms.length
+            ? perms.map(p => {
+                const color = _COLOR_PILL[_CAT_COLORS[p] || 'slate'];
+                return `<span class="inline-flex items-center gap-1 px-2 py-0.5 border ${color} text-[9px] font-black rounded-full">${PERM_LABELS[p] || p}</span>`;
+              }).join('')
+            : '<span class="text-[10px] text-slate-300 italic font-medium">Nenhuma permissão atribuída</span>';
+        const initials = g.nome.split(' ').slice(0,2).map(w => w[0]).join('');
+        return `<div class="group bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-navy-700 to-navy-900 flex items-center justify-center shrink-0 shadow-sm">
+                        <span class="text-white font-black text-xs">${initials}</span>
+                    </div>
+                    <div class="min-w-0">
+                        <h5 class="font-black text-navy-900 text-sm truncate">${g.nome}</h5>
+                        <p class="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                            <i class="fas fa-user text-[9px]"></i>
+                            ${usersCount} usuário${usersCount !== 1 ? 's' : ''}
+                            <span class="mx-1 text-slate-200">·</span>
+                            <span class="${perms.length ? 'text-clinic-600' : 'text-slate-300'}">${perms.length} permiss${perms.length !== 1 ? 'ões' : 'ão'}</span>
+                        </p>
+                    </div>
                 </div>
-                <div class="flex gap-1 shrink-0">
-                    ${canEditGroups ? `<button onclick="editGroup(${g.id})" class="h-7 w-7 bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white rounded transition text-xs shadow-sm" title="Editar"><i class="fas fa-pen"></i></button>` : ''}
-                    ${canEditGroups && usersCount === 0 ? `<button onclick="deleteGroup(${g.id})" class="h-7 w-7 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded transition text-xs shadow-sm" title="Excluir"><i class="fas fa-trash"></i></button>` : ''}
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <div class="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        ${canEditGroups ? `<button onclick="editGroup(${g.id})" class="h-8 w-8 bg-slate-100 text-slate-500 hover:bg-blue-500 hover:text-white rounded-xl transition text-xs flex items-center justify-center shadow-sm" title="Editar grupo"><i class="fas fa-pen text-[10px]"></i></button>` : ''}
+                        ${canEditGroups && usersCount === 0 ? `<button onclick="deleteGroup(${g.id})" class="h-8 w-8 bg-slate-100 text-slate-500 hover:bg-red-500 hover:text-white rounded-xl transition text-xs flex items-center justify-center shadow-sm" title="Excluir grupo"><i class="fas fa-trash text-[10px]"></i></button>` : ''}
+                    </div>
+                    <button onclick="toggleGroupPerms(this)" class="h-8 w-8 bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 rounded-xl transition text-xs flex items-center justify-center" title="Mostrar/ocultar permissões">
+                        <i class="fas fa-chevron-down text-[10px]"></i>
+                    </button>
                 </div>
             </div>
-            <div class="flex flex-wrap gap-1 mt-2">${permsHtml}</div>
+            <div class="group-perms-panel hidden mt-3 pt-3 border-t border-slate-100">
+                ${perms.length ? `<div class="flex flex-wrap gap-1">${permsHtml}</div>` : '<span class="text-[10px] text-slate-300 italic font-medium">Nenhuma permissão atribuída</span>'}
+            </div>
         </div>`;
     }).join('');
+}
+
+function toggleGroupPerms(btn) {
+    const card = btn.closest('.group');
+    const panel = card.querySelector('.group-perms-panel');
+    const icon = btn.querySelector('i');
+    const isHidden = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !isHidden);
+    icon.style.transform = isHidden ? 'rotate(180deg)' : '';
+}
+
+function grupoToggleCat(btn) {
+    const block = btn.closest('.perm-cat-block');
+    const body = block.querySelector('.perm-cat-body');
+    const chevron = btn.querySelector('.perm-cat-chevron');
+    const isOpen = !body.classList.contains('hidden');
+    body.classList.toggle('hidden', isOpen);
+    chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+function grupoToggleAllCats() {
+    const container = document.getElementById('perm-categories-container');
+    if (!container) return;
+    const bodies = container.querySelectorAll('.perm-cat-body');
+    const anyOpen = [...bodies].some(b => !b.classList.contains('hidden'));
+    bodies.forEach(b => b.classList.toggle('hidden', anyOpen));
+    container.querySelectorAll('.perm-cat-chevron').forEach(c => {
+        c.style.transform = anyOpen ? '' : 'rotate(180deg)';
+    });
+    const btn = container.closest('.xl\\:col-span-2, div')?.querySelector?.('button[onclick="grupoToggleAllCats()"]')
+        || document.querySelector('button[onclick="grupoToggleAllCats()"]');
+    if (btn) btn.textContent = anyOpen ? 'Expandir tudo' : 'Recolher tudo';
+}
+
+function grupoUpdateCatBadges() {
+    document.querySelectorAll('.perm-cat-block').forEach(block => {
+        const count = block.querySelectorAll('.perm-check:checked').length;
+        const badge = block.querySelector('.perm-cat-badge');
+        if (!badge) return;
+        if (count > 0) {
+            badge.textContent = count;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    });
+    grupoSyncToggleVisuals();
+}
+
+function grupoSyncToggleVisuals() {
+    document.querySelectorAll('#perm-categories-container .perm-label-row, #sub-perm-dash-financeiro .perm-label-row').forEach(row => {
+        const chk = row.querySelector('.perm-check');
+        if (chk) row.classList.toggle('is-checked', chk.checked);
+    });
 }
 
 function resetGroupForm() {
     document.getElementById('new-group-form').reset();
     document.getElementById('edit-group-id').value = '';
     document.getElementById('grupo-form-title').textContent = 'Novo Grupo';
+    const icon = document.getElementById('grupo-form-icon');
+    if (icon) { icon.className = 'fas fa-plus text-clinic-600 text-xs'; }
     document.querySelectorAll('.perm-check').forEach(c => c.checked = false);
     _syncSubPerms();
+    grupoUpdateCatBadges();
 }
 
 function toggleSubPerm(subId, parentChk) {
@@ -325,8 +434,20 @@ function editGroup(id) {
     document.getElementById('edit-group-id').value = g.id;
     document.getElementById('new-group-nome').value = g.nome;
     document.getElementById('grupo-form-title').textContent = 'Editar Grupo';
+    const icon = document.getElementById('grupo-form-icon');
+    if (icon) { icon.className = 'fas fa-pen text-clinic-600 text-xs'; }
     document.querySelectorAll('.perm-check').forEach(c => { c.checked = (g.permissions || []).includes(c.value); });
     _syncSubPerms();
+    grupoUpdateCatBadges();
+    // Auto-expand categories that have active permissions
+    document.querySelectorAll('.perm-cat-block').forEach(block => {
+        const hasActive = block.querySelectorAll('.perm-check:checked').length > 0;
+        if (hasActive) {
+            block.querySelector('.perm-cat-body')?.classList.remove('hidden');
+            const chevron = block.querySelector('.perm-cat-chevron');
+            if (chevron) chevron.style.transform = 'rotate(180deg)';
+        }
+    });
     document.getElementById('new-group-nome').focus();
 }
 

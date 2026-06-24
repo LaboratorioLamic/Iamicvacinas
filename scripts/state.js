@@ -90,6 +90,7 @@ const PERM_LABELS = {
     baixar_pdf: 'Baixar PDF',
     ver_dashboard: 'Ver Dashboard', ver_dash_financeiro: 'Painel Financeiro', ver_agenda: 'Ver Agenda', ver_tabela: 'Ver Tabela', ver_pacientes: 'Ver Pacientes', ver_vacinas: 'Ver Vacinas', ver_configuracoes: 'Ver Configurações',
     excluir_agendamento: 'Excluir Agendamento', excluir_paciente: 'Excluir Paciente',
+    excluir_produto: 'Excluir Produto', excluir_lote: 'Excluir Lote', excluir_movimentacao: 'Excluir Movimentação',
     criar_editar_usuarios: 'Criar/Editar Usuários', criar_editar_grupos: 'Criar/Editar Grupos',
     backup: 'Função de Backup', alterar_propria_senha: 'Alterar Própria Senha'
 };

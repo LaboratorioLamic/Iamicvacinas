@@ -229,7 +229,7 @@ function renderEstoqueDashboard() {
             else if (exp <= twoMonths && e.disponivel > 0) lotesVencendo++;
         }
     });
-    const kBaixo = ativos.filter(v => { const e = getVaccineEstoque(v.id); return e.disponivel > 0 && e.disponivel <= 5; }).length;
+    const kBaixo = ativos.filter(v => { const e = getVaccineEstoque(v.id); return e.disponivel > 0 && e.disponivel <= (v.estoqueMinimo || 5); }).length;
     const kSem   = ativos.filter(v => getVaccineEstoque(v.id).disponivel <= 0).length;
     setText('estoque-kpi-disponivel', kDisp);
     setText('estoque-kpi-reservado', kReserv);
@@ -246,7 +246,7 @@ function renderEstoqueDashboard() {
         .map(v => ({ v, e: getVaccineEstoque(v.id) }))
         .filter(({ e }) => {
             if (estoqueFilter === 'sem')   return e.disponivel <= 0;
-            if (estoqueFilter === 'baixo') return e.disponivel > 0 && e.disponivel <= 5;
+            if (estoqueFilter === 'baixo') return e.disponivel > 0 && e.disponivel <= (v.estoqueMinimo || 5);
             return true;
         })
         .sort((a, b) => a.v.nome.localeCompare(b.v.nome, 'pt-BR'));
@@ -258,7 +258,7 @@ function renderEstoqueDashboard() {
 
     grid.innerHTML = rows.map(({ v, e }) => {
         const semEstoque = e.disponivel <= 0;
-        const baixo = !semEstoque && e.disponivel <= 5;
+        const baixo = !semEstoque && e.disponivel <= (v.estoqueMinimo || 5);
 
         // Paleta clara e suave por situação
         const tema = semEstoque ? {
@@ -469,7 +469,7 @@ function renderAlmoxLotes() {
 
     const allLotes = vaccineLots.map(l => {
         const v = vaccines.find(x => x.id == l.vaccineId);
-        return { lote: l, vaccineName: v ? v.nome : '—', estoque: getLoteEstoque(l.id) };
+        return { lote: l, vaccine: v, vaccineName: v ? v.nome : '—', estoque: getLoteEstoque(l.id) };
     });
 
     const filtered = allLotes.filter(({ lote }) => {
@@ -490,7 +490,7 @@ function renderAlmoxLotes() {
         return new Date(a.lote.validade || 0) - new Date(b.lote.validade || 0);
     });
 
-    tbody.innerHTML = filtered.map(({ lote, vaccineName, estoque }) => {
+    tbody.innerHTML = filtered.map(({ lote, vaccine, vaccineName, estoque }) => {
         const ativo = lote.status === 'aberto';
         const exp = lote.validade ? new Date(lote.validade + 'T00:00:00') : null;
         const twoMonths = new Date(today); twoMonths.setMonth(twoMonths.getMonth() + 2);
@@ -502,11 +502,15 @@ function renderAlmoxLotes() {
             : vencendo
                 ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 text-amber-700 font-black text-xs"><i class="fas fa-hourglass-half text-[9px]"></i>${validade}</span>`
                 : `<span class="text-slate-600 text-xs">${validade}</span>`;
-        const dispCls = estoque.disponivel <= 0 ? 'bg-slate-100 text-slate-400' : estoque.disponivel <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
+        const _estMin = (vaccine && vaccine.estoqueMinimo) || 5;
+        const dispCls = estoque.disponivel <= 0 ? 'bg-slate-100 text-slate-400' : estoque.disponivel <= _estMin ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
         const saidaTotal = estoque.aplicado + estoque.saidaManual;
         const saldoTotal = estoque.disponivel + estoque.reservado;
         return `<tr class="hover:bg-slate-50 transition cursor-pointer ${!ativo ? 'opacity-60' : ''}" onclick="editLote(${lote.id})">
-            <td class="p-3 font-bold text-slate-700">${vaccineName}</td>
+            <td class="p-3">
+                <p class="font-bold text-slate-700">${vaccineName}</p>
+                ${(lote.fabricante || lote.fornecedor) ? `<p class="text-[10px] text-slate-400 font-bold mt-0.5">${[lote.fabricante, lote.fornecedor].filter(Boolean).join(' · ')}</p>` : ''}
+            </td>
             <td class="p-3 text-xs font-mono font-bold">${lote.numero || '—'}</td>
             <td class="p-3 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-black ${dispCls}">${estoque.disponivel}</span></td>
             <td class="p-3 text-center text-xs font-bold text-indigo-600">${estoque.reservado}</td>
@@ -1080,7 +1084,8 @@ function openVaccineViewModal(vaccineId) {
 
     // Header color por estoque
     const hdr = document.getElementById('vv-header');
-    hdr.className = `p-5 text-white shrink-0 bg-gradient-to-br ${e.disponivel <= 0 ? 'from-red-700 to-red-900' : e.disponivel <= 5 ? 'from-amber-600 to-amber-900' : 'from-indigo-700 to-navy-900'}`;
+    const _vEstMin = v.estoqueMinimo || 5;
+    hdr.className = `p-5 text-white shrink-0 bg-gradient-to-br ${e.disponivel <= 0 ? 'from-red-700 to-red-900' : e.disponivel <= _vEstMin ? 'from-amber-600 to-amber-900' : 'from-indigo-700 to-navy-900'}`;
 
     // Aba info
     const numDoses = v.numDoses || 1;
@@ -1095,7 +1100,7 @@ function openVaccineViewModal(vaccineId) {
     document.getElementById('vv-info-intervalos').textContent = intervalosStr;
     const pct = e.total > 0 ? Math.round((e.disponivel / e.total) * 100) : 0;
     document.getElementById('vv-bar').style.width = pct + '%';
-    document.getElementById('vv-bar').className = `h-full rounded-full transition-all duration-500 ${e.disponivel <= 0 ? 'bg-red-400' : e.disponivel <= 5 ? 'bg-amber-400' : 'bg-indigo-500'}`;
+    document.getElementById('vv-bar').className = `h-full rounded-full transition-all duration-500 ${e.disponivel <= 0 ? 'bg-red-400' : e.disponivel <= _vEstMin ? 'bg-amber-400' : 'bg-indigo-500'}`;
     document.getElementById('vv-bar-label').textContent = `${e.disponivel} disponíveis de ${e.total} (${pct}%)`;
 
     switchVaccineViewTab('info');
@@ -1136,6 +1141,8 @@ function vvLotePage(dir) {
 function renderVVLotes() {
     const today = new Date(); today.setHours(0,0,0,0);
     const twoMonths = new Date(); twoMonths.setMonth(twoMonths.getMonth() + 2); twoMonths.setHours(0,0,0,0);
+    const _vvVaccine = vaccines.find(x => x.id == _vvVaccineId);
+    const _vvEstMin = (_vvVaccine && _vvVaccine.estoqueMinimo) || 5;
 
     let lotes = vaccineLots.filter(l => l.vaccineId == _vvVaccineId);
     if (_vvLoteFilter === 'aberto')  lotes = lotes.filter(l => l.status === 'aberto');
@@ -1157,17 +1164,18 @@ function renderVVLotes() {
             const vencido = exp && exp < today;
             const vencendo = exp && !vencido && exp <= twoMonths;
             const valStr  = l.validade ? l.validade.split('-').reverse().join('/') : '—';
-            const dispCls = est.disponivel <= 0 ? 'bg-red-100 text-red-700' : est.disponivel <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
+            const dispCls = est.disponivel <= 0 ? 'bg-red-100 text-red-700' : est.disponivel <= _vvEstMin ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
             const badge   = vencido ? '<span class="px-1.5 py-0.5 rounded text-[8px] font-black bg-red-100 text-red-600 ml-1">VENCIDO</span>'
                           : vencendo ? '<span class="px-1.5 py-0.5 rounded text-[8px] font-black bg-amber-100 text-amber-600 ml-1">VENCENDO</span>' : '';
             return `<div class="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer" onclick="editLote(${l.id})">
                 <div>
                     <p class="font-black text-slate-800 text-sm">Lote ${l.numero || '—'}${badge}</p>
+                    ${(l.fabricante || l.fornecedor) ? `<p class="text-[9px] text-slate-400 font-bold mt-0.5">${[l.fabricante, l.fornecedor].filter(Boolean).join(' · ')}</p>` : ''}
                     <p class="text-[10px] text-slate-500 font-bold mt-0.5">Val: ${valStr} · <span class="${l.status === 'aberto' ? 'text-emerald-600' : 'text-slate-400'}">${l.status === 'aberto' ? 'Aberto' : 'Fechado'}</span></p>
                 </div>
                 <div class="text-right">
                     <span class="px-2.5 py-1 rounded-full text-xs font-black ${dispCls}">${est.disponivel} disp.</span>
-                    <p class="text-[9px] text-slate-400 font-bold mt-0.5">${est.reservado} reserv. · ${est.total} total</p>
+                    <p class="text-[9px] text-slate-400 font-bold mt-0.5">${est.reservado} reserv. · ${est.disponivel + est.reservado} total</p>
                 </div>
             </div>`;
         }).join('');

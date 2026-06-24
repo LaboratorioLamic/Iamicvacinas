@@ -63,7 +63,7 @@ function renderVaccines() {
         const ativo = v.ativo !== false;
         const hasAppointments = appointments.some(a => a.vaccineId == v.id);
         const est = (typeof getVaccineEstoque === 'function') ? getVaccineEstoque(v.id) : { disponivel:0, reservado:0 };
-        const estCls = est.disponivel <= 0 ? 'bg-red-100 text-red-700' : est.disponivel <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
+        const estCls = est.disponivel <= 0 ? 'bg-red-100 text-red-700' : est.disponivel <= (v.estoqueMinimo || 5) ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
         const today = new Date(); today.setHours(0,0,0,0);
         const twoMonths = new Date(); twoMonths.setMonth(twoMonths.getMonth() + 2); twoMonths.setHours(0,0,0,0);
         const lotesAbertos = (typeof vaccineLots !== 'undefined') ? vaccineLots.filter(l => l.vaccineId == v.id && l.status === 'aberto') : [];
@@ -170,8 +170,15 @@ function removeEsquema(idx) {
 }
 
 function updateEsquemaDoses(idx, val) {
-    _esquemas[idx].numDoses = Number(val);
+    const n = Number(val);
+    _esquemas[idx].numDoses = n;
     if (!_esquemas[idx].intervalos) _esquemas[idx].intervalos = [];
+    // Pré-preenche intervalos faltantes com o default exibido na UI (30 dias),
+    // garantindo que o modelo salvo == o que o admin vê.
+    for (let i = 0; i < n - 1; i++) {
+        if (_esquemas[idx].intervalos[i] == null) _esquemas[idx].intervalos[i] = 30;
+    }
+    _esquemas[idx].intervalos.length = Math.max(0, n - 1);
     renderEsquemas();
 }
 
@@ -223,6 +230,7 @@ function editVaccine(id) {
     document.getElementById('vac-reforco').checked = v.reforco;
     document.getElementById('vac-unica').checked = v.doseUnica;
     document.getElementById('vac-valor').value = String(v.valor || '').replace('R$', '').trim();
+    document.getElementById('vac-estoque-minimo').value = v.estoqueMinimo != null ? v.estoqueMinimo : '';
     if (v.esquemas && v.esquemas.length) {
         _esquemas = JSON.parse(JSON.stringify(v.esquemas));
     } else {
@@ -252,6 +260,16 @@ function saveVaccine(e) {
     if (!_esquemas.length && !doseUnica) { showNotification('Adicione ao menos um esquema vacinal antes de salvar, ou habilite "Dose Única".', 'error'); return; }
     const id = document.getElementById('vac-id').value;
     const existing = vaccines.find(x => x.id == id);
+    // Normaliza intervalos de cada esquema: preenche slots faltantes com 30 (default UI)
+    // para que o que foi exibido seja de fato persistido.
+    _esquemas.forEach(esq => {
+        const nd = esq.numDoses || 1;
+        if (!esq.intervalos) esq.intervalos = [];
+        for (let i = 0; i < nd - 1; i++) {
+            if (esq.intervalos[i] == null) esq.intervalos[i] = 30;
+        }
+        esq.intervalos.length = Math.max(0, nd - 1);
+    });
     // numDoses e intervalos derivados do maior esquema (retrocompatibilidade com agendamentos)
     const maiorEsquema = _esquemas.length ? _esquemas.reduce((a, b) => (b.numDoses || 1) > (a.numDoses || 1) ? b : a, _esquemas[0]) : null;
     const n = maiorEsquema ? (maiorEsquema.numDoses || 1) : 1;
@@ -267,6 +285,7 @@ function saveVaccine(e) {
         idadeMinimaAnos, idadeMinimaMeses,
         esquemas: JSON.parse(JSON.stringify(_esquemas)),
         valor: document.getElementById('vac-valor').value,
+        estoqueMinimo: parseInt(document.getElementById('vac-estoque-minimo').value, 10) || 5,
         ativo: existing ? (existing.ativo !== false) : true
     };
     const isNewVac = !id;
@@ -349,12 +368,13 @@ function renderLoteLists() {
         return `
         <div class="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer" onclick="editLote(${l.id})">
             <div>
-                <p class="font-black text-navy-900 text-sm">Lote: ${l.numero}${l.fabricante ? `<span class="ml-1.5 text-[10px] text-slate-400 font-bold">${l.fabricante}</span>` : ''}</p>
-                <p class="text-[10px] text-slate-500 font-bold">Validade: ${l.validade.split('-').reverse().join('/')} ${badgeHtml}</p>
+                <p class="font-black text-navy-900 text-sm">Lote: ${l.numero}</p>
+                ${(l.fabricante || l.fornecedor) ? `<p class="text-[10px] text-slate-400 font-bold mt-0.5">${[l.fabricante, l.fornecedor].filter(Boolean).join(' · ')}</p>` : ''}
+                <p class="text-[10px] text-slate-500 font-bold ${(l.fabricante || l.fornecedor) ? '' : 'mt-0.5'}">Validade: ${l.validade.split('-').reverse().join('/')} ${badgeHtml}</p>
                 <p class="text-[10px] font-bold mt-1 flex gap-2">
                     <span class="text-green-600"><i class="fas fa-box-open mr-0.5"></i>Disp: ${est.disponivel}</span>
                     <span class="text-indigo-600"><i class="fas fa-lock mr-0.5"></i>Reserv: ${est.reservado}</span>
-                    <span class="text-slate-400"><i class="fas fa-layer-group mr-0.5"></i>Total: ${est.total}</span>
+                    <span class="text-slate-400"><i class="fas fa-layer-group mr-0.5"></i>Total: ${est.disponivel + est.reservado}</span>
                 </p>
                 ${emUso ? '<p class="text-[9px] text-slate-400 font-bold mt-0.5"><i class="fas fa-link mr-1"></i>Em uso em agendamentos</p>' : ''}
             </div>
@@ -493,27 +513,18 @@ function editLote(loteId) {
     document.getElementById('view-lote-numero').textContent = l.numero || '—';
     document.getElementById('view-lote-vacina').textContent = v ? v.nome : '—';
 
-    const fabRow = document.getElementById('view-lote-fabricante-row');
-    if (l.fabricante) {
-        document.getElementById('view-lote-fabricante').textContent = l.fabricante;
-        fabRow.classList.remove('hidden');
-    } else {
-        fabRow.classList.add('hidden');
-    }
+    const fabRow  = document.getElementById('view-lote-fabricante-row');
     const fornRow = document.getElementById('view-lote-fornecedor-row');
     const notaRow = document.getElementById('view-lote-nota-row');
-    if (l.fornecedor) {
-        document.getElementById('view-lote-fornecedor').textContent = l.fornecedor;
-        fornRow.classList.remove('hidden');
-    } else {
-        fornRow.classList.add('hidden');
-    }
-    if (l.nota) {
-        document.getElementById('view-lote-nota').textContent = l.nota;
-        notaRow.classList.remove('hidden');
-    } else {
-        notaRow.classList.add('hidden');
-    }
+    const metaRow = document.getElementById('view-lote-meta-row');
+    if (l.fabricante) { document.getElementById('view-lote-fabricante').textContent = l.fabricante; fabRow.classList.remove('hidden'); }
+    else { fabRow.classList.add('hidden'); }
+    if (l.fornecedor) { document.getElementById('view-lote-fornecedor').textContent = l.fornecedor; fornRow.classList.remove('hidden'); }
+    else { fornRow.classList.add('hidden'); }
+    if (l.nota) { document.getElementById('view-lote-nota').textContent = l.nota; notaRow.classList.remove('hidden'); }
+    else { notaRow.classList.add('hidden'); }
+    if (l.fabricante || l.fornecedor || l.nota) { metaRow.classList.remove('hidden'); metaRow.classList.add('flex'); }
+    else { metaRow.classList.add('hidden'); metaRow.classList.remove('flex'); }
 
     document.getElementById('view-lote-disp').textContent = est.disponivel;
     document.getElementById('view-lote-reserv').textContent = est.reservado;

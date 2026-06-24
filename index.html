@@ -336,7 +336,7 @@
             <div id="dash-view-analitico">
                 <!-- KPIs -->
                 <h2 class="text-xl font-black text-navy-900 tracking-tighter uppercase mb-4 flex items-center gap-2">
-                    <i class="fas fa-chart-bar text-clinic-500 text-base"></i> Indicadores Clínicos (KPIs)
+                    <i class="fas fa-chart-bar text-clinic-500 text-base"></i> Indicadores (KPIs)
                 </h2>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6">
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-blue-500">
@@ -1217,7 +1217,7 @@
     <div id="modal-record" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[110] justify-center items-center p-4 overflow-y-auto">
         <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden my-auto border border-white/20">
             <div class="bg-navy-900 p-5 text-white flex justify-between items-center">
-                <h3 id="modal-title-agenda" class="font-black uppercase tracking-tight text-xl">Novo Agendamento Clínico</h3>
+                <h3 id="modal-title-agenda" class="font-black uppercase tracking-tight text-xl">Novo Agendamento</h3>
                 <div class="flex items-center gap-1">
                     <button onclick="openAuditModal('agendamento', document.getElementById('reg-id').value, document.getElementById('modal-title-agenda').innerText)" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition" title="Histórico de edições"><i class="fas fa-clock text-slate-400 text-sm"></i></button>
                     <button onclick="closeModals()" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition"><i class="fas fa-times text-xl"></i></button>
@@ -1264,23 +1264,25 @@
                 <!-- Linha 1: 4 campos -->
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Vacina *</label>
-                    <select id="reg-vacina" onchange="autoFillVaccine()" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none font-bold text-sm">
-                        <option value="">Selecione...</option>
+                    <select id="reg-vacina" onchange="autoFillVaccine()" required disabled class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        <option value="">Selecione o paciente primeiro</option>
                     </select>
                 </div>
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1" id="lbl-lote">Lote</label>
                     <select id="reg-lote" onchange="onLoteChange()" class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
-                        <option value="">Selecione a vacina primeiro</option>
+                        <option value="">Selecione a vacina...</option>
                     </select>
-                    <p id="reg-lote-validade-hint" class="text-[9px] text-slate-500 mt-1 hidden"><i class="fas fa-calendar-alt mr-1"></i>Val: <span id="span-lote-validade" class="font-bold"></span></p>
-                    <p id="reg-lote-estoque-hint" class="text-[9px] text-slate-500 mt-1 hidden"><i class="fas fa-box-open mr-1"></i>Disponível: <span id="span-lote-disp" class="font-black"></span></p>
+                    <div class="flex items-center gap-3 mt-1">
+                        <p id="reg-lote-estoque-hint" class="text-[9px] text-slate-500 hidden"><i class="fas fa-box-open mr-1"></i>Disponível: <span id="span-lote-disp" class="font-black"></span></p>
+                        <p id="reg-lote-validade-hint" class="text-[9px] text-slate-500 hidden"><i class="fas fa-calendar-alt mr-1"></i>Val: <span id="span-lote-validade" class="font-bold"></span></p>
+                    </div>
                     <p id="reg-lote-vencido-erro" class="text-[9px] text-red-600 font-black mt-1 hidden"><i class="fas fa-ban mr-1"></i>Lote vencido — selecione outro lote.</p>
                 </div>
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Dose Requerida *</label>
                     <select id="reg-dose" onchange="updateSuggestedDate()" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
-                        <option value="">Selecione a vacina primeiro</option>
+                        <option value="">Selecione a vacina...</option>
                     </select>
                 </div>
                 <div class="col-span-1 md:col-span-1">
@@ -1582,11 +1584,18 @@
                         <input type="checkbox" id="vac-unica" class="h-4 w-4 text-clinic-600 rounded"> Habilitar Dose Única
                     </label>
                 </div>
-                <div class="col-span-1 md:col-span-2">
+                <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Valor Padrão *</label>
                     <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-clinic-500">
                         <span class="px-3 py-2 bg-slate-100 text-slate-500 font-black text-sm border-r border-slate-200 select-none">R$</span>
                         <input type="text" id="vac-valor" required placeholder="0,00" oninput="maskCurrency(this)" inputmode="numeric" class="flex-1 py-2 px-3 outline-none text-sm font-bold">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Estoque Mínimo</label>
+                    <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-amber-400">
+                        <span class="px-3 py-2 bg-slate-100 text-slate-500 font-black text-sm border-r border-slate-200 select-none"><i class="fas fa-triangle-exclamation text-amber-400"></i></span>
+                        <input type="number" id="vac-estoque-minimo" min="0" step="1" placeholder="5" inputmode="numeric" class="flex-1 py-2 px-3 outline-none text-sm font-bold">
                     </div>
                 </div>
                 <div class="col-span-1 md:col-span-2 mt-2 flex gap-3">
@@ -2266,14 +2275,12 @@
                             <i class="fas fa-boxes-stacked text-white text-lg"></i>
                         </div>
                         <div>
-                            <p class="text-[10px] text-indigo-200 font-black uppercase tracking-widest">Lote</p>
+                            <p id="view-lote-vacina" class="text-white font-black text-base leading-tight">—</p>
+                            <p class="text-[10px] text-indigo-200/70 font-black uppercase tracking-widest mt-2">Lote</p>
                             <h3 id="view-lote-numero" class="font-black text-xl tracking-tight leading-tight font-mono">—</h3>
-                            <p id="view-lote-vacina" class="text-indigo-200 text-xs font-bold mt-0.5">—</p>
-                            <div id="view-lote-fabricante-row" class="hidden mt-1">
-                                <span class="text-[10px] text-white/70 font-black uppercase tracking-widest"><i class="fas fa-industry mr-1"></i><span id="view-lote-fabricante"></span></span>
-                            </div>
-                            <div id="view-lote-fornecedor-row" class="hidden flex items-center gap-3 mt-1">
-                                <span class="text-[10px] text-white/60 font-black uppercase tracking-widest"><i class="fas fa-truck mr-1"></i><span id="view-lote-fornecedor"></span></span>
+                            <div id="view-lote-meta-row" class="hidden items-center gap-3 flex-wrap mt-1">
+                                <span id="view-lote-fabricante-row" class="hidden text-[10px] text-white/70 font-black uppercase tracking-widest"><i class="fas fa-industry mr-1"></i><span id="view-lote-fabricante"></span></span>
+                                <span id="view-lote-fornecedor-row" class="hidden text-[10px] text-white/60 font-black uppercase tracking-widest"><i class="fas fa-truck mr-1"></i><span id="view-lote-fornecedor"></span></span>
                                 <span id="view-lote-nota-row" class="hidden text-[10px] text-white/60 font-black uppercase tracking-widest"><i class="fas fa-file-invoice mr-1"></i>NF <span id="view-lote-nota"></span></span>
                             </div>
                         </div>
@@ -2624,171 +2631,425 @@
 
                     <!-- SUB: GRUPOS E PERMISSÕES -->
                     <div id="users-sub-grupos" class="hidden">
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                            <!-- Formulário de grupo -->
-                            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
-                                <h4 class="font-black text-navy-900 text-sm uppercase mb-4 flex items-center gap-2">
-                                    <i class="fas fa-plus-circle text-clinic-500"></i>
-                                    <span id="grupo-form-title">Novo Grupo</span>
-                                </h4>
-                                <form id="new-group-form" onsubmit="saveGroup(event)" class="space-y-4">
-                                    <input type="hidden" id="edit-group-id">
-                                    <div>
-                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Nome do Grupo *</label>
-                                        <input type="text" id="new-group-nome" required
-                                            class="w-full border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-clinic-500 uppercase bg-white">
+                        <!-- Header da seção -->
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-navy-700 to-navy-900 flex items-center justify-center shadow-lg">
+                                    <i class="fas fa-layer-group text-white text-sm"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-black text-navy-900 text-base">Grupos & Permissões</h3>
+                                    <p class="text-xs text-slate-400 font-medium">Controle de acesso por perfil de usuário</p>
+                                </div>
+                            </div>
+                            <div id="grupos-perm-counter" class="hidden items-center gap-2 bg-clinic-50 border border-clinic-200 rounded-xl px-3 py-1.5">
+                                <span class="text-[10px] font-black text-clinic-600 uppercase tracking-wider" id="perm-selected-count">0 selecionadas</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 xl:grid-cols-5 gap-6">
+
+                            <!-- ─── PAINEL ESQUERDO: FORMULÁRIO ─── -->
+                            <div class="xl:col-span-2">
+                                <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col sticky top-4" style="max-height: calc(100vh - 8rem);">
+
+                                    <!-- Header do form -->
+                                    <div class="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex items-center justify-between shrink-0">
+                                        <div class="flex items-center gap-2.5">
+                                            <div class="w-7 h-7 rounded-lg bg-clinic-100 flex items-center justify-center">
+                                                <i class="fas fa-plus text-clinic-600 text-xs" id="grupo-form-icon"></i>
+                                            </div>
+                                            <span class="font-black text-navy-900 text-sm uppercase tracking-wide" id="grupo-form-title">Novo Grupo</span>
+                                        </div>
+                                        <button type="button" onclick="resetGroupForm()" class="text-slate-300 hover:text-slate-500 transition p-1 rounded-lg hover:bg-slate-100" title="Limpar formulário">
+                                            <i class="fas fa-times text-xs"></i>
+                                        </button>
                                     </div>
 
-                                    <div>
-                                        <p class="text-[10px] font-black text-slate-500 uppercase mb-3 tracking-wider">Permissões do Grupo</p>
+                                    <form id="new-group-form" onsubmit="saveGroup(event)" class="p-5 space-y-5 flex flex-col flex-1 min-h-0 overflow-hidden">
+                                        <input type="hidden" id="edit-group-id">
 
-                                        <!-- Agendamento -->
-                                        <div class="mb-4">
-                                            <p class="text-[9px] font-black text-blue-700 uppercase tracking-widest mb-2 flex items-center gap-1.5 bg-blue-50 rounded-lg px-2 py-1"><i class="fas fa-calendar-alt"></i> Agendamento</p>
-                                            <div class="space-y-2 pl-2">
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-blue-600" value="agendar"> Visualizar Agendamento
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-blue-600" value="criar_agendamento"> Agendar
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-blue-600" value="aplicar"> Aplicar (Status Aplicado)
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-blue-600" value="definir_feriados"> Definir Feriados
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        <!-- Pacientes -->
-                                        <div class="mb-4">
-                                            <p class="text-[9px] font-black text-green-700 uppercase tracking-widest mb-2 flex items-center gap-1.5 bg-green-50 rounded-lg px-2 py-1"><i class="fas fa-users"></i> Pacientes</p>
-                                            <div class="space-y-2 pl-2">
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-green-600" value="adicionar_paciente"> Adicionar Novo Paciente
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-green-600" value="editar_paciente"> Editar Paciente
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        <!-- Vacinas -->
-                                        <div class="mb-4">
-                                            <p class="text-[9px] font-black text-purple-700 uppercase tracking-widest mb-2 flex items-center gap-1.5 bg-purple-50 rounded-lg px-2 py-1"><i class="fas fa-vial"></i> Vacinas</p>
-                                            <div class="space-y-2 pl-2">
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-purple-600" value="leitura_estoque"> Leitura do Estoque
-                                                    <span class="text-[10px] text-slate-400 font-normal">(visualiza estoque, sem lotes/movimentação)</span>
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-purple-600" value="criar_produtos"> Criar Produtos
-                                                    <span class="text-[10px] text-slate-400 font-normal">(acesso à aba de produtos, editar/excluir/adicionar)</span>
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-purple-600" value="edicao_lotes"> Edição de Lotes
-                                                    <span class="text-[10px] text-slate-400 font-normal">(visualiza aba de lotes, editar e excluir)</span>
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-purple-600" value="edicao_movimentacao"> Edição de Movimentação
-                                                    <span class="text-[10px] text-slate-400 font-normal">(visualiza movimentação, entradas/saídas manuais e edição)</span>
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        <!-- Documentos -->
-                                        <div class="mb-4">
-                                            <p class="text-[9px] font-black text-red-700 uppercase tracking-widest mb-2 flex items-center gap-1.5 bg-red-50 rounded-lg px-2 py-1"><i class="fas fa-file-alt"></i> Documentos</p>
-                                            <div class="space-y-2 pl-2">
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-red-600" value="baixar_pdf"> Baixar PDF
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        <!-- Visualização -->
-                                        <div class="mb-4">
-                                            <p class="text-[9px] font-black text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-1.5 bg-amber-50 rounded-lg px-2 py-1"><i class="fas fa-eye"></i> Visualização</p>
-                                            <div class="space-y-2 pl-2">
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-amber-600" value="ver_dashboard" onchange="toggleSubPerm('sub-perm-dash-financeiro', this)"> Visualizar Aba Dashboard
-                                                </label>
-                                                <div id="sub-perm-dash-financeiro" class="pl-6 space-y-1.5 hidden">
-                                                    <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer hover:text-navy-900 select-none">
-                                                        <input type="checkbox" class="perm-check h-3.5 w-3.5 rounded accent-emerald-600" value="ver_dash_financeiro"> <i class="fas fa-dollar-sign text-emerald-500 text-[10px]"></i> Painel Financeiro
-                                                    </label>
-                                                </div>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-amber-600" value="ver_agenda"> Visualizar Aba Agenda
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-amber-600" value="ver_tabela"> Visualizar Aba Tabela
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-amber-600" value="ver_pacientes"> Visualizar Aba Pacientes
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-amber-600" value="ver_vacinas"> Visualizar Aba Vacinas
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-amber-600" value="ver_configuracoes"> Visualizar Aba Configurações
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        <!-- Exclusão -->
-                                        <div class="mb-4">
-                                            <p class="text-[9px] font-black text-red-700 uppercase tracking-widest mb-2 flex items-center gap-1.5 bg-red-50 rounded-lg px-2 py-1"><i class="fas fa-trash-alt"></i> Exclusão</p>
-                                            <div class="space-y-2 pl-2">
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-red-600" value="excluir_agendamento"> Excluir Agendamento
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-red-600" value="excluir_paciente"> Excluir Paciente
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        <!-- Sistema -->
+                                        <!-- Nome -->
                                         <div>
-                                            <p class="text-[9px] font-black text-slate-700 uppercase tracking-widest mb-2 flex items-center gap-1.5 bg-slate-200 rounded-lg px-2 py-1"><i class="fas fa-shield-alt"></i> Sistema</p>
-                                            <div class="space-y-2 pl-2">
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-slate-600" value="criar_editar_usuarios"> Criar/Editar Usuários
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-slate-600" value="criar_editar_grupos"> Criar/Editar Grupos
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-slate-600" value="backup"> Função de Backup
-                                                </label>
-                                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer hover:text-navy-900 select-none">
-                                                    <input type="checkbox" class="perm-check h-4 w-4 rounded accent-slate-600" value="alterar_propria_senha"> Alterar Própria Senha
-                                                </label>
+                                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nome do Grupo <span class="text-clinic-500">*</span></label>
+                                            <input type="text" id="new-group-nome" required placeholder="Ex: RECEPCIONISTA"
+                                                class="w-full border-2 border-slate-200 rounded-xl py-2.5 px-3.5 text-sm font-bold focus:outline-none focus:border-clinic-500 focus:ring-4 focus:ring-clinic-100 uppercase bg-white transition placeholder:font-normal placeholder:normal-case placeholder:text-slate-300">
+                                        </div>
+
+                                        <!-- Permissões — categorias colapsáveis -->
+                                        <div class="flex flex-col flex-1 min-h-0">
+                                            <div class="flex items-center justify-between mb-3 shrink-0">
+                                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Permissões do Grupo</p>
+                                                <button type="button" onclick="grupoToggleAllCats()" class="text-[10px] font-black text-clinic-500 hover:text-clinic-700 uppercase tracking-wider transition">Expandir tudo</button>
+                                            </div>
+
+                                            <div class="space-y-2 flex-1 overflow-y-auto pr-1" id="perm-categories-container" onchange="grupoUpdateCatBadges()">
+
+                                                <!-- AGENDAMENTO -->
+                                                <div class="perm-cat-block rounded-xl border border-slate-200 overflow-hidden" data-cat="blue">
+                                                    <button type="button" onclick="grupoToggleCat(this)" class="w-full flex items-center justify-between px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 transition group">
+                                                        <div class="flex items-center gap-2.5">
+                                                            <div class="w-6 h-6 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
+                                                                <i class="fas fa-calendar-alt text-white text-[10px]"></i>
+                                                            </div>
+                                                            <span class="text-xs font-black text-blue-800 uppercase tracking-wider">Agendamento</span>
+                                                            <span class="perm-cat-badge hidden text-[9px] font-black bg-blue-500 text-white rounded-full px-1.5 py-0.5"></span>
+                                                        </div>
+                                                        <i class="fas fa-chevron-down text-blue-400 text-[10px] transition-transform group-[.open]:rotate-180 perm-cat-chevron"></i>
+                                                    </button>
+                                                    <div class="perm-cat-body hidden px-4 py-3 bg-white space-y-2.5">
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="agendar">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0 ">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs font-bold text-slate-700 leading-tight">Visualizar Agendamento</p>
+                                                            </div>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="criar_agendamento">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0 ">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs font-bold text-slate-700 leading-tight">Criar Agendamento</p>
+                                                            </div>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="aplicar">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0 ">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs font-bold text-slate-700 leading-tight">Aplicar Vacina</p>
+                                                                <p class="text-[10px] text-slate-400 font-normal">Marca status como Aplicado</p>
+                                                            </div>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="definir_feriados">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0 ">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs font-bold text-slate-700 leading-tight">Definir Feriados</p>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <!-- PACIENTES -->
+                                                <div class="perm-cat-block rounded-xl border border-slate-200 overflow-hidden" data-cat="emerald">
+                                                    <button type="button" onclick="grupoToggleCat(this)" class="w-full flex items-center justify-between px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 transition group">
+                                                        <div class="flex items-center gap-2.5">
+                                                            <div class="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
+                                                                <i class="fas fa-users text-white text-[10px]"></i>
+                                                            </div>
+                                                            <span class="text-xs font-black text-emerald-800 uppercase tracking-wider">Pacientes</span>
+                                                            <span class="perm-cat-badge hidden text-[9px] font-black bg-emerald-500 text-white rounded-full px-1.5 py-0.5"></span>
+                                                        </div>
+                                                        <i class="fas fa-chevron-down text-emerald-400 text-[10px] transition-transform group-[.open]:rotate-180 perm-cat-chevron"></i>
+                                                    </button>
+                                                    <div class="perm-cat-body hidden px-4 py-3 bg-white space-y-2.5">
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="adicionar_paciente">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Adicionar Paciente</p>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="editar_paciente">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Editar Paciente</p>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <!-- VACINAS / ESTOQUE -->
+                                                <div class="perm-cat-block rounded-xl border border-slate-200 overflow-hidden" data-cat="violet">
+                                                    <button type="button" onclick="grupoToggleCat(this)" class="w-full flex items-center justify-between px-3.5 py-2.5 bg-violet-50 hover:bg-violet-100 transition group">
+                                                        <div class="flex items-center gap-2.5">
+                                                            <div class="w-6 h-6 rounded-lg bg-violet-500 flex items-center justify-center shrink-0">
+                                                                <i class="fas fa-vial text-white text-[10px]"></i>
+                                                            </div>
+                                                            <span class="text-xs font-black text-violet-800 uppercase tracking-wider">Vacinas & Estoque</span>
+                                                            <span class="perm-cat-badge hidden text-[9px] font-black bg-violet-500 text-white rounded-full px-1.5 py-0.5"></span>
+                                                        </div>
+                                                        <i class="fas fa-chevron-down text-violet-400 text-[10px] transition-transform group-[.open]:rotate-180 perm-cat-chevron"></i>
+                                                    </button>
+                                                    <div class="perm-cat-body hidden px-4 py-3 bg-white space-y-2.5">
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="leitura_estoque">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs font-bold text-slate-700 leading-tight">Leitura do Estoque</p>
+                                                                <p class="text-[10px] text-slate-400 font-normal">Visualiza estoque, sem lotes/movimentação</p>
+                                                            </div>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="criar_produtos">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs font-bold text-slate-700 leading-tight">Criar Produtos</p>
+                                                                <p class="text-[10px] text-slate-400 font-normal">Aba de produtos — editar e adicionar</p>
+                                                            </div>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="edicao_lotes">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs font-bold text-slate-700 leading-tight">Edição de Lotes</p>
+                                                                <p class="text-[10px] text-slate-400 font-normal">Visualiza e edita lotes</p>
+                                                            </div>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="edicao_movimentacao">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs font-bold text-slate-700 leading-tight">Edição de Movimentação</p>
+                                                                <p class="text-[10px] text-slate-400 font-normal">Entradas/saídas manuais e edição (sem excluir)</p>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <!-- DOCUMENTOS -->
+                                                <div class="perm-cat-block rounded-xl border border-slate-200 overflow-hidden" data-cat="orange">
+                                                    <button type="button" onclick="grupoToggleCat(this)" class="w-full flex items-center justify-between px-3.5 py-2.5 bg-orange-50 hover:bg-orange-100 transition group">
+                                                        <div class="flex items-center gap-2.5">
+                                                            <div class="w-6 h-6 rounded-lg bg-orange-500 flex items-center justify-center shrink-0">
+                                                                <i class="fas fa-file-alt text-white text-[10px]"></i>
+                                                            </div>
+                                                            <span class="text-xs font-black text-orange-800 uppercase tracking-wider">Documentos</span>
+                                                            <span class="perm-cat-badge hidden text-[9px] font-black bg-orange-500 text-white rounded-full px-1.5 py-0.5"></span>
+                                                        </div>
+                                                        <i class="fas fa-chevron-down text-orange-400 text-[10px] transition-transform group-[.open]:rotate-180 perm-cat-chevron"></i>
+                                                    </button>
+                                                    <div class="perm-cat-body hidden px-4 py-3 bg-white space-y-2.5">
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="baixar_pdf">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Baixar PDF</p>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <!-- VISUALIZAÇÃO -->
+                                                <div class="perm-cat-block rounded-xl border border-slate-200 overflow-hidden" data-cat="amber">
+                                                    <button type="button" onclick="grupoToggleCat(this)" class="w-full flex items-center justify-between px-3.5 py-2.5 bg-amber-50 hover:bg-amber-100 transition group">
+                                                        <div class="flex items-center gap-2.5">
+                                                            <div class="w-6 h-6 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+                                                                <i class="fas fa-eye text-white text-[10px]"></i>
+                                                            </div>
+                                                            <span class="text-xs font-black text-amber-800 uppercase tracking-wider">Visualização</span>
+                                                            <span class="perm-cat-badge hidden text-[9px] font-black bg-amber-500 text-white rounded-full px-1.5 py-0.5"></span>
+                                                        </div>
+                                                        <i class="fas fa-chevron-down text-amber-400 text-[10px] transition-transform group-[.open]:rotate-180 perm-cat-chevron"></i>
+                                                    </button>
+                                                    <div class="perm-cat-body hidden px-4 py-3 bg-white space-y-2.5">
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="ver_dashboard" onchange="toggleSubPerm('sub-perm-dash-financeiro', this); grupoUpdateCatBadges()">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Aba Dashboard</p>
+                                                        </label>
+                                                        <!-- Sub-permissão Dashboard Financeiro -->
+                                                        <div id="sub-perm-dash-financeiro" class="hidden ml-11 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2">
+                                                            <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                                <input type="checkbox" class="perm-check sr-only" value="ver_dash_financeiro">
+                                                                <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                    <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                                </div>
+                                                                <div class="flex items-center gap-1.5">
+                                                                    <i class="fas fa-dollar-sign text-emerald-500 text-[10px]"></i>
+                                                                    <p class="text-xs font-bold text-emerald-700">Painel Financeiro</p>
+                                                                </div>
+                                                            </label>
+                                                        </div>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="ver_agenda">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Aba Agenda</p>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="ver_tabela">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Aba Tabela</p>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="ver_pacientes">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Aba Pacientes</p>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="ver_vacinas">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Aba Vacinas</p>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="ver_configuracoes">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Aba Configurações</p>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <!-- EXCLUSÃO -->
+                                                <div class="perm-cat-block rounded-xl border border-slate-200 overflow-hidden" data-cat="red">
+                                                    <button type="button" onclick="grupoToggleCat(this)" class="w-full flex items-center justify-between px-3.5 py-2.5 bg-red-50 hover:bg-red-100 transition group">
+                                                        <div class="flex items-center gap-2.5">
+                                                            <div class="w-6 h-6 rounded-lg bg-red-500 flex items-center justify-center shrink-0">
+                                                                <i class="fas fa-trash-alt text-white text-[10px]"></i>
+                                                            </div>
+                                                            <span class="text-xs font-black text-red-800 uppercase tracking-wider">Exclusão</span>
+                                                            <span class="perm-cat-badge hidden text-[9px] font-black bg-red-500 text-white rounded-full px-1.5 py-0.5"></span>
+                                                        </div>
+                                                        <i class="fas fa-chevron-down text-red-400 text-[10px] transition-transform group-[.open]:rotate-180 perm-cat-chevron"></i>
+                                                    </button>
+                                                    <div class="perm-cat-body hidden px-4 py-3 bg-white space-y-2.5">
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="excluir_agendamento">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Excluir Agendamento</p>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="excluir_paciente">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Excluir Paciente</p>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="excluir_produto">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs font-bold text-slate-700 leading-tight">Excluir Produto</p>
+                                                                <p class="text-[10px] text-slate-400 font-normal">Exclui produtos de vacinas</p>
+                                                            </div>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="excluir_lote">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs font-bold text-slate-700 leading-tight">Excluir Lote</p>
+                                                                <p class="text-[10px] text-slate-400 font-normal">Exclui lotes de vacinas</p>
+                                                            </div>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="excluir_movimentacao">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-500">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs font-bold text-slate-700 leading-tight">Excluir Movimentação</p>
+                                                                <p class="text-[10px] text-slate-400 font-normal">Exclui movimentação manual</p>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <!-- SISTEMA -->
+                                                <div class="perm-cat-block rounded-xl border border-slate-200 overflow-hidden" data-cat="slate">
+                                                    <button type="button" onclick="grupoToggleCat(this)" class="w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 transition group">
+                                                        <div class="flex items-center gap-2.5">
+                                                            <div class="w-6 h-6 rounded-lg bg-slate-700 flex items-center justify-center shrink-0">
+                                                                <i class="fas fa-shield-alt text-white text-[10px]"></i>
+                                                            </div>
+                                                            <span class="text-xs font-black text-slate-700 uppercase tracking-wider">Sistema</span>
+                                                            <span class="perm-cat-badge hidden text-[9px] font-black bg-slate-700 text-white rounded-full px-1.5 py-0.5"></span>
+                                                        </div>
+                                                        <i class="fas fa-chevron-down text-slate-400 text-[10px] transition-transform group-[.open]:rotate-180 perm-cat-chevron"></i>
+                                                    </button>
+                                                    <div class="perm-cat-body hidden px-4 py-3 bg-white space-y-2.5">
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="criar_editar_usuarios">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-700">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Criar/Editar Usuários</p>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="criar_editar_grupos">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-700">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Criar/Editar Grupos</p>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="backup">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-700">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Função de Backup</p>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="alterar_propria_senha">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-700">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <p class="text-xs font-bold text-slate-700">Alterar Própria Senha</p>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div class="flex gap-3 pt-2 border-t border-slate-200">
-                                        <button type="submit" class="px-6 py-2.5 bg-clinic-600 text-white font-black rounded-xl hover:bg-clinic-700 text-xs uppercase transition shadow-md">
-                                            <i class="fas fa-save mr-1"></i> Salvar Grupo
-                                        </button>
-                                        <button type="button" onclick="resetGroupForm()" class="px-4 py-2.5 border border-slate-200 text-slate-500 font-black rounded-xl hover:bg-slate-50 text-xs uppercase transition">
-                                            Limpar
-                                        </button>
-                                    </div>
-                                </form>
+                                        <!-- Ações -->
+                                        <div class="flex gap-2.5 pt-2 shrink-0">
+                                            <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-clinic-600 to-clinic-700 text-white font-black rounded-xl hover:from-clinic-700 hover:to-clinic-800 text-xs uppercase tracking-wider transition shadow-md shadow-clinic-200 flex items-center justify-center gap-2">
+                                                <i class="fas fa-save"></i> Salvar Grupo
+                                            </button>
+                                            <button type="button" onclick="resetGroupForm()" class="px-4 py-2.5 border-2 border-slate-200 text-slate-400 font-black rounded-xl hover:border-slate-300 hover:text-slate-600 text-xs uppercase transition flex items-center gap-1.5">
+                                                <i class="fas fa-undo text-[10px]"></i>
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
 
-                            <!-- Lista de grupos -->
-                            <div>
-                                <h4 class="font-black text-navy-900 text-sm uppercase mb-4 flex items-center gap-2">
-                                    <i class="fas fa-layer-group text-navy-500"></i> Grupos Cadastrados
-                                </h4>
+                            <!-- ─── PAINEL DIREITO: LISTA DE GRUPOS ─── -->
+                            <div class="xl:col-span-3">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="font-black text-navy-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                                        <i class="fas fa-layer-group text-slate-400 text-xs"></i> Grupos Cadastrados
+                                    </h4>
+                                    <span id="groups-count-badge" class="text-[10px] font-black text-slate-400 bg-slate-100 rounded-full px-2.5 py-1 uppercase tracking-wider"></span>
+                                </div>
                                 <div id="groups-list" class="space-y-3"></div>
                             </div>
+
                         </div>
                     </div>
                 </div>
@@ -3002,3 +3263,5 @@
     <script src="scripts/init.js"></script>
 </body>
 </html>
+
+

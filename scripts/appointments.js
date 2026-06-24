@@ -13,7 +13,7 @@ function filterPatientDropdown() {
     input.classList.add('border-red-400');
     input.classList.remove('border-slate-200');
 
-    if(!val) { dd.classList.add('hidden'); return; }
+    if(!val) { dd.classList.add('hidden'); _resetAndDisableVaccineFields(); return; }
     const matches = patients.filter(p =>
         normalizeStr(p.nome).includes(val) || normalizeStr(p.cpf).includes(val)
     ).slice(0, 12);
@@ -77,7 +77,10 @@ function openRecordModal() {
     document.getElementById('div-responsavel-placeholder').style.display = 'block';
     document.getElementById('div-motivo-cancelamento').style.display = 'none';
     document.getElementById('sugestao-data').classList.add('hidden');
+    document.getElementById('reg-data').removeAttribute('min');
     document.getElementById('reg-lote-validade-hint').classList.add('hidden');
+    const _estoqueHintNew = document.getElementById('reg-lote-estoque-hint');
+    if (_estoqueHintNew) _estoqueHintNew.classList.add('hidden');
     document.getElementById('lbl-lote').innerText = 'Lote';
     document.getElementById('reg-lote').required = false;
     document.getElementById('reg-lote').classList.add('border-slate-200');
@@ -85,6 +88,11 @@ function openRecordModal() {
     document.getElementById('lbl-aplicador').innerText = 'Aplicador';
     document.getElementById('reg-aplicador').required = false;
     populatePatientDatalist(); populateVaccineSelects(); populateCancelReasons(); populateLoteSelect(null);
+    // Bloqueia vacina até paciente ser selecionado
+    const _vacinaSelNew = document.getElementById('reg-vacina');
+    _vacinaSelNew.value = '';
+    _vacinaSelNew.disabled = true;
+    _vacinaSelNew.classList.add('opacity-50', 'cursor-not-allowed');
     document.getElementById('modal-title-agenda').innerText = 'Novo Agendamento Clínico';
     document.getElementById('btn-delete-record').classList.add('hidden');
     document.getElementById('btn-duplicar-record').classList.add('hidden');
@@ -99,6 +107,32 @@ function openRecordModalWithPatient(patId) {
         document.getElementById('reg-patient-search').value = `${p.cpf} - ${p.nome}`;
         autoFillPatient();
     }
+}
+
+function _enableVaccineFields() {
+    const sel = document.getElementById('reg-vacina');
+    sel.disabled = false;
+    sel.classList.remove('opacity-50', 'cursor-not-allowed');
+}
+
+function _resetAndDisableVaccineFields() {
+    // Limpa e desabilita vacina
+    const vacinaSel = document.getElementById('reg-vacina');
+    vacinaSel.value = '';
+    vacinaSel.disabled = true;
+    vacinaSel.classList.add('opacity-50', 'cursor-not-allowed');
+    // Limpa dose
+    const doseSel = document.getElementById('reg-dose');
+    doseSel.innerHTML = '<option value="">Selecione a vacina primeiro</option>';
+    doseSel.value = '';
+    // Limpa lote
+    populateLoteSelect(null);
+    // Limpa campos derivados
+    document.getElementById('reg-idade-min').value = '';
+    document.getElementById('reg-valor').value = '';
+    document.getElementById('sugestao-data').classList.add('hidden');
+    document.getElementById('reg-data').removeAttribute('min');
+    resetDescontoUI();
 }
 
 function autoFillPatient() {
@@ -121,10 +155,11 @@ function autoFillPatient() {
             document.getElementById('div-responsavel').style.display = 'none';
             document.getElementById('div-responsavel-placeholder').style.display = 'block';
         }
+        _enableVaccineFields();
         checkAgeConstraint(); updateSuggestedDate();
         return;
     }
-    // Se não achou paciente válido, limpa campos e id oculto
+    // Paciente inválido ou apagado — limpa campos e bloqueia vacina
     document.getElementById('hidden-patient-id').value = '';
     document.getElementById('reg-cpf').value = '';
     document.getElementById('reg-dtnasc').value = '';
@@ -133,6 +168,7 @@ function autoFillPatient() {
     document.getElementById('div-responsavel').style.display = 'none';
     document.getElementById('div-responsavel-placeholder').style.display = 'block';
     document.getElementById('reg-responsavel').value = '';
+    _resetAndDisableVaccineFields();
 }
 
 function populateLoteSelect(vaccineId, selectedLoteId) {
@@ -283,6 +319,7 @@ function autoFillVaccine() {
             document.getElementById('reg-valor').value = String(v.valor || '').replace('R$', '').trim();
             resetDescontoUI();
             checkAgeConstraint();
+            updateSuggestedDate();
         }
     }
 }
@@ -330,35 +367,69 @@ function checkAgeConstraint() {
 }
 
 function updateSuggestedDate() {
-    const patId = document.getElementById('hidden-patient-id').value;
-    const vId = document.getElementById('reg-vacina').value;
-    const dose = document.getElementById('reg-dose').value;
+    const patId  = document.getElementById('hidden-patient-id').value;
+    const vId    = document.getElementById('reg-vacina').value;
+    const dose   = document.getElementById('reg-dose').value;
     const sugDiv = document.getElementById('sugestao-data');
+    const spanEl = document.getElementById('span-sugestao-data');
 
     sugDiv.classList.add('hidden');
-    if (!patId || !vId || !dose || dose.includes('1ª') || dose === 'Dose Única') return;
+    document.getElementById('reg-data').removeAttribute('min');
 
-    const v = vaccines.find(x => x.id == vId);
+    if (!patId || !vId || !dose || dose.includes('1ª') || dose === 'Dose Única' || dose === 'Reforço') return;
+
+    const v = vaccines.find(x => String(x.id) === String(vId));
     if (!v) return;
 
-    // Usa intervalos do esquema adequado ao paciente
-    const dtNasc = document.getElementById('reg-dtnasc').value;
-    const esq = getEsquemaPaciente(v, dtNasc);
-    const intervalos = esq && esq.intervalos && esq.intervalos.length ? esq.intervalos
-        : (v.intervalos && v.intervalos.length ? v.intervalos : (v.intervaloDias > 0 ? [v.intervaloDias] : []));
-    if (!intervalos.length) return;
-
     const doseNum = Number((dose.match(/(\d+)/) || [])[1] || 2);
-    const intervalo = intervalos[doseNum - 2] ?? intervalos[intervalos.length - 1];
-    if (!intervalo || intervalo <= 0) return;
+    if (doseNum < 2) return;
 
-    const prevApps = appointments.filter(a => a.patientId == patId && a.vaccineId == vId).sort((a, b) => new Date(b.data) - new Date(a.data));
-    const baseDate = prevApps.length > 0 ? new Date(prevApps[0].data + 'T00:00:00') : new Date();
+    const editingId = document.getElementById('reg-id').value;
+
+    // Base = dose anterior específica (doseNum-1), a mais recente caso haja repetições.
+    const prevDoseStr = `${doseNum - 1}ª Dose`;
+    const prevApps = appointments.filter(a =>
+        String(a.patientId) === String(patId) &&
+        String(a.vaccineId) === String(vId)   &&
+        (!editingId || String(a.id) !== String(editingId)) &&
+        a.doseAtual === prevDoseStr
+    ).sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    console.debug('[aprazamento] patId', patId, 'vId', vId, 'dose', dose, 'prevApps', prevApps.length, prevApps.map(a => a.doseAtual + ' ' + a.data));
+
+    if (!prevApps.length) return;
+
+    // Usa o agendamento mais recente como base
+    const baseApp = prevApps[0];
+
+    // Intervalo do esquema adequado ao paciente
+    const dtNasc   = document.getElementById('reg-dtnasc').value;
+    const esq      = getEsquemaPaciente(v, dtNasc);
+    const intervalos = (esq && esq.intervalos && esq.intervalos.length)
+        ? esq.intervalos
+        : (v.intervalos && v.intervalos.length
+            ? v.intervalos
+            : (v.intervaloDias > 0 ? [v.intervaloDias] : []));
+
+    console.debug('[aprazamento] esq', esq, 'intervalos', intervalos, 'doseNum', doseNum);
+
+    let intervalo = intervalos.length
+        ? (intervalos[doseNum - 2] != null ? intervalos[doseNum - 2] : intervalos[intervalos.length - 1])
+        : 0;
+
+    // Fallback p/ vacinas legadas salvas sem intervalos: usa default de 30 dias
+    // para que o aprazamento ainda seja sugerido a partir da dose anterior.
+    if (!intervalo || intervalo <= 0) intervalo = 30;
+
+    console.debug('[aprazamento] intervalo', intervalo, 'baseApp.data', baseApp.data);
+
+    const baseDate = new Date(baseApp.data + 'T00:00:00');
     baseDate.setDate(baseDate.getDate() + intervalo);
-    const isoDate = baseDate.toISOString().split('T')[0];
+    const isoDate  = baseDate.toISOString().split('T')[0];
 
-    document.getElementById('span-sugestao-data').innerText = isoDate.split('-').reverse().join('/');
-    document.getElementById('span-sugestao-data').setAttribute('data-iso', isoDate);
+    spanEl.innerText = isoDate.split('-').reverse().join('/');
+    spanEl.setAttribute('data-iso', isoDate);
+    document.getElementById('reg-data').min = isoDate;
     sugDiv.classList.remove('hidden');
 }
 
@@ -533,7 +604,10 @@ function editRecord(id) {
     document.getElementById('div-responsavel-placeholder').style.display = 'block';
     document.getElementById('div-motivo-cancelamento').style.display = 'none';
     document.getElementById('sugestao-data').classList.add('hidden');
+    document.getElementById('reg-data').removeAttribute('min');
     document.getElementById('reg-lote-validade-hint').classList.add('hidden');
+    const _estoqueHintEdit = document.getElementById('reg-lote-estoque-hint');
+    if (_estoqueHintEdit) _estoqueHintEdit.classList.add('hidden');
     document.getElementById('lbl-lote').innerText = 'Lote';
     document.getElementById('reg-lote').required = false;
     document.getElementById('reg-lote').classList.add('border-slate-200');
@@ -556,6 +630,7 @@ function editRecord(id) {
 
     setTimeout(() => {
         document.getElementById('reg-dose').value = a.doseAtual;
+        updateSuggestedDate();
         document.getElementById('reg-data').value = a.data;
         document.getElementById('reg-hora').value = a.hora || '';
         document.getElementById('reg-valor').value = String(a.valorAplicado || '').replace('R$', '').trim();
@@ -627,6 +702,7 @@ function duplicarAgendamento() {
                 document.getElementById('reg-responsavel').value = p.responsavel;
             }
             if (typeof checkAgeConstraint === 'function') checkAgeConstraint();
+            _enableVaccineFields();
         }
 
         // Vacina, custo e vendedor
@@ -774,7 +850,7 @@ function saveRecord(e) {
     {
         const vIdApr = document.getElementById('reg-vacina').value;
         const doseApr = document.getElementById('reg-dose').value;
-        if (vIdApr && doseApr && !doseApr.includes('1ª') && doseApr !== 'Dose Única') {
+        if (vIdApr && doseApr && !doseApr.includes('1ª') && doseApr !== 'Dose Única' && doseApr !== 'Reforço') {
             const vApr = vaccines.find(x => x.id == vIdApr);
             const dtNascApr = document.getElementById('reg-dtnasc').value;
             const esqApr = getEsquemaPaciente(vApr, dtNascApr);
@@ -785,7 +861,9 @@ function saveRecord(e) {
                 const dNum = doseNumApr ? Number(doseNumApr) : 2;
                 const intervaloApr = intervalosApr[dNum - 2] ?? intervalosApr[intervalosApr.length - 1];
                 if (intervaloApr > 0) {
-                    const prevAppsApr = appointments.filter(a => a.patientId == patId && a.vaccineId == vIdApr && a.id != id)
+                    const prevDoseStrApr = `${dNum - 1}ª Dose`;
+                    const prevAppsApr = appointments.filter(a =>
+                            String(a.patientId) === String(patId) && String(a.vaccineId) === String(vIdApr) && a.doseAtual === prevDoseStrApr && String(a.id) !== String(id))
                         .sort((a, b) => new Date(b.data) - new Date(a.data));
                     if (prevAppsApr.length > 0) {
                         const baseApr = new Date(prevAppsApr[0].data + 'T00:00:00');
@@ -830,6 +908,27 @@ function saveRecord(e) {
 
     const vId = document.getElementById('reg-vacina').value;
     const doseAtualStr = document.getElementById('reg-dose').value;
+
+    // Bloqueio de duplicidade: mesma vacina + mesma dose já registrada (não cancelada) para o paciente
+    {
+        const dupl = appointments.find(x =>
+            String(x.patientId) === String(patId) &&
+            String(x.vaccineId) === String(vId) &&
+            x.doseAtual === doseAtualStr &&
+            x.status !== 'Cancelado' &&
+            String(x.id) !== String(id)
+        );
+        if (dupl) {
+            const vNomeDupl = vaccines.find(x => String(x.id) === String(vId))?.nome || '';
+            const dataDupl = dupl.data ? dupl.data.split('-').reverse().join('/') : '—';
+            showNotification(
+                `Duplicidade bloqueada: já existe registro de <b>${doseAtualStr}</b> da vacina <b>${vNomeDupl}</b> para este paciente (${dataDupl}).`,
+                'error'
+            );
+            return;
+        }
+    }
+
     if(doseAtualStr.includes('ª Dose') && doseAtualStr !== '1ª Dose' && !window._doseAnteriorConfirmado) {
         const numAtual = parseInt(doseAtualStr);
         const prevDoseStr = `${numAtual - 1}ª Dose`;
