@@ -269,3 +269,8 @@ body.lite-mode .perm-toggle { transition: none !important; }
 /* Hover em labels de permissão */
 .perm-label-row:hover p { color: #1e3a8a; }
 .perm-label-row:hover .perm-toggle { box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+
+/* Kanban card: oculta nome da vacina em telas pequenas */
+@media (max-width: 900px) {
+    .kanban-vac-name { display: none; }
+}

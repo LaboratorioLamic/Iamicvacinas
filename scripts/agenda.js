@@ -61,6 +61,7 @@ function renderWeekly() {
             const pat = patients.find(p => p.id == a.patientId);
             const vac = vaccines.find(v => v.id == a.vaccineId);
             if (!pat || !vac) return '';
+            const isDelayed = a.status === 'Agendado' && a.data < todayStr;
             const stColor = a.status === 'Aplicado' ? '#16a34a' : a.status === 'Agendado' ? '#2563eb' : '#0891b2';
             const stBg    = a.status === 'Aplicado' ? '#dcfce7' : a.status === 'Agendado' ? '#dbeafe' : '#cffafe';
             const stLabel = a.status || 'Agendado';
@@ -74,8 +75,8 @@ function renderWeekly() {
                 ondragstart="weeklyDragStart(event,${a.id})"
                 ondragend="weeklyDragEnd(event)"
                 onclick="event.stopPropagation();editRecord(${a.id})"
-                class="bg-white rounded-xl border border-slate-200 p-2.5 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all duration-150 hover:-translate-y-0.5 select-none"
-                style="border-left:3px solid ${stColor};">
+                class="rounded-xl border p-2.5 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all duration-150 hover:-translate-y-0.5 select-none"
+                style="border-left:3px solid ${stColor};${isDelayed ? 'background:#fffbeb;border-color:#fde68a;border-left-color:#f59e0b;' : 'background:#fff;border-color:#e2e8f0;'}">
                 <div class="flex items-start justify-between gap-1">
                     <div class="flex flex-col flex-1 min-w-0">
                         <p class="font-black text-navy-900 text-xs truncate">${pat.nome}</p>
@@ -85,7 +86,10 @@ function renderWeekly() {
                 </div>
                 <p class="text-[10px] text-slate-400 mt-0.5 truncate">${vac.nome} · ${a.doseAtual}</p>
                 <div class="flex items-center justify-between mt-0.5">
-                    ${a.hora ? `<p class="text-[10px] font-bold text-slate-500"><i class="far fa-clock mr-1"></i>${a.hora}</p>` : '<span></span>'}
+                    <div class="flex items-center gap-1">
+                        ${a.hora ? `<p class="text-[10px] font-bold text-slate-500"><i class="far fa-clock mr-1"></i>${a.hora}</p>` : '<span></span>'}
+                        ${isDelayed ? '<i class="fas fa-exclamation-triangle text-[9px] text-amber-500" title="Atrasado"></i>' : ''}
+                    </div>
                     <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none" style="background:${stBg};color:${stColor};">${stLabel}</span>
                 </div>
             </div>`;
@@ -723,6 +727,7 @@ function switchTableView(view) {
         if (vPlan) vPlan.classList.add('hidden');
         if (vKan)  { vKan.style.display = 'flex'; vKan.style.flexDirection = 'column'; }
         if (statusSel) statusSel.style.display = 'none';
+        _kanbanPage = {};
         renderKanban();
     } else {
         if (vPlan) vPlan.classList.remove('hidden');
@@ -774,9 +779,15 @@ function renderKanban() {
     ];
 
     board.innerHTML = columns.map(col => {
-        const cards = allFiltered
+        const PAGE_SIZE = 10;
+        const allCards = allFiltered
             .filter(a => a.status === col.key)
             .sort((a, b) => (new Date(a.data) - new Date(b.data)) * dir);
+        const totalPages = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE));
+        if (_kanbanPage[col.key] === undefined) _kanbanPage[col.key] = 0;
+        if (_kanbanPage[col.key] >= totalPages) _kanbanPage[col.key] = totalPages - 1;
+        const page = _kanbanPage[col.key];
+        const cards = allCards.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
         const cardsHtml = cards.map(a => {
             const pat = patients.find(p=>p.id==a.patientId);
@@ -789,38 +800,41 @@ function renderKanban() {
                 draggable="true"
                 ondragstart="kanbanDragStart(event,${a.id})"
                 ondragend="kanbanDragEnd(event)"
-                class="kanban-card group bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-lg transition-all duration-200 select-none"
+                class="kanban-card group bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-lg transition-all duration-200 select-none"
                 style="border-left:4px solid ${col.color};">
                 <!-- Card header -->
-                <div class="px-4 pt-3 pb-2 flex items-start justify-between gap-2">
+                <div class="px-3 pt-2.5 pb-1.5 flex items-start justify-between gap-2">
                     <div class="flex-1 min-w-0">
                         <p class="font-black text-navy-900 text-sm leading-tight truncate" title="${pat.nome}">${pat.nome}</p>
                         <p class="text-[10px] text-slate-400 font-bold mt-0.5 truncate">CPF: ${pat.cpf} · ${getAge(pat.dtNasc)} anos</p>
                     </div>
-                    <div class="shrink-0 flex flex-col items-center gap-0.5 text-slate-200 group-hover:text-slate-400 transition pt-0.5">
+                    <div class="shrink-0 text-slate-200 group-hover:text-slate-400 transition pt-0.5">
                         <i class="fas fa-grip-vertical text-xs"></i>
                     </div>
                 </div>
-                <!-- Vaccine -->
-                <div class="px-4 pb-2 flex items-center gap-2">
-                    <div class="h-7 w-7 rounded-lg flex items-center justify-center shrink-0" style="background:${col.light};border:1px solid ${col.border};">
-                        <i class="fas fa-syringe text-[10px]" style="color:${col.text};"></i>
+                <!-- Vaccine + Date + Actions row -->
+                <div class="px-3 pb-2.5 flex items-start gap-2">
+                    <!-- Vaccine icon -->
+                    <div class="h-6 w-6 rounded-md flex items-center justify-center shrink-0 mt-0.5" style="background:${col.light};border:1px solid ${col.border};">
+                        <i class="fas fa-syringe text-[9px]" style="color:${col.text};"></i>
                     </div>
-                    <div class="min-w-0">
-                        <p class="font-black text-slate-700 text-xs truncate leading-tight">${vac.nome}</p>
+                    <!-- Vaccine name + dose -->
+                    <div class="flex-1 min-w-0">
+                        <p class="kanban-vac-name font-black text-slate-700 text-[11px] leading-tight truncate">${vac.nome}</p>
                         <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md" style="background:${col.light};color:${col.text};border:1px solid ${col.border};">${a.doseAtual}</span>
                     </div>
-                </div>
-                <!-- Date -->
-                <div class="px-4 pb-3 flex items-center gap-1.5">
-                    <i class="far fa-calendar text-[10px] text-slate-400"></i>
-                    <span class="text-[11px] font-bold text-slate-500">${dateLabel}${a.hora ? ' · '+a.hora : ''}</span>
-                    ${isDelayed ? '<span class="ml-1 text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full uppercase">Atrasado</span>' : ''}
-                </div>
-                <!-- Actions -->
-                <div class="px-3 pb-3 flex items-center gap-1.5 border-t border-slate-100 pt-2 mt-0">
-                    <a href="${waLink}" target="_blank" onclick="event.stopPropagation()" class="h-7 w-7 rounded-lg bg-green-50 text-green-600 hover:bg-green-500 hover:text-white flex items-center justify-center transition text-xs shrink-0" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
-                    ${permBtn('agendar', `<button onclick="editRecord(${a.id})" class="h-7 w-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white flex items-center justify-center transition text-xs shrink-0" title="Abrir"><i class="fas fa-eye text-[11px]"></i></button>`)}
+                    <!-- Date + Actions (right column) -->
+                    <div class="flex flex-col items-end gap-1 shrink-0">
+                        <div class="flex items-center gap-1 text-slate-500 whitespace-nowrap">
+                            <i class="far fa-calendar text-[9px] text-slate-400"></i>
+                            <span class="text-[10px] font-bold">${dateLabel}${a.hora ? ' · '+a.hora : ''}</span>
+                            ${isDelayed ? '<span class="text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded-full">!</span>' : ''}
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <a href="${waLink}" target="_blank" onclick="event.stopPropagation()" class="h-6 w-6 rounded-md bg-green-50 text-green-600 hover:bg-green-500 hover:text-white flex items-center justify-center transition text-xs" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                            ${permBtn('agendar', `<button onclick="editRecord(${a.id})" class="h-6 w-6 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white flex items-center justify-center transition text-xs" title="Abrir"><i class="fas fa-eye text-[10px]"></i></button>`)}
+                        </div>
+                    </div>
                 </div>
             </div>`;
         }).join('');
@@ -833,11 +847,24 @@ function renderKanban() {
         </div>`;
 
         const sortIconClass = _kanbanSortDir === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up-alt';
+        const colKeyEsc = col.key.replace(/'/g, "\\'");
+        const paginationHtml = totalPages > 1 ? `
+            <div class="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-b border-slate-100 shrink-0">
+                <button onclick="kanbanPageGo('${colKeyEsc}',${page - 1})" ${page === 0 ? 'disabled' : ''}
+                    class="h-6 w-6 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span class="text-[11px] font-bold text-slate-500">${page + 1} / ${totalPages} <span class="text-slate-400 font-normal">(${allCards.length} total)</span></span>
+                <button onclick="kanbanPageGo('${colKeyEsc}',${page + 1})" ${page >= totalPages - 1 ? 'disabled' : ''}
+                    class="h-6 w-6 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>` : '';
 
         return `<div class="kanban-col flex flex-col rounded-2xl overflow-hidden shadow-md border border-slate-200/60 transition-all duration-200" style="height:100%;flex:1 1 0;min-width:220px;"
             ondragover="kanbanDragOver(event)"
             ondragleave="kanbanDragLeave(event)"
-            ondrop="kanbanDrop(event,'${col.key}')"
+            ondrop="kanbanDrop(event,'${colKeyEsc}')"
             data-col="${col.key}">
             <!-- Column Header -->
             <div class="px-4 py-3 flex items-center justify-between shrink-0 cursor-pointer select-none" style="background:linear-gradient(135deg,${col.gradFrom},${col.gradTo});" onclick="kanbanToggleSort()">
@@ -848,10 +875,12 @@ function renderKanban() {
                     <span class="font-black text-white text-xs uppercase tracking-wider">${col.label}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="h-6 min-w-6 px-1.5 bg-white/25 text-white font-black text-xs rounded-full flex items-center justify-center border border-white/30">${cards.length}</span>
+                    <span class="h-6 min-w-6 px-1.5 bg-white/25 text-white font-black text-xs rounded-full flex items-center justify-center border border-white/30">${allCards.length}</span>
                     <i class="fas ${sortIconClass} text-white/70 text-xs"></i>
                 </div>
             </div>
+            <!-- Pagination bar -->
+            ${paginationHtml}
             <!-- Drop zone body -->
             <div class="kanban-col-body flex-1 overflow-y-auto p-3 space-y-3 bg-white/70 backdrop-blur-sm">
                 ${cards.length ? cardsHtml : emptyHtml}
@@ -862,6 +891,11 @@ function renderKanban() {
 
 function kanbanToggleSort() {
     _kanbanSortDir = _kanbanSortDir === 'asc' ? 'desc' : 'asc';
+    renderKanban();
+}
+
+function kanbanPageGo(colKey, newPage) {
+    _kanbanPage[colKey] = newPage;
     renderKanban();
 }
 

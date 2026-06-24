@@ -33,6 +33,7 @@ let userStatusFilter = 'ativos';
 let _kanbanSortDir = 'asc';
 let _kanbanDragId = null;
 let _kanbanPendingCancelId = null;
+let _kanbanPage = {}; // { [colKey]: pageIndex (0-based) }
 
 // Agenda day selection
 let selectedDayDate = null;
