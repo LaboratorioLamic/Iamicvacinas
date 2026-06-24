@@ -77,7 +77,10 @@ function renderWeekly() {
                 class="bg-white rounded-xl border border-slate-200 p-2.5 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all duration-150 hover:-translate-y-0.5 select-none"
                 style="border-left:3px solid ${stColor};">
                 <div class="flex items-start justify-between gap-1">
-                    <p class="font-black text-navy-900 text-xs truncate flex-1">${pat.nome}</p>
+                    <div class="flex flex-col flex-1 min-w-0">
+                        <p class="font-black text-navy-900 text-xs truncate">${pat.nome}</p>
+                        ${pat.cpf ? `<p class="text-[9px] text-slate-400 truncate">${pat.cpf}</p>` : ''}
+                    </div>
                     ${btnAgendar || btnAplicar ? `<div class="flex gap-1 shrink-0">${btnAgendar}${btnAplicar}</div>` : ''}
                 </div>
                 <p class="text-[10px] text-slate-400 mt-0.5 truncate">${vac.nome} · ${a.doseAtual}</p>
@@ -110,6 +113,15 @@ function renderWeekly() {
             </div>
         </div>`;
     }).join('');
+
+    const _setWeeklyHeight = () => {
+        const rect = board.getBoundingClientRect();
+        if (rect.top > 0) board.style.height = `${window.innerHeight - rect.top - 16}px`;
+    };
+    _setWeeklyHeight();
+    window._weeklyResizeHandler && window.removeEventListener('resize', window._weeklyResizeHandler);
+    window._weeklyResizeHandler = _setWeeklyHeight;
+    window.addEventListener('resize', window._weeklyResizeHandler);
 }
 
 // Drag & Drop semanal
@@ -369,6 +381,7 @@ function renderCalendar() {
         }
         body.appendChild(cell);
     }
+    if (_calView === 'semanal') renderWeekly();
 }
 
 // ─── MODAL DO DIA & FERIADOS ──────────────────────────────────────────────────
@@ -459,10 +472,6 @@ function setQuickStatus(id, status) {
         if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
         if (typeof refreshOpenModals === 'function') refreshOpenModals();
         showNotification('Status modificado com sucesso!','success');
-        if(selectedDayDate) {
-            const [y, m, d] = selectedDayDate.split('-');
-            openDayModal(selectedDayDate, d, parseInt(m)-1, y);
-        }
     }
 }
 
@@ -533,10 +542,6 @@ function confirmAgendar() {
         if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
         if (typeof refreshOpenModals === 'function') refreshOpenModals();
         showNotification('Agendamento confirmado!', 'success');
-        if (selectedDayDate && tableView !== 'kanban') {
-            const [y, m, d] = selectedDayDate.split('-');
-            openDayModal(selectedDayDate, d, parseInt(m) - 1, y);
-        }
     }
 }
 
@@ -665,10 +670,6 @@ function confirmConcluir() {
         if (typeof refreshOpenModals === 'function') refreshOpenModals();
         if (typeof updateExpiryBadge === 'function') updateExpiryBadge();
         showNotification('Vacinação concluída com sucesso!', 'success');
-        if (selectedDayDate && tableView !== 'kanban') {
-            const [y, m, d] = selectedDayDate.split('-');
-            openDayModal(selectedDayDate, d, parseInt(m) - 1, y);
-        }
     }
 }
 

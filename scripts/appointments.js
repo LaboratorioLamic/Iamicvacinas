@@ -937,8 +937,4 @@ function saveRecord(e) {
     if (typeof refreshOpenModals === 'function') refreshOpenModals();
     if (typeof updateExpiryBadge === 'function') updateExpiryBadge();
     showNotification('Agendamento salvo com sucesso!', 'success');
-    if (typeof selectedDayDate !== 'undefined' && selectedDayDate) {
-        const [_y, _m, _d] = selectedDayDate.split('-');
-        openDayModal(selectedDayDate, parseInt(_d), parseInt(_m) - 1, parseInt(_y));
-    }
 }
