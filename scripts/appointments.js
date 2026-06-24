@@ -109,18 +109,46 @@ function openRecordModalWithPatient(patId) {
     }
 }
 
+function filterVacinaDropdown() {
+    const input = document.getElementById('reg-vacina-search');
+    const dd    = document.getElementById('vacina-dropdown');
+    if (!input || !dd || input.disabled) return;
+    const val = normalizeStr(input.value);
+    document.getElementById('reg-vacina').value = '';
+    const ativos = vaccines.filter(v => v.ativo !== false);
+    const matches = val
+        ? ativos.filter(v => normalizeStr(v.nome).includes(val))
+        : ativos;
+    if (!matches.length) { dd.classList.add('hidden'); return; }
+    dd.innerHTML = matches.map(v =>
+        `<div class="px-3 py-2 hover:bg-clinic-50 hover:text-clinic-700 cursor-pointer text-sm font-bold text-navy-900 border-b border-slate-100 last:border-0 transition uppercase"
+              onmousedown="selectVacinaFromDropdown(${v.id},'${v.nome.replace(/'/g,"\\'")}')">${v.nome}</div>`
+    ).join('');
+    dd.classList.remove('hidden');
+}
+function hideVacinaDropdown() {
+    setTimeout(() => { const dd = document.getElementById('vacina-dropdown'); if (dd) dd.classList.add('hidden'); }, 150);
+}
+function selectVacinaFromDropdown(id, nome) {
+    document.getElementById('reg-vacina-search').value = nome;
+    document.getElementById('reg-vacina').value = id;
+    document.getElementById('vacina-dropdown').classList.add('hidden');
+    autoFillVaccine();
+}
+
 function _enableVaccineFields() {
-    const sel = document.getElementById('reg-vacina');
-    sel.disabled = false;
-    sel.classList.remove('opacity-50', 'cursor-not-allowed');
+    const inp = document.getElementById('reg-vacina-search');
+    if (!inp) return;
+    inp.disabled = false;
+    inp.placeholder = 'Buscar vacina...';
+    inp.classList.remove('opacity-50', 'cursor-not-allowed');
 }
 
 function _resetAndDisableVaccineFields() {
     // Limpa e desabilita vacina
-    const vacinaSel = document.getElementById('reg-vacina');
-    vacinaSel.value = '';
-    vacinaSel.disabled = true;
-    vacinaSel.classList.add('opacity-50', 'cursor-not-allowed');
+    const inp = document.getElementById('reg-vacina-search');
+    if (inp) { inp.value = ''; inp.disabled = true; inp.placeholder = 'Selecione o paciente...'; inp.classList.add('opacity-50', 'cursor-not-allowed'); }
+    document.getElementById('reg-vacina').value = '';
     // Limpa dose
     const doseSel = document.getElementById('reg-dose');
     doseSel.innerHTML = '<option value="">Selecione a vacina primeiro</option>';
@@ -157,6 +185,7 @@ function autoFillPatient() {
         }
         _enableVaccineFields();
         checkAgeConstraint(); updateSuggestedDate();
+        if (document.getElementById('reg-vacina').value) autoFillVaccine();
         return;
     }
     // Paciente inválido ou apagado — limpa campos e bloqueia vacina
@@ -303,8 +332,13 @@ function autoFillVaccine() {
             const dtNasc = document.getElementById('reg-dtnasc').value;
             const esq = getEsquemaPaciente(v, dtNasc);
             const numDoses = esq ? (esq.numDoses || 1) : (v.numDoses || 1);
-            for (let i = 1; i <= numDoses; i++) doseSel.innerHTML += `<option value="${i}ª Dose">${i}ª Dose</option>`;
-            if (v.doseUnica) doseSel.innerHTML += `<option value="Dose Única">Dose Única</option>`;
+            if (v.doseUnica && numDoses <= 1) {
+                // Esquema de 1 dose → apenas "Dose Única", sem "1ª Dose"
+                doseSel.innerHTML += `<option value="Dose Única">Dose Única</option>`;
+            } else {
+                for (let i = 1; i <= numDoses; i++) doseSel.innerHTML += `<option value="${i}ª Dose">${i}ª Dose</option>`;
+            }
+            // Reforço: aparece para todos os esquemas quando a vacina tem reforço
             if (v.reforco) doseSel.innerHTML += `<option value="Reforço">Reforço</option>`;
 
             // Label de faixas etárias
@@ -625,7 +659,9 @@ function editRecord(id) {
     document.getElementById('reg-patient-search').value = p ? `${p.cpf} - ${p.nome}` : '';
     autoFillPatient();
 
+    const _vac = vaccines.find(x => x.id == a.vaccineId);
     document.getElementById('reg-vacina').value = a.vaccineId;
+    document.getElementById('reg-vacina-search').value = _vac ? _vac.nome : '';
     autoFillVaccine();
 
     setTimeout(() => {
@@ -706,7 +742,9 @@ function duplicarAgendamento() {
         }
 
         // Vacina, custo e vendedor
-        document.getElementById('reg-vacina').value   = vacinaId;
+        const _vacDup = vaccines.find(x => x.id == vacinaId);
+        document.getElementById('reg-vacina').value = vacinaId;
+        document.getElementById('reg-vacina-search').value = _vacDup ? _vacDup.nome : '';
         document.getElementById('reg-valor').value    = valor;
         document.getElementById('reg-vendedor').value = vendedor;
 

@@ -1088,16 +1088,53 @@ function openVaccineViewModal(vaccineId) {
     hdr.className = `p-5 text-white shrink-0 bg-gradient-to-br ${e.disponivel <= 0 ? 'from-red-700 to-red-900' : e.disponivel <= _vEstMin ? 'from-amber-600 to-amber-900' : 'from-indigo-700 to-navy-900'}`;
 
     // Aba info
-    const numDoses = v.numDoses || 1;
-    document.getElementById('vv-info-doses').textContent = `${numDoses} dose${numDoses > 1 ? 's' : ''}${v.reforco ? ' + reforço' : ''}`;
-    document.getElementById('vv-info-tipo').textContent  = v.doseUnica ? 'Dose única' : (v.reforco ? 'Multidose c/ reforço' : 'Multidose');
-    const idadeMin = (v.idadeMinimaAnos || 0) > 0 ? `${v.idadeMinimaAnos} ano${v.idadeMinimaAnos > 1 ? 's' : ''}` : (v.idadeMinimaMeses || 0) > 0 ? `${v.idadeMinimaMeses} meses` : '—';
-    document.getElementById('vv-info-idade').textContent = idadeMin;
+    const esquemas = (v.esquemas && v.esquemas.length) ? v.esquemas : null;
+    const multiEsquema = esquemas && esquemas.length > 1;
+
+    // Tipo — hierarquia: Multi amostra > Dose única > Reforço
+    const tipoTxt = multiEsquema ? 'Multi amostra' : v.doseUnica ? 'Dose única' : v.reforco ? 'Multidose c/ reforço' : 'Multidose';
+    document.getElementById('vv-info-tipo').textContent = tipoTxt;
     document.getElementById('vv-info-valor').textContent = v.valor ? `R$ ${String(v.valor).replace('R$','').trim()}` : '—';
-    const intervalosStr = v.intervalos && v.intervalos.length
-        ? v.intervalos.map((x, i) => `D${i+1}→D${i+2}: ${x} dias`).join(' · ')
-        : (v.intervaloDias > 0 ? `${v.intervaloDias} dias` : '—');
-    document.getElementById('vv-info-intervalos').textContent = intervalosStr;
+
+    if (multiEsquema) {
+        // Doses: uma linha por esquema
+        document.getElementById('vv-info-doses').innerHTML = esquemas.map(esq => {
+            const faixa = (typeof formatFaixaEtaria === 'function') ? formatFaixaEtaria(esq) : '—';
+            const nd = esq.numDoses || 1;
+            return `<span class="block text-xs font-bold text-slate-700"><span class="text-[9px] text-slate-400">${faixa}:</span> ${nd} dose${nd > 1 ? 's' : ''}</span>`;
+        }).join('');
+        // Idade: apenas a idade mínima do primeiro esquema
+        const primeiroEsq = esquemas[0];
+        const idadeMinPrimeiro = primeiroEsq
+            ? (primeiroEsq.minAnos > 0 && primeiroEsq.minMeses > 0 ? `${primeiroEsq.minAnos}a ${primeiroEsq.minMeses}m`
+                : primeiroEsq.minAnos > 0 ? `A partir de ${primeiroEsq.minAnos} ano(s)`
+                : primeiroEsq.minMeses > 0 ? `A partir de ${primeiroEsq.minMeses} mês(es)`
+                : 'Sem restrição')
+            : '—';
+        document.getElementById('vv-info-idade').textContent = idadeMinPrimeiro;
+        // Intervalos: por esquema
+        document.getElementById('vv-info-intervalos').innerHTML = esquemas.map(esq => {
+            const faixa = (typeof formatFaixaEtaria === 'function') ? formatFaixaEtaria(esq) : '—';
+            const ivs = esq.intervalos && esq.intervalos.length
+                ? esq.intervalos.map((x, i) => `D${i+1}→D${i+2}: ${x}d`).join(' · ')
+                : '—';
+            return `<span class="block"><span class="text-[9px] font-black text-slate-400">${faixa}:</span> <span class="font-bold text-slate-700">${ivs}</span></span>`;
+        }).join('');
+    } else {
+        const esq = esquemas ? esquemas[0] : null;
+        const numDoses = (esq ? esq.numDoses : null) || v.numDoses || 1;
+        document.getElementById('vv-info-doses').textContent = `${numDoses} dose${numDoses > 1 ? 's' : ''}${v.reforco ? ' + reforço' : ''}`;
+        const idadeMin = esq
+            ? ((typeof formatFaixaEtaria === 'function') ? formatFaixaEtaria(esq) : '—')
+            : (v.idadeMinimaAnos > 0 ? `${v.idadeMinimaAnos} ano(s)` : v.idadeMinimaMeses > 0 ? `${v.idadeMinimaMeses} mês(es)` : '—');
+        document.getElementById('vv-info-idade').textContent = idadeMin;
+        const ivs = esq && esq.intervalos && esq.intervalos.length
+            ? esq.intervalos.map((x, i) => `D${i+1}→D${i+2}: ${x} dias`).join(' · ')
+            : v.intervalos && v.intervalos.length
+                ? v.intervalos.map((x, i) => `D${i+1}→D${i+2}: ${x} dias`).join(' · ')
+                : v.intervaloDias > 0 ? `${v.intervaloDias} dias` : '—';
+        document.getElementById('vv-info-intervalos').textContent = ivs;
+    }
     const pct = e.total > 0 ? Math.round((e.disponivel / e.total) * 100) : 0;
     document.getElementById('vv-bar').style.width = pct + '%';
     document.getElementById('vv-bar').className = `h-full rounded-full transition-all duration-500 ${e.disponivel <= 0 ? 'bg-red-400' : e.disponivel <= _vEstMin ? 'bg-amber-400' : 'bg-indigo-500'}`;

@@ -902,7 +902,7 @@
                                     <thead class="bg-slate-100 text-slate-600 text-[10px] uppercase font-black">
                                         <tr>
                                             <th class="p-3">Nome da Vacina</th>
-                                            <th class="p-3">Idade Mín.</th>
+                                            <th class="p-3">Faixa Etária</th>
                                             <th class="p-3">Valor Padrão</th>
                                             <th class="p-3 text-center">Lotes</th>
                                             <th class="p-3 text-center">A Vencer</th>
@@ -1264,9 +1264,12 @@
                 <!-- Linha 1: 4 campos -->
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Vacina *</label>
-                    <select id="reg-vacina" onchange="autoFillVaccine()" required disabled class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                        <option value="">Selecione o paciente primeiro</option>
-                    </select>
+                    <div class="relative" id="vacina-search-wrap">
+                        <input type="text" id="reg-vacina-search" oninput="filterVacinaDropdown()" onfocus="filterVacinaDropdown()" onblur="hideVacinaDropdown()" autocomplete="off" disabled placeholder="Selecione o paciente..."
+                            class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none font-bold text-sm uppercase disabled:opacity-50 disabled:cursor-not-allowed">
+                        <input type="hidden" id="reg-vacina">
+                        <div id="vacina-dropdown" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:220px;"></div>
+                    </div>
                 </div>
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1" id="lbl-lote">Lote</label>
@@ -1576,13 +1579,14 @@
                     <div id="container-esquemas" class="space-y-2"></div>
                     <p id="esquemas-empty-hint" class="text-[10px] text-slate-400 italic mt-1">Nenhum esquema adicionado. Clique em "Adicionar" para definir o esquema por faixa etária.</p>
                 </div>
-                <div class="col-span-1 md:col-span-2 flex gap-6">
-                    <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
-                        <input type="checkbox" id="vac-reforco" class="h-4 w-4 text-clinic-600 rounded"> Contém Dose de Reforço
-                    </label>
-                    <label class="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
-                        <input type="checkbox" id="vac-unica" class="h-4 w-4 text-clinic-600 rounded"> Habilitar Dose Única
-                    </label>
+                <div class="col-span-1 md:col-span-2 flex items-center gap-3">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reforço</span>
+                    <button type="button" id="btn-reforco-toggle" onclick="toggleReforco()"
+                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none bg-slate-200"
+                        aria-pressed="false">
+                        <span id="btn-reforco-knob" class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
+                    </button>
+                    <input type="hidden" id="vac-reforco" value="0">
                 </div>
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Valor Padrão *</label>

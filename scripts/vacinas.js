@@ -46,23 +46,23 @@ function renderVaccines() {
 
         let idadeMinStr = '';
         if (v.esquemas && v.esquemas.length > 0) {
-            const faixas = v.esquemas.filter(esq => esq.minAnos != null).map(esq => formatFaixaEtaria(esq));
-            idadeMinStr = faixas.length ? faixas.join('<br>') : 'Sem restrição';
+            idadeMinStr = v.esquemas.map(esq => {
+                const faixa = formatFaixaEtaria(esq);
+                const nd = esq.numDoses || 1;
+                return `${faixa} — ${nd} dose${nd > 1 ? 's' : ''}`;
+            }).join('<br>');
         } else if(v.idadeMinimaAnos > 0 || v.idadeMinimaMeses > 0) {
-            if(v.idadeMinimaAnos > 0 && v.idadeMinimaMeses > 0) {
-                idadeMinStr = `${v.idadeMinimaAnos} ano(s) ${v.idadeMinimaMeses} mês(es)`;
-            } else if(v.idadeMinimaAnos > 0) {
-                idadeMinStr = `${v.idadeMinimaAnos} ano(s)`;
-            } else {
-                idadeMinStr = `${v.idadeMinimaMeses} mês(es)`;
-            }
+            const faixaStr = v.idadeMinimaAnos > 0 && v.idadeMinimaMeses > 0
+                ? `${v.idadeMinimaAnos} ano(s) ${v.idadeMinimaMeses} mês(es)`
+                : v.idadeMinimaAnos > 0 ? `${v.idadeMinimaAnos} ano(s)` : `${v.idadeMinimaMeses} mês(es)`;
+            const nd = v.numDoses || 1;
+            idadeMinStr = `${faixaStr} — ${nd} dose${nd > 1 ? 's' : ''}`;
         } else {
             idadeMinStr = 'Sem restrição';
         }
 
         const ativo = v.ativo !== false;
-        const hasAppointments = appointments.some(a => a.vaccineId == v.id);
-        const est = (typeof getVaccineEstoque === 'function') ? getVaccineEstoque(v.id) : { disponivel:0, reservado:0 };
+const est = (typeof getVaccineEstoque === 'function') ? getVaccineEstoque(v.id) : { disponivel:0, reservado:0 };
         const estCls = est.disponivel <= 0 ? 'bg-red-100 text-red-700' : est.disponivel <= (v.estoqueMinimo || 5) ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
         const today = new Date(); today.setHours(0,0,0,0);
         const twoMonths = new Date(); twoMonths.setMonth(twoMonths.getMonth() + 2); twoMonths.setHours(0,0,0,0);
@@ -211,10 +211,30 @@ function confirmarFaixaEtaria() {
     renderEsquemas();
 }
 
+function _setReforco(on) {
+    const btn  = document.getElementById('btn-reforco-toggle');
+    const knob = document.getElementById('btn-reforco-knob');
+    const inp  = document.getElementById('vac-reforco');
+    if (!btn) return;
+    if (on) {
+        btn.classList.replace('bg-slate-200', 'bg-indigo-600');
+        knob.classList.replace('translate-x-1', 'translate-x-6');
+        btn.setAttribute('aria-pressed', 'true');
+        inp.value = '1';
+    } else {
+        btn.classList.replace('bg-indigo-600', 'bg-slate-200');
+        knob.classList.replace('translate-x-6', 'translate-x-1');
+        btn.setAttribute('aria-pressed', 'false');
+        inp.value = '0';
+    }
+}
+function toggleReforco() { _setReforco(document.getElementById('vac-reforco').value !== '1'); }
+
 function openVaccineModal() {
     if (!checkPerm('criar_produtos')) return;
     document.getElementById('vacina-form').reset();
     document.getElementById('vac-id').value = '';
+    _setReforco(false);
     _esquemas = [];
     renderEsquemas();
     const btnDel = document.getElementById('btn-delete-vacina');
@@ -227,8 +247,8 @@ function editVaccine(id) {
     const v = vaccines.find(x=>x.id==id); if(!v) return;
     document.getElementById('vac-id').value = v.id;
     document.getElementById('vac-nome').value = v.nome;
-    document.getElementById('vac-reforco').checked = v.reforco;
-    document.getElementById('vac-unica').checked = v.doseUnica;
+    _setReforco(v.reforco);
+
     document.getElementById('vac-valor').value = String(v.valor || '').replace('R$', '').trim();
     document.getElementById('vac-estoque-minimo').value = v.estoqueMinimo != null ? v.estoqueMinimo : '';
     if (v.esquemas && v.esquemas.length) {
@@ -256,8 +276,9 @@ function deleteVaccineFromModal() {
 
 function saveVaccine(e) {
     e.preventDefault();
-    const doseUnica = document.getElementById('vac-unica').checked;
-    if (!_esquemas.length && !doseUnica) { showNotification('Adicione ao menos um esquema vacinal antes de salvar, ou habilite "Dose Única".', 'error'); return; }
+    if (!_esquemas.length) { showNotification('Adicione ao menos um esquema vacinal antes de salvar.', 'error'); return; }
+    // Dose única = inferida automaticamente: algum esquema tem apenas 1 dose
+    const doseUnica = _esquemas.some(esq => (esq.numDoses || 1) === 1);
     const id = document.getElementById('vac-id').value;
     const existing = vaccines.find(x => x.id == id);
     // Normaliza intervalos de cada esquema: preenche slots faltantes com 30 (default UI)
@@ -281,7 +302,7 @@ function saveVaccine(e) {
     const v = {
         id: id ? Number(id) : Date.now(), nome: document.getElementById('vac-nome').value.toUpperCase(),
         numDoses: n, intervalos: intervalosBase, intervaloDias: intervalosBase[0] || 0,
-        reforco: document.getElementById('vac-reforco').checked, doseUnica: document.getElementById('vac-unica').checked,
+        reforco: document.getElementById('vac-reforco').value === '1', doseUnica,
         idadeMinimaAnos, idadeMinimaMeses,
         esquemas: JSON.parse(JSON.stringify(_esquemas)),
         valor: document.getElementById('vac-valor').value,
