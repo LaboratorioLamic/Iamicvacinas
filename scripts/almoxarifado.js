@@ -244,7 +244,7 @@ function renderEstoqueDashboard() {
     const rows = ativos
         .filter(v => !estoqueSearch || normalizeStr(v.nome).includes(estoqueSearch))
         .map(v => ({ v, e: getVaccineEstoque(v.id) }))
-        .filter(({ e }) => {
+        .filter(({ v, e }) => {
             if (estoqueFilter === 'sem')   return e.disponivel <= 0;
             if (estoqueFilter === 'baixo') return e.disponivel > 0 && e.disponivel <= (v.estoqueMinimo || 5);
             return true;

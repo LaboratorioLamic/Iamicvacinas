@@ -173,7 +173,7 @@ function autoFillPatient() {
         document.getElementById('hidden-patient-id').value = p.id;
         document.getElementById('reg-cpf').value = p.cpf;
         document.getElementById('reg-dtnasc').value = p.dtNasc;
-        document.getElementById('reg-idade').value = getAge(p.dtNasc) + ' anos';
+        document.getElementById('reg-idade').value = getAgeDisplay(p.dtNasc);
         document.getElementById('reg-contato').value = formatPhone(p.contato);
         if(p.responsavel) {
             document.getElementById('div-responsavel').style.display = 'block';
@@ -730,7 +730,7 @@ function duplicarAgendamento() {
             document.getElementById('hidden-patient-id').value = p.id;
             document.getElementById('reg-cpf').value     = p.cpf;
             document.getElementById('reg-dtnasc').value  = p.dtNasc;
-            document.getElementById('reg-idade').value   = getAge(p.dtNasc) + ' anos';
+            document.getElementById('reg-idade').value   = getAgeDisplay(p.dtNasc);
             document.getElementById('reg-contato').value = formatPhone(p.contato);
             if (p.responsavel) {
                 document.getElementById('div-responsavel').style.display = 'block';

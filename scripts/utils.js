@@ -49,6 +49,13 @@ function getAgeInMonths(dateStr) {
     return {years: years, months: months};
 }
 
+function getAgeDisplay(dateStr) {
+    const {years, months} = getAgeInMonths(dateStr);
+    if (years === 0) return months + (months === 1 ? ' mês' : ' meses');
+    if (months === 0) return years + (years === 1 ? ' ano' : ' anos');
+    return years + (years === 1 ? ' ano' : ' anos') + ' e ' + months + (months === 1 ? ' mês' : ' meses');
+}
+
 function formatWa(num) { return num.replace(/\D/g,''); }
 
 function maskPhone(input) {
