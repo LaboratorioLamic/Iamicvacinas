@@ -800,8 +800,8 @@ function renderKanban() {
                 draggable="true"
                 ondragstart="kanbanDragStart(event,${a.id})"
                 ondragend="kanbanDragEnd(event)"
-                class="kanban-card group bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-lg transition-all duration-200 select-none"
-                style="border-left:4px solid ${col.color};">
+                class="kanban-card group rounded-xl shadow-sm overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-lg transition-all duration-200 select-none"
+                style="border:1px solid ${isDelayed ? '#fde68a' : '#e2e8f0'};border-left:4px solid ${isDelayed ? '#f59e0b' : col.color};background:${isDelayed ? '#fffbeb' : '#fff'};">
                 <!-- Card header -->
                 <div class="px-3 pt-2.5 pb-1.5 flex items-start justify-between gap-2">
                     <div class="flex-1 min-w-0">
