@@ -377,6 +377,7 @@
                                     <option value="">Todos os Status</option>
                                     <option value="Aplicado" selected>Aplicado</option>
                                     <option value="Agendado">Agendado</option>
+                                    <option value="Nova oportunidade">Nova oportunidade</option>
                                     <option value="Em negociação">Em negociação</option>
                                     <option value="Cancelado">Cancelado</option>
                                 </select>
@@ -545,7 +546,7 @@
                 </button>
                 <button onclick="switchAgendaView('kanban')" id="btn-agendaview-kanban"
                     class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50">
-                    <i class="fas fa-columns text-sm"></i> Kanban
+                    <i class="fas fa-columns text-sm"></i> CRM
                 </button>
             </div>
 
@@ -677,6 +678,7 @@
                             <input type="month" id="filter-month-agenda" onchange="renderTable()" oninput="renderTable()" onclick="try{this.showPicker()}catch(e){}" class="hidden px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none cursor-pointer" style="color-scheme: light;">
                             <select id="filter-status-agenda" onchange="renderTable()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
                                 <option value="">Todos os Status</option>
+                                <option value="Nova oportunidade">Nova oportunidade</option>
                                 <option value="Em negociação">Em negociação</option>
                                 <option value="Agendado">Agendado</option>
                                 <option value="Aplicado">Aplicado</option>
@@ -1327,6 +1329,7 @@
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Status *</label>
                     <select id="reg-status" onchange="toggleCancelReason()" required class="w-full border border-slate-200 bg-slate-50 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none font-bold text-sm">
+                        <option value="Nova oportunidade">Nova oportunidade</option>
                         <option value="Em negociação">Em negociação</option>
                         <option value="Agendado">Agendado</option>
                         <option value="Aplicado">Aplicado</option>

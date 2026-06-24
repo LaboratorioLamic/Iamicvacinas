@@ -62,10 +62,10 @@ function renderWeekly() {
             const vac = vaccines.find(v => v.id == a.vaccineId);
             if (!pat || !vac) return '';
             const isDelayed = a.status === 'Agendado' && a.data < todayStr;
-            const stColor = a.status === 'Aplicado' ? '#16a34a' : a.status === 'Agendado' ? '#2563eb' : '#0891b2';
-            const stBg    = a.status === 'Aplicado' ? '#dcfce7' : a.status === 'Agendado' ? '#dbeafe' : '#cffafe';
+            const stColor = a.status === 'Aplicado' ? '#16a34a' : a.status === 'Agendado' ? '#2563eb' : a.status === 'Nova oportunidade' ? '#64748b' : '#0891b2';
+            const stBg    = a.status === 'Aplicado' ? '#dcfce7' : a.status === 'Agendado' ? '#dbeafe' : a.status === 'Nova oportunidade' ? '#f1f5f9' : '#cffafe';
             const stLabel = a.status || 'Agendado';
-            const btnAgendar = a.status === 'Em negociação'
+            const btnAgendar = (a.status === 'Em negociação' || a.status === 'Nova oportunidade')
                 ? permBtn('criar_agendamento', `<button onclick="event.stopPropagation();openAgendarModal(${a.id})" class="h-6 w-6 rounded-lg bg-blue-500 text-white hover:bg-blue-600 flex items-center justify-center transition shrink-0" title="Agendar"><i class="fas fa-calendar-check text-[9px]"></i></button>`)
                 : '';
             const btnAplicar = a.status === 'Agendado'
@@ -455,8 +455,8 @@ function openDayModal(dateStr, d, month, year) {
                 if(!pat || !vac) return '';
 
                 const isDelayed = dateStr < new Date().toISOString().split('T')[0] && a.status === 'Agendado';
-                let stClass = a.status==='Aplicado'?'bg-green-50 border-green-200':a.status==='Cancelado'?'bg-red-50 border-red-200':a.status==='Em negociação'?'bg-cyan-50 border-cyan-200':isDelayed?'bg-yellow-50 border-yellow-200':'bg-white border-blue-200';
-                let stBadgeClass = a.status==='Aplicado'?'bg-green-100 text-green-700':a.status==='Cancelado'?'bg-red-100 text-red-700':a.status==='Em negociação'?'bg-cyan-100 text-cyan-700':isDelayed?'bg-yellow-100 text-yellow-700':'bg-blue-100 text-blue-700';
+                let stClass = a.status==='Aplicado'?'bg-green-50 border-green-200':a.status==='Cancelado'?'bg-red-50 border-red-200':a.status==='Em negociação'?'bg-cyan-50 border-cyan-200':a.status==='Nova oportunidade'?'bg-slate-50 border-slate-200':isDelayed?'bg-yellow-50 border-yellow-200':'bg-white border-blue-200';
+                let stBadgeClass = a.status==='Aplicado'?'bg-green-100 text-green-700':a.status==='Cancelado'?'bg-red-100 text-red-700':a.status==='Em negociação'?'bg-cyan-100 text-cyan-700':a.status==='Nova oportunidade'?'bg-slate-100 text-slate-600':isDelayed?'bg-yellow-100 text-yellow-700':'bg-blue-100 text-blue-700';
 
                 return `
                 <div class="p-4 rounded-xl border shadow-sm ${stClass} flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition hover:shadow-md">
@@ -471,7 +471,7 @@ function openDayModal(dateStr, d, month, year) {
                     </div>
                     <div class="flex gap-2 w-full md:w-auto">
                         ${a.status === 'Agendado' ? permBtn('aplicar', `<button onclick="openConcluirModal(${a.id})" class="flex-1 md:flex-none px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-[10px] font-black uppercase shadow-md transition"><i class="fas fa-check mr-1"></i> Aplicar</button>`) : ''}
-                        ${a.status === 'Em negociação' ? permBtn('criar_agendamento', `<button onclick="openAgendarModal(${a.id})" class="flex-1 md:flex-none px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-[10px] font-black uppercase shadow-md transition"><i class="fas fa-calendar-check mr-1"></i> Agendar</button>`) : ''}
+                        ${(a.status === 'Em negociação' || a.status === 'Nova oportunidade') ? permBtn('criar_agendamento', `<button onclick="openAgendarModal(${a.id})" class="flex-1 md:flex-none px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-[10px] font-black uppercase shadow-md transition"><i class="fas fa-calendar-check mr-1"></i> Agendar</button>`) : ''}
                         ${permBtn('agendar', `<button onclick="editRecord(${a.id})" class="flex-1 md:flex-none px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 text-[10px] font-black uppercase shadow-sm transition"><i class="fas fa-pen mr-1"></i> Abrir</button>`)}
                     </div>
                 </div>`;
@@ -772,6 +772,7 @@ function renderKanban() {
     const dir = _kanbanSortDir === 'asc' ? 1 : -1;
 
     const columns = [
+        { key: 'Nova oportunidade', label: 'Nova Oportunidade', icon: 'fa-star', color: '#64748b', light: '#f8fafc', border: '#cbd5e1', text: '#475569', gradFrom: '#64748b', gradTo: '#475569' },
         { key: 'Em negociação', label: 'Em Negociação', icon: 'fa-comments', color: '#0891b2', light: '#ecfeff', border: '#a5f3fc', text: '#0e7490', gradFrom: '#0891b2', gradTo: '#0e7490' },
         { key: 'Agendado',      label: 'Agendado',      icon: 'fa-calendar-check', color: '#2563eb', light: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', gradFrom: '#2563eb', gradTo: '#1d4ed8' },
         { key: 'Aplicado',      label: 'Aplicado',      icon: 'fa-syringe', color: '#16a34a', light: '#f0fdf4', border: '#bbf7d0', text: '#15803d', gradFrom: '#16a34a', gradTo: '#15803d' },
