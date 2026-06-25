@@ -1582,7 +1582,7 @@
                     <div id="container-esquemas" class="space-y-2"></div>
                     <p id="esquemas-empty-hint" class="text-[10px] text-slate-400 italic mt-1">Nenhum esquema adicionado. Clique em "Adicionar" para definir o esquema por faixa etária.</p>
                 </div>
-                <div class="col-span-1 md:col-span-2 flex items-center gap-3">
+                <div class="col-span-1 md:col-span-2 flex items-center gap-4 flex-wrap">
                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reforço</span>
                     <button type="button" id="btn-reforco-toggle" onclick="toggleReforco()"
                         class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none bg-slate-200"
@@ -1590,6 +1590,25 @@
                         <span id="btn-reforco-knob" class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
                     </button>
                     <input type="hidden" id="vac-reforco" value="0">
+                    <div class="h-4 w-px bg-slate-200"></div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><i class="fas fa-venus-mars text-slate-300"></i> Gênero</span>
+                        <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+                            <button type="button" data-sexo="Ambos" onclick="setSexoVacina(this)"
+                                class="vac-sexo-btn px-2.5 py-1 rounded-md text-[10px] font-black transition-all duration-150 bg-white text-slate-700 shadow-sm">
+                                <i class="fas fa-infinity mr-0.5"></i> Ambos
+                            </button>
+                            <button type="button" data-sexo="Masculino" onclick="setSexoVacina(this)"
+                                class="vac-sexo-btn px-2.5 py-1 rounded-md text-[10px] font-black transition-all duration-150 text-slate-400 hover:text-blue-600">
+                                <i class="fas fa-mars mr-0.5"></i> Masc.
+                            </button>
+                            <button type="button" data-sexo="Feminino" onclick="setSexoVacina(this)"
+                                class="vac-sexo-btn px-2.5 py-1 rounded-md text-[10px] font-black transition-all duration-150 text-slate-400 hover:text-pink-500">
+                                <i class="fas fa-venus mr-0.5"></i> Fem.
+                            </button>
+                        </div>
+                        <input type="hidden" id="vac-sexo" value="Ambos">
+                    </div>
                 </div>
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Valor Padrão *</label>
@@ -2036,7 +2055,7 @@
                 <div class="bg-red-50 border border-red-200 rounded-xl p-3 mb-5">
                     <p class="text-[11px] text-red-700 font-bold"><i class="fas fa-ban mr-1"></i> Não é permitido agendar com um lote vencido na data do agendamento. Selecione outro lote ou cadastre um novo.</p>
                 </div>
-                <button onclick="document.getElementById('modal-lote-expired-block').classList.remove('active')" class="w-full bg-red-600 text-white font-black py-3 rounded-xl hover:bg-red-700 transition uppercase text-xs shadow-lg">
+                <button onclick="populateLoteSelect(document.getElementById('reg-vacina').value); document.getElementById('modal-lote-expired-block').classList.remove('active')" class="w-full bg-red-600 text-white font-black py-3 rounded-xl hover:bg-red-700 transition uppercase text-xs shadow-lg">
                     Entendido
                 </button>
             </div>
@@ -2049,7 +2068,25 @@
             <h3 class="text-lg font-black text-red-700 mb-2">Restrição de Idade</h3>
             <p class="text-sm text-slate-600 mb-6" id="age-warning-msg"></p>
             <div class="flex gap-3">
-                <button onclick="document.getElementById('modal-age-warning').classList.remove('active')" class="w-full bg-red-600 text-white font-bold py-2 rounded-lg hover:bg-red-700 transition">Entendido — não agendar</button>
+                <button onclick="clearVacinaField(); document.getElementById('modal-age-warning').classList.remove('active')" class="w-full bg-red-600 text-white font-bold py-2 rounded-lg hover:bg-red-700 transition">Entendido — não agendar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════ MODAL RESTRIÇÃO DE GÊNERO ══════════════════ -->
+    <div id="modal-sex-warning" class="modal fixed inset-0 bg-navy-900/60 backdrop-blur-sm z-[130] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div id="sex-warning-header" class="p-5 text-center">
+                <div id="sex-warning-icon-wrap" class="mx-auto mb-3 h-16 w-16 rounded-full flex items-center justify-center text-3xl"></div>
+                <h3 id="sex-warning-title" class="text-base font-black mb-0.5"></h3>
+                <p id="sex-warning-subtitle" class="text-[11px] font-bold uppercase tracking-widest opacity-70"></p>
+            </div>
+            <div class="px-6 pb-6">
+                <div id="sex-warning-body" class="rounded-xl p-4 mb-5 text-sm text-center leading-relaxed"></div>
+                <button onclick="clearVacinaField(); document.getElementById('modal-sex-warning').classList.remove('active')" id="sex-warning-btn"
+                    class="w-full text-white font-black py-3 rounded-xl transition uppercase text-xs shadow-lg">
+                    Entendido — não agendar
+                </button>
             </div>
         </div>
     </div>

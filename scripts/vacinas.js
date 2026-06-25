@@ -230,11 +230,31 @@ function _setReforco(on) {
 }
 function toggleReforco() { _setReforco(document.getElementById('vac-reforco').value !== '1'); }
 
+function setSexoVacina(btn) {
+    const sexo = btn.dataset.sexo;
+    document.getElementById('vac-sexo').value = sexo;
+    document.querySelectorAll('.vac-sexo-btn').forEach(b => {
+        const isActive = b.dataset.sexo === sexo;
+        const isMasc = b.dataset.sexo === 'Masculino';
+        const isFem = b.dataset.sexo === 'Feminino';
+        b.className = 'vac-sexo-btn px-2.5 py-1 rounded-md text-[10px] font-black transition-all duration-150 ';
+        if (isActive) {
+            if (isMasc) b.className += 'bg-blue-500 text-white shadow-sm';
+            else if (isFem) b.className += 'bg-pink-500 text-white shadow-sm';
+            else b.className += 'bg-white text-slate-700 shadow-sm';
+        } else {
+            b.className += isMasc ? 'text-slate-400 hover:text-blue-600' : isFem ? 'text-slate-400 hover:text-pink-500' : 'text-slate-400 hover:text-slate-600';
+        }
+    });
+}
+function _initSexoVacina(sexo) { const btn = document.querySelector(`.vac-sexo-btn[data-sexo="${sexo || 'Ambos'}"]`); if (btn) setSexoVacina(btn); }
+
 function openVaccineModal() {
     if (!checkPerm('criar_produtos')) return;
     document.getElementById('vacina-form').reset();
     document.getElementById('vac-id').value = '';
     _setReforco(false);
+    _initSexoVacina('Ambos');
     _esquemas = [];
     renderEsquemas();
     const btnDel = document.getElementById('btn-delete-vacina');
@@ -248,6 +268,7 @@ function editVaccine(id) {
     document.getElementById('vac-id').value = v.id;
     document.getElementById('vac-nome').value = v.nome;
     _setReforco(v.reforco);
+    _initSexoVacina(v.sexo || 'Ambos');
 
     document.getElementById('vac-valor').value = String(v.valor || '').replace('R$', '').trim();
     document.getElementById('vac-estoque-minimo').value = v.estoqueMinimo != null ? v.estoqueMinimo : '';
@@ -303,6 +324,7 @@ function saveVaccine(e) {
         id: id ? Number(id) : Date.now(), nome: document.getElementById('vac-nome').value.toUpperCase(),
         numDoses: n, intervalos: intervalosBase, intervaloDias: intervalosBase[0] || 0,
         reforco: document.getElementById('vac-reforco').value === '1', doseUnica,
+        sexo: document.getElementById('vac-sexo').value || 'Ambos',
         idadeMinimaAnos, idadeMinimaMeses,
         esquemas: JSON.parse(JSON.stringify(_esquemas)),
         valor: document.getElementById('vac-valor').value,

@@ -831,7 +831,8 @@ function renderKanban() {
                             <span class="text-[10px] font-bold">${dateLabel}${a.hora ? ' · '+a.hora : ''}</span>
                             ${isDelayed ? '<span class="text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded-full">!</span>' : ''}
                         </div>
-                        <div class="flex items-center gap-1">
+                        <div class="flex items-center gap-1.5">
+                            ${a.valorAplicado ? `<span class="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md whitespace-nowrap">R$ ${a.valorAplicado}</span>` : ''}
                             <a href="${waLink}" target="_blank" onclick="event.stopPropagation()" class="h-6 w-6 rounded-md bg-green-50 text-green-600 hover:bg-green-500 hover:text-white flex items-center justify-center transition text-xs" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
                             ${permBtn('agendar', `<button onclick="editRecord(${a.id})" class="h-6 w-6 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white flex items-center justify-center transition text-xs" title="Abrir"><i class="fas fa-eye text-[10px]"></i></button>`)}
                         </div>

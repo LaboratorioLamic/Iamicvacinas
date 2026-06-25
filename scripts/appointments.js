@@ -136,6 +136,18 @@ function selectVacinaFromDropdown(id, nome) {
     autoFillVaccine();
 }
 
+function clearVacinaField() {
+    const inp = document.getElementById('reg-vacina-search');
+    if (inp) inp.value = '';
+    document.getElementById('reg-vacina').value = '';
+    const doseSel = document.getElementById('reg-dose');
+    if (doseSel) { doseSel.innerHTML = '<option value="">Selecione...</option>'; doseSel.value = ''; }
+    document.getElementById('reg-valor').value = '';
+    document.getElementById('reg-idade-min').value = '';
+    populateLoteSelect('');
+    resetDescontoUI();
+}
+
 function _enableVaccineFields() {
     const inp = document.getElementById('reg-vacina-search');
     if (!inp) return;
@@ -353,9 +365,58 @@ function autoFillVaccine() {
             document.getElementById('reg-valor').value = String(v.valor || '').replace('R$', '').trim();
             resetDescontoUI();
             checkAgeConstraint();
+            checkGeneroConstraint();
             updateSuggestedDate();
         }
     }
+}
+
+function checkGeneroConstraint() {
+    const vId = document.getElementById('reg-vacina').value;
+    const patId = document.getElementById('hidden-patient-id').value;
+    if (!vId || !patId) return;
+    const vac = vaccines.find(x => x.id == vId);
+    if (!vac || !vac.sexo || vac.sexo === 'Ambos') return;
+    const pat = patients.find(x => x.id == patId);
+    const genPac = pat ? (pat.genero || '') : '';
+    if (genPac && genPac !== vac.sexo) {
+        const isFem = vac.sexo === 'Feminino';
+        showSexBlockAlert(vac.nome, vac.sexo, genPac, isFem ? '♀' : '♂', isFem ? '#ec4899' : '#3b82f6');
+    }
+}
+
+function showSexBlockAlert(vacNome, sexoVac, sexoPac, icone, cor) {
+    const isFem = sexoVac === 'Feminino';
+    const bgHeader = isFem ? '#fdf2f8' : '#eff6ff';
+    const borderColor = isFem ? '#f9a8d4' : '#93c5fd';
+    const textColor = isFem ? '#9d174d' : '#1e3a5f';
+    const bgBody = isFem ? '#fdf2f8' : '#eff6ff';
+    const iconBg = isFem ? '#fce7f3' : '#dbeafe';
+
+    const header = document.getElementById('sex-warning-header');
+    header.style.background = bgHeader;
+    header.style.borderBottom = `1px solid ${borderColor}`;
+
+    const iconWrap = document.getElementById('sex-warning-icon-wrap');
+    iconWrap.style.background = iconBg;
+    iconWrap.style.border = `2px solid ${borderColor}`;
+    iconWrap.innerHTML = `<span style="color:${cor}">${icone}</span>`;
+
+    document.getElementById('sex-warning-title').style.color = textColor;
+    document.getElementById('sex-warning-title').textContent = 'Restrição de Gênero';
+    document.getElementById('sex-warning-subtitle').style.color = cor;
+    document.getElementById('sex-warning-subtitle').textContent = `Vacina exclusiva para ${sexoVac}`;
+
+    const body = document.getElementById('sex-warning-body');
+    body.style.background = bgBody;
+    body.style.border = `1px solid ${borderColor}`;
+    body.style.color = textColor;
+    body.innerHTML = `A vacina <b>${vacNome}</b> está configurada como exclusiva para o gênero <b>${sexoVac}</b>.<br><br>O paciente selecionado possui gênero cadastrado como <b>${sexoPac}</b>.<br><br>O agendamento desta vacina para este paciente <b>não é permitido</b>.`;
+
+    const btn = document.getElementById('sex-warning-btn');
+    btn.style.background = cor;
+
+    document.getElementById('modal-sex-warning').classList.add('active');
 }
 
 function checkAgeConstraint() {
