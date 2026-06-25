@@ -540,13 +540,17 @@
                     class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-navy-800 bg-navy-900 text-white">
                     <i class="fas fa-calendar-alt text-sm"></i> Agenda
                 </button>
+                <button onclick="switchAgendaView('kanban')" id="btn-agendaview-kanban"
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50">
+                    <i class="fas fa-columns text-sm"></i> CRM
+                </button>
                 <button onclick="switchAgendaView('planilha')" id="btn-agendaview-planilha"
                     class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50">
                     <i class="fas fa-table text-sm"></i> Planilha
                 </button>
-                <button onclick="switchAgendaView('kanban')" id="btn-agendaview-kanban"
+                <button onclick="switchAgendaView('oportunidades')" id="btn-agendaview-oportunidades"
                     class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50">
-                    <i class="fas fa-columns text-sm"></i> CRM
+                    <i class="fas fa-bullseye text-sm"></i> Oportunidades
                 </button>
             </div>
 
@@ -705,6 +709,45 @@
                     <div id="view-kanban" class="hidden p-4 bg-[#f1f5f9]" style="height:calc(100vh - 220px);display:none;overflow:hidden;">
                         <div id="kanban-board" class="flex gap-4 h-full overflow-x-auto pb-2"></div>
                     </div>
+                </div>
+            </div>
+
+            <!-- View: Oportunidades -->
+            <div id="agendaview-oportunidades" class="hidden">
+                <!-- Filtros -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-4 flex flex-wrap gap-3 items-center">
+                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex-1 min-w-[180px]">
+                        <i class="fas fa-search text-slate-400 text-xs"></i>
+                        <input type="text" id="oport-search" placeholder="Buscar paciente ou CPF..."
+                            oninput="oppFilterSearch(this.value)"
+                            class="bg-transparent text-sm outline-none flex-1 text-slate-700 placeholder-slate-400">
+                    </div>
+                    <select id="oport-filter-vacina" onchange="oppFilterVacina(this.value)"
+                        class="px-3 py-2 border border-slate-200 rounded-xl text-sm outline-none bg-white text-slate-700 focus:ring-2 focus:ring-indigo-300">
+                    </select>
+                    <select id="oport-filter-urgencia" onchange="oppFilterUrgencia(this.value)"
+                        class="px-3 py-2 border border-slate-200 rounded-xl text-sm outline-none bg-white text-slate-700 focus:ring-2 focus:ring-indigo-300">
+                        <option value="">Todas as urgências</option>
+                        <option value="vencida">Vencidas</option>
+                        <option value="proxima">Próximas (30d)</option>
+                        <option value="futura">Futuras</option>
+                        <option value="sem_data">Sem data</option>
+                    </select>
+                    <button onclick="renderOportunidades()" title="Atualizar" class="h-9 w-9 bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-600 rounded-xl flex items-center justify-center transition border border-slate-200">
+                        <i class="fas fa-sync-alt text-xs"></i>
+                    </button>
+                </div>
+                <!-- Stats bar -->
+                <div id="oport-stats" class="mb-4"></div>
+                <!-- Cards grid -->
+                <div id="oport-cards-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+                <!-- Empty state -->
+                <div id="oport-empty" class="hidden flex flex-col items-center justify-center py-20 text-center">
+                    <div class="h-16 w-16 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4">
+                        <i class="fas fa-bullseye text-2xl text-indigo-300"></i>
+                    </div>
+                    <p class="text-slate-500 font-bold text-sm">Nenhuma oportunidade encontrada</p>
+                    <p class="text-slate-400 text-xs mt-1">Todos os pacientes estão com o esquema vacinal em dia ou os filtros não retornaram resultados.</p>
                 </div>
             </div>
         </section>
@@ -985,17 +1028,18 @@
                                         <tr>
                                             <th class="p-3">Vacina</th>
                                             <th class="p-3">Nº do Lote</th>
-                                            <th class="p-3 text-center">Disponível</th>
+                                            <th class="p-3 text-center">Entrada</th>
                                             <th class="p-3 text-center">Reservado</th>
                                             <th class="p-3 text-center">Saída</th>
-                                            <th class="p-3 text-center">Total</th>
+                                            <th class="p-3 text-center">Disponível</th>
+                                            <th class="p-3 text-center">Estoque</th>
                                             <th class="p-3">Validade</th>
                                             <th class="p-3 text-center">Situação</th>
                                             <th class="p-3 text-center">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody id="alm-lotes-body" class="text-sm divide-y divide-slate-100">
-                                        <tr><td colspan="9" class="p-8 text-center text-slate-400 text-xs font-bold">Carregando lotes...</td></tr>
+                                        <tr><td colspan="10" class="p-8 text-center text-slate-400 text-xs font-bold">Carregando lotes...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -3326,6 +3370,7 @@
     <script src="scripts/vacinas.js"></script>
     <script src="scripts/almoxarifado.js"></script>
     <script src="scripts/appointments.js"></script>
+    <script src="scripts/oportunidades.js"></script>
     <script src="scripts/users.js"></script>
     <script src="scripts/backup.js"></script>
     <script src="scripts/init.js"></script>

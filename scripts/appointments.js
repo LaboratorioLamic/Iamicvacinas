@@ -315,9 +315,9 @@ function onLoteChange() {
 }
 
 function getEsquemaPaciente(v, dtNasc) {
-    // Retorna o esquema que se encaixa na idade do paciente, ou null
+    // Retorna o primeiro esquema que se encaixa na idade do paciente, ou null
     if (!v.esquemas || !v.esquemas.length) return null;
-    if (!dtNasc) return v.esquemas[0]; // sem data de nascimento, usa o primeiro
+    if (!dtNasc) return v.esquemas[0];
     const ageInfo = getAgeInMonths(dtNasc);
     const totalMeses = ageInfo.years * 12 + ageInfo.months;
     return v.esquemas.find(esq => {
@@ -327,6 +327,21 @@ function getEsquemaPaciente(v, dtNasc) {
         const maxTotal = hasMax ? ((esq.maxAnos || 0) * 12 + (esq.maxMeses || 0)) : Infinity;
         return totalMeses >= minTotal && totalMeses <= maxTotal;
     }) || null;
+}
+
+function getEsquemasPaciente(v, dtNasc) {
+    // Retorna TODOS os esquemas compatíveis com a idade do paciente
+    if (!v.esquemas || !v.esquemas.length) return [];
+    if (!dtNasc) return v.esquemas;
+    const ageInfo = getAgeInMonths(dtNasc);
+    const totalMeses = ageInfo.years * 12 + ageInfo.months;
+    return v.esquemas.filter(esq => {
+        if (esq.minAnos == null) return true;
+        const minTotal = (esq.minAnos || 0) * 12 + (esq.minMeses || 0);
+        const hasMax = esq.maxAnos != null || esq.maxMeses != null;
+        const maxTotal = hasMax ? ((esq.maxAnos || 0) * 12 + (esq.maxMeses || 0)) : Infinity;
+        return totalMeses >= minTotal && totalMeses <= maxTotal;
+    });
 }
 
 function autoFillVaccine() {
@@ -340,15 +355,26 @@ function autoFillVaccine() {
     if (vId) {
         const v = vaccines.find(x => x.id == vId);
         if (v) {
-            // Determina número de doses do esquema adequado ao paciente
+            // Determina doses de TODOS os esquemas compatíveis com a idade do paciente
             const dtNasc = document.getElementById('reg-dtnasc').value;
-            const esq = getEsquemaPaciente(v, dtNasc);
-            const numDoses = esq ? (esq.numDoses || 1) : (v.numDoses || 1);
-            if (v.doseUnica && numDoses <= 1) {
-                // Esquema de 1 dose → apenas "Dose Única", sem "1ª Dose"
+            const esqs = getEsquemasPaciente(v, dtNasc);
+            const esq = esqs.length ? esqs[0] : null;
+            // Coleta opções únicas de todos os esquemas compatíveis
+            const doseOptions = new Set();
+            const esqsToUse = esqs.length ? esqs : (v.esquemas && v.esquemas.length ? [v.esquemas[0]] : [{ numDoses: v.numDoses || 1 }]);
+            esqsToUse.forEach(e => {
+                const n = e.numDoses || 1;
+                if (n === 1) {
+                    doseOptions.add('__dose_unica__');
+                } else {
+                    for (let i = 1; i <= n; i++) doseOptions.add(i);
+                }
+            });
+            // Renderiza: primeiro doses numeradas em ordem, depois dose única
+            const numeradas = [...doseOptions].filter(d => d !== '__dose_unica__').sort((a, b) => a - b);
+            numeradas.forEach(i => { doseSel.innerHTML += `<option value="${i}ª Dose">${i}ª Dose</option>`; });
+            if (doseOptions.has('__dose_unica__')) {
                 doseSel.innerHTML += `<option value="Dose Única">Dose Única</option>`;
-            } else {
-                for (let i = 1; i <= numDoses; i++) doseSel.innerHTML += `<option value="${i}ª Dose">${i}ª Dose</option>`;
             }
             // Reforço: aparece para todos os esquemas quando a vacina tem reforço
             if (v.reforco) doseSel.innerHTML += `<option value="Reforço">Reforço</option>`;
@@ -471,10 +497,38 @@ function updateSuggestedDate() {
     sugDiv.classList.add('hidden');
     document.getElementById('reg-data').removeAttribute('min');
 
-    if (!patId || !vId || !dose || dose.includes('1ª') || dose === 'Dose Única' || dose === 'Reforço') return;
+    if (!patId || !vId || !dose || dose.includes('1ª') || dose === 'Reforço') return;
 
     const v = vaccines.find(x => String(x.id) === String(vId));
     if (!v) return;
+
+    // Dose Única recorrente: sugerir próxima data com base no repeteMeses do esquema
+    if (dose === 'Dose Única') {
+        const dtNasc = document.getElementById('reg-dtnasc').value;
+        const esqs = getEsquemasPaciente(v, dtNasc);
+        const esqRepete = esqs.find(e => e.numDoses === 1 && e.repete && e.repeteMeses > 0);
+        if (!esqRepete) return;
+
+        const editingId = document.getElementById('reg-id').value;
+        const prevApps = appointments.filter(a =>
+            String(a.patientId) === String(patId) &&
+            String(a.vaccineId) === String(vId) &&
+            (!editingId || String(a.id) !== String(editingId)) &&
+            a.doseAtual === 'Dose Única'
+        ).sort((a, b) => new Date(b.data) - new Date(a.data));
+
+        if (!prevApps.length) return;
+
+        const baseDate = new Date(prevApps[0].data + 'T00:00:00');
+        baseDate.setMonth(baseDate.getMonth() + esqRepete.repeteMeses);
+        const isoDate = baseDate.toISOString().split('T')[0];
+
+        spanEl.innerText = isoDate.split('-').reverse().join('/');
+        spanEl.setAttribute('data-iso', isoDate);
+        document.getElementById('reg-data').min = isoDate;
+        sugDiv.classList.remove('hidden');
+        return;
+    }
 
     const doseNum = Number((dose.match(/(\d+)/) || [])[1] || 2);
     if (doseNum < 2) return;
@@ -1009,8 +1063,13 @@ function saveRecord(e) {
     const doseAtualStr = document.getElementById('reg-dose').value;
 
     // Bloqueio de duplicidade: mesma vacina + mesma dose já registrada (não cancelada) para o paciente
+    // Dose Única com recorrência habilitada é permitida repetir
     {
-        const dupl = appointments.find(x =>
+        const vDupl = vaccines.find(x => String(x.id) === String(vId));
+        const isDoseUnicaRepetivel = doseAtualStr === 'Dose Única' &&
+            vDupl && vDupl.esquemas && vDupl.esquemas.some(e => e.numDoses === 1 && e.repete);
+        const isReforco = doseAtualStr === 'Reforço';
+        const dupl = !isDoseUnicaRepetivel && !isReforco && appointments.find(x =>
             String(x.patientId) === String(patId) &&
             String(x.vaccineId) === String(vId) &&
             x.doseAtual === doseAtualStr &&

@@ -136,23 +136,34 @@ function renderEsquemas() {
             intervalosHtml += '</div>';
         }
         return `<div class="border-2 ${hasFaixa ? 'border-blue-300' : 'border-slate-200'} rounded-xl p-3 bg-white shadow-sm">
-            <div class="flex items-center justify-between gap-2 flex-wrap">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <button type="button" onclick="openFaixaEtariaModal(${idx})" class="flex items-center gap-1.5 border-2 ${hasFaixa ? 'border-green-400 text-green-700 bg-green-50 hover:bg-green-100' : 'border-slate-300 text-slate-500 hover:bg-slate-50'} text-[10px] font-black uppercase px-2.5 py-1 rounded-lg transition">
-                        <i class="fas fa-child text-[9px]"></i>
-                        <span>${hasFaixa ? faixaStr : 'Faixa etária'}</span>
-                    </button>
-                    <div class="flex items-center gap-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Doses:</label>
-                        <select onchange="updateEsquemaDoses(${idx},this.value)" class="border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-clinic-500 outline-none">
-                            <option value="1" ${numD==1?'selected':''}>1</option>
-                            <option value="2" ${numD==2?'selected':''}>2</option>
-                            <option value="3" ${numD==3?'selected':''}>3</option>
-                            <option value="4" ${numD==4?'selected':''}>4</option>
-                        </select>
-                    </div>
+            <div class="flex items-center gap-2 min-w-0">
+                <button type="button" onclick="openFaixaEtariaModal(${idx})" class="flex-shrink-0 flex items-center gap-1.5 border-2 ${hasFaixa ? 'border-green-400 text-green-700 bg-green-50 hover:bg-green-100' : 'border-slate-300 text-slate-500 hover:bg-slate-50'} text-[10px] font-black uppercase px-2.5 py-1 rounded-lg transition">
+                    <i class="fas fa-child text-[9px]"></i>
+                    <span class="whitespace-nowrap">${hasFaixa ? faixaStr : 'Faixa etária'}</span>
+                </button>
+                <div class="flex items-center gap-1 flex-shrink-0">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">Doses:</label>
+                    <select onchange="updateEsquemaDoses(${idx},this.value)" class="border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-clinic-500 outline-none">
+                        <option value="1" ${numD==1?'selected':''}>1</option>
+                        <option value="2" ${numD==2?'selected':''}>2</option>
+                        <option value="3" ${numD==3?'selected':''}>3</option>
+                        <option value="4" ${numD==4?'selected':''}>4</option>
+                    </select>
                 </div>
-                <button type="button" onclick="removeEsquema(${idx})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition flex-shrink-0" title="Remover esquema"><i class="fas fa-trash text-[10px]"></i></button>
+                ${numD === 1 ? (() => {
+                    const repete = esq.repete || false;
+                    const repeteKnobClass = repete ? 'translate-x-4' : 'translate-x-0.5';
+                    const repeteBgClass = repete ? 'bg-clinic-600' : 'bg-slate-300';
+                    return `<div class="flex items-center gap-1 flex-shrink-0">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase">Repete</label>
+                        <button type="button" onclick="toggleEsquemaRepete(${idx})" class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${repeteBgClass}" aria-pressed="${repete}">
+                            <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${repeteKnobClass}"></span>
+                        </button>
+                        ${repete ? `<input type="number" min="1" value="${esq.repeteMeses || ''}" placeholder="Mês" onchange="updateEsquemaRepeteMeses(${idx},this.value)" class="w-14 border border-slate-200 rounded py-1 px-1.5 text-xs focus:ring-1 focus:ring-clinic-500 outline-none" title="Repetir após quantos meses">` : ''}
+                    </div>`;
+                })() : ''}
+                <div class="flex-1"></div>
+                <button type="button" onclick="removeEsquema(${idx})" class="flex-shrink-0 h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition" title="Remover esquema"><i class="fas fa-trash text-[10px]"></i></button>
             </div>
             ${intervalosHtml}
         </div>`;
@@ -179,12 +190,23 @@ function updateEsquemaDoses(idx, val) {
         if (_esquemas[idx].intervalos[i] == null) _esquemas[idx].intervalos[i] = 30;
     }
     _esquemas[idx].intervalos.length = Math.max(0, n - 1);
+    if (n !== 1) { _esquemas[idx].repete = false; _esquemas[idx].repeteMeses = null; }
     renderEsquemas();
 }
 
 function updateEsquemaIntervalo(idx, posIdx, val) {
     if (!_esquemas[idx].intervalos) _esquemas[idx].intervalos = [];
     _esquemas[idx].intervalos[posIdx - 1] = Number(val);
+}
+
+function toggleEsquemaRepete(idx) {
+    _esquemas[idx].repete = !(_esquemas[idx].repete || false);
+    if (!_esquemas[idx].repete) _esquemas[idx].repeteMeses = null;
+    renderEsquemas();
+}
+
+function updateEsquemaRepeteMeses(idx, val) {
+    _esquemas[idx].repeteMeses = Number(val) || null;
 }
 
 function openFaixaEtariaModal(idx) {
@@ -298,6 +320,7 @@ function deleteVaccineFromModal() {
 function saveVaccine(e) {
     e.preventDefault();
     if (!_esquemas.length) { showNotification('Adicione ao menos um esquema vacinal antes de salvar.', 'error'); return; }
+    if (_esquemas.some(esq => esq.repete && !esq.repeteMeses)) { showNotification('Informe o intervalo em meses para o campo "Repete" antes de salvar.', 'error'); return; }
     // Dose única = inferida automaticamente: algum esquema tem apenas 1 dose
     const doseUnica = _esquemas.some(esq => (esq.numDoses || 1) === 1);
     const id = document.getElementById('vac-id').value;

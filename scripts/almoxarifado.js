@@ -481,7 +481,7 @@ function renderAlmoxLotes() {
     });
 
     if (!filtered.length) {
-        tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">Nenhum lote encontrado</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="p-8 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">Nenhum lote encontrado</td></tr>`;
         return;
     }
 
@@ -505,17 +505,18 @@ function renderAlmoxLotes() {
         const _estMin = (vaccine && vaccine.estoqueMinimo) || 5;
         const dispCls = estoque.disponivel <= 0 ? 'bg-slate-100 text-slate-400' : estoque.disponivel <= _estMin ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
         const saidaTotal = estoque.aplicado + estoque.saidaManual;
-        const saldoTotal = estoque.disponivel + estoque.reservado;
+        const totalDisp = estoque.total - saidaTotal;
         return `<tr class="hover:bg-slate-50 transition cursor-pointer ${!ativo ? 'opacity-60' : ''}" onclick="editLote(${lote.id})">
             <td class="p-3">
                 <p class="font-bold text-slate-700">${vaccineName}</p>
                 ${(lote.fabricante || lote.fornecedor) ? `<p class="text-[10px] text-slate-400 font-bold mt-0.5">${[lote.fabricante, lote.fornecedor].filter(Boolean).join(' · ')}</p>` : ''}
             </td>
             <td class="p-3 text-xs font-mono font-bold">${lote.numero || '—'}</td>
-            <td class="p-3 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-black ${dispCls}">${estoque.disponivel}</span></td>
+            <td class="p-3 text-center text-xs font-bold text-emerald-600">${estoque.total}</td>
             <td class="p-3 text-center text-xs font-bold text-indigo-600">${estoque.reservado}</td>
             <td class="p-3 text-center text-xs font-bold text-orange-600">${saidaTotal}</td>
-            <td class="p-3 text-center text-xs font-bold text-slate-700">${saldoTotal}</td>
+            <td class="p-3 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-black ${dispCls}">${estoque.disponivel}</span></td>
+            <td class="p-3 text-center text-xs font-bold text-slate-700">${totalDisp}</td>
             <td class="p-3">${validadeCel}</td>
             <td class="p-3 text-center">
                 <span class="px-2 py-1 rounded-full text-[10px] font-black uppercase ${ativo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${ativo ? 'Ativo' : 'Inativo'}</span>

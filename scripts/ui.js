@@ -37,16 +37,19 @@ function closeDangerConfirm() {
     _dangerCallback = null;
 }
 
-let agendaView = 'agenda'; // 'agenda' | 'planilha' | 'kanban'
+let agendaView = 'agenda'; // 'agenda' | 'planilha' | 'kanban' | 'oportunidades'
 
 function switchAgendaView(view) {
     agendaView = view;
     const isTabela = view === 'planilha' || view === 'kanban';
+    const isOport  = view === 'oportunidades';
 
-    document.getElementById('agendaview-agenda').classList.toggle('hidden', isTabela);
+    document.getElementById('agendaview-agenda').classList.toggle('hidden', isTabela || isOport);
     document.getElementById('agendaview-tabela').classList.toggle('hidden', !isTabela);
+    const oppEl = document.getElementById('agendaview-oportunidades');
+    if (oppEl) oppEl.classList.toggle('hidden', !isOport);
 
-    const views = ['agenda', 'planilha', 'kanban'];
+    const views = ['agenda', 'planilha', 'kanban', 'oportunidades'];
     views.forEach(v => {
         const btn = document.getElementById(`btn-agendaview-${v}`);
         if (!btn) return;
@@ -65,6 +68,9 @@ function switchAgendaView(view) {
     } else if (view === 'kanban') {
         switchTableView('kanban');
         renderTable();
+    } else if (view === 'oportunidades') {
+        if (typeof populateOppVacinaFilter === 'function') populateOppVacinaFilter();
+        if (typeof renderOportunidades === 'function') renderOportunidades();
     }
 }
 
