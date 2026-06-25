@@ -90,7 +90,7 @@ function syncAppointmentMovement(appointment) {
     // Remove mov anterior deste agendamento (garante 1 por card)
     stockMovements = stockMovements.filter(m => m.appointmentId != id);
 
-    if (!loteId || status === 'Cancelado') return;
+    if (!loteId || status === 'Perdido') return;
 
     let tipo;
     if (status === 'Agendado') tipo = 'reserva';

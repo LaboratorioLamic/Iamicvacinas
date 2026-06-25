@@ -119,9 +119,10 @@ function viewPatientHistory(id) {
     if(apps.length === 0) {
         list.innerHTML = '<div class="text-center py-10"><i class="fas fa-folder-open text-4xl text-slate-200 mb-3"></i><p class="text-sm text-slate-400 font-bold uppercase">Nenhum registro encontrado</p></div>';
     } else {
-        const pendentes = apps.filter(a => a.status === 'Agendado' || a.status === 'Em negociação');
-        const concluidos = apps.filter(a => a.status === 'Aplicado');
-        const cancelados = apps.filter(a => a.status === 'Cancelado');
+        const pendentes   = apps.filter(a => a.status === 'Agendado' || a.status === 'Em negociação');
+        const concluidos  = apps.filter(a => a.status === 'Aplicado');
+        const outroLocal  = apps.filter(a => a.status === 'Perdido' && a.aplicadaOutroLocal);
+        const cancelados  = apps.filter(a => a.status === 'Perdido' && !a.aplicadaOutroLocal);
 
         let html = '';
 
@@ -137,8 +138,14 @@ function viewPatientHistory(id) {
             html += `<div class="mb-6"></div>`;
         }
 
+        if(outroLocal.length > 0) {
+            html += `<h5 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3"><i class="fas fa-map-marker-alt mr-1 text-violet-500 text-sm"></i> Aplicado em Outro Local <span class="ml-2 bg-slate-100 px-2 py-0.5 rounded text-[9px]">${outroLocal.length}</span></h5>`;
+            html += outroLocal.map(a => renderHistCard(a)).join('');
+            html += `<div class="mb-6"></div>`;
+        }
+
         if(cancelados.length > 0) {
-            html += `<h5 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3"><i class="fas fa-times-circle mr-1 text-red-500 text-sm"></i> Cancelamentos / Faltas <span class="ml-2 bg-slate-100 px-2 py-0.5 rounded text-[9px]">${cancelados.length}</span></h5>`;
+            html += `<h5 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3"><i class="fas fa-times-circle mr-1 text-red-500 text-sm"></i> Perdas / Faltas <span class="ml-2 bg-slate-100 px-2 py-0.5 rounded text-[9px]">${cancelados.length}</span></h5>`;
             html += cancelados.map(a => renderHistCard(a)).join('');
         }
 
@@ -152,11 +159,45 @@ function renderHistCard(a) {
     if(!vac) return '';
     const todayStr = new Date().toISOString().split('T')[0];
     const isDelayed = a.data < todayStr && a.status === 'Agendado';
+    const isOutroLocal = a.status === 'Perdido' && a.aplicadaOutroLocal;
 
-    let borderClass = a.status==='Aplicado'?'border-green-200 hover:border-green-400':a.status==='Cancelado'?'border-red-200 hover:border-red-400':a.status==='Em negociação'?'border-cyan-200 hover:border-cyan-400':isDelayed?'border-yellow-300 hover:border-yellow-500':'border-blue-200 hover:border-blue-400';
-    let bgClass = a.status==='Aplicado'?'bg-green-50/50':a.status==='Cancelado'?'bg-red-50/50':a.status==='Em negociação'?'bg-cyan-50/50':isDelayed?'bg-yellow-50/50':'bg-blue-50/50';
-    let stTextClass = a.status==='Aplicado'?'text-green-600':a.status==='Cancelado'?'text-red-600':a.status==='Em negociação'?'text-cyan-600':isDelayed?'text-yellow-600':'text-blue-600';
-    let iconClass = a.status==='Aplicado'?'fa-check text-green-500':a.status==='Cancelado'?'fa-ban text-red-500':isDelayed?'fa-exclamation-triangle text-yellow-500':'fa-calendar-alt text-blue-500';
+    let borderClass, bgClass, stTextClass, iconClass;
+    if (isOutroLocal) {
+        borderClass = 'border-violet-200 hover:border-violet-400';
+        bgClass     = 'bg-violet-50/50';
+        stTextClass = 'text-violet-600';
+        iconClass   = 'fa-map-marker-alt text-violet-500';
+    } else if (a.status === 'Aplicado') {
+        borderClass = 'border-green-200 hover:border-green-400';
+        bgClass     = 'bg-green-50/50';
+        stTextClass = 'text-green-600';
+        iconClass   = 'fa-check text-green-500';
+    } else if (a.status === 'Perdido') {
+        borderClass = 'border-red-200 hover:border-red-400';
+        bgClass     = 'bg-red-50/50';
+        stTextClass = 'text-red-600';
+        iconClass   = 'fa-ban text-red-500';
+    } else if (a.status === 'Em negociação') {
+        borderClass = 'border-cyan-200 hover:border-cyan-400';
+        bgClass     = 'bg-cyan-50/50';
+        stTextClass = 'text-cyan-600';
+        iconClass   = 'fa-comments text-cyan-500';
+    } else if (isDelayed) {
+        borderClass = 'border-yellow-300 hover:border-yellow-500';
+        bgClass     = 'bg-yellow-50/50';
+        stTextClass = 'text-yellow-600';
+        iconClass   = 'fa-exclamation-triangle text-yellow-500';
+    } else {
+        borderClass = 'border-blue-200 hover:border-blue-400';
+        bgClass     = 'bg-blue-50/50';
+        stTextClass = 'text-blue-600';
+        iconClass   = 'fa-calendar-alt text-blue-500';
+    }
+
+    const statusLabel = isOutroLocal ? 'Outro Local' : isDelayed ? 'Atrasado' : a.status;
+    const outroBadge  = isOutroLocal
+        ? `<span class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-violet-100 text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full ml-2"><i class="fas fa-map-marker-alt text-[8px]"></i> Outro local</span>`
+        : '';
 
     return `
     <button onclick="editRecord(${a.id})" class="w-full text-left ${bgClass} p-4 rounded-xl border ${borderClass} shadow-sm hover:shadow-md transition flex flex-col md:flex-row justify-between items-start md:items-center mb-3 group">
@@ -164,7 +205,9 @@ function renderHistCard(a) {
             <div class="h-10 w-10 bg-white rounded-full flex justify-center items-center shadow-sm text-lg border border-slate-100 group-hover:scale-110 transition duration-300"><i class="fas ${iconClass}"></i></div>
             <div>
                 <p class="font-black text-navy-900 text-[15px] uppercase tracking-tight">${vac.nome}</p>
-                <p class="text-[11px] text-slate-500 font-bold">${a.doseAtual} <span class="mx-1">•</span> <span class="${stTextClass} uppercase tracking-wider">${isDelayed ? 'Atrasado' : a.status}</span></p>
+                <p class="text-[11px] text-slate-500 font-bold flex items-center flex-wrap gap-1">
+                    ${a.doseAtual} <span class="mx-1">•</span> <span class="${stTextClass} uppercase tracking-wider">${statusLabel}</span>${outroBadge}
+                </p>
             </div>
         </div>
         <div class="text-left md:text-right w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-end">
@@ -451,7 +494,7 @@ async function downloadVaccineCalendarPDF() {
                 'Aplicado':      [22,  163,  74],
                 'Agendado':      [37,   99, 235],
                 'Em negociação': [234, 179,   8],
-                'Cancelado':     [220,  38,  38],
+                'Perdido':     [220,  38,  38],
             };
             const badgeColor = statusColors[status] || [100, 116, 139];
             const badgeLabel = status.toUpperCase();

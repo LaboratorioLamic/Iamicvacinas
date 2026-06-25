@@ -348,7 +348,7 @@
                         <p class="text-3xl font-black text-green-600" id="kpi-aplicados">0</p>
                     </div>
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-red-500">
-                        <p class="text-[10px] font-black text-slate-400 uppercase">Cancelamentos</p>
+                        <p class="text-[10px] font-black text-slate-400 uppercase">Perdidos</p>
                         <p class="text-3xl font-black text-red-600" id="kpi-cancelados">0</p>
                     </div>
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-yellow-500">
@@ -379,7 +379,7 @@
                                     <option value="Agendado">Agendado</option>
                                     <option value="Nova oportunidade">Nova oportunidade</option>
                                     <option value="Em negociação">Em negociação</option>
-                                    <option value="Cancelado">Cancelado</option>
+                                    <option value="Perdido">Perdido</option>
                                 </select>
                             </div>
                         </div>
@@ -475,9 +475,9 @@
                         <p class="text-[10px] text-slate-400 mt-1 font-bold" id="kpi-fin-prevista-qtd">0 agendamentos</p>
                     </div>
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-red-500">
-                        <p class="text-[10px] font-black text-slate-400 uppercase">Perdas (Cancelado)</p>
+                        <p class="text-[10px] font-black text-slate-400 uppercase">Perdidos</p>
                         <p class="text-2xl font-black text-red-600" id="kpi-fin-cancelado">R$ 0,00</p>
-                        <p class="text-[10px] text-slate-400 mt-1 font-bold" id="kpi-fin-cancelado-qtd">0 cancelamentos</p>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold" id="kpi-fin-cancelado-qtd">0 perda(s)</p>
                     </div>
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-purple-500">
                         <p class="text-[10px] font-black text-slate-400 uppercase">Ticket Médio</p>
@@ -686,8 +686,17 @@
                                 <option value="Em negociação">Em negociação</option>
                                 <option value="Agendado">Agendado</option>
                                 <option value="Aplicado">Aplicado</option>
-                                <option value="Cancelado">Cancelado</option>
+                                <option value="Perdido">Perdido</option>
                             </select>
+                            <!-- Botão Agrupar por Paciente (visível apenas no kanban) -->
+                            <div id="btn-kanban-group-wrap" style="display:none;">
+                                <button id="btn-kanban-group" onclick="kanbanToggleGroup()"
+                                    class="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 font-black text-xs uppercase tracking-wide hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 transition shadow-sm"
+                                    title="Agrupar cards por paciente">
+                                    <i class="fas fa-layer-group text-[11px]"></i>
+                                    <span class="group-btn-lbl">Agrupar</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <!-- Planilhas View -->
@@ -714,18 +723,31 @@
 
             <!-- View: Oportunidades -->
             <div id="agendaview-oportunidades" class="hidden">
-                <!-- Filtros -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-4 flex flex-wrap gap-3 items-center">
+
+                <!-- Sub-abas -->
+                <div class="flex items-center gap-2 mb-4">
+                    <button onclick="switchOppSubTab('aprazamento')" id="btn-opp-sub-aprazamento"
+                        class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-navy-800 bg-navy-900 text-white">
+                        <i class="fas fa-syringe text-sm"></i> Aprazamento
+                    </button>
+                    <button onclick="switchOppSubTab('oferta')" id="btn-opp-sub-oferta"
+                        class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50">
+                        <i class="fas fa-tags text-sm"></i> Oferta
+                    </button>
+                </div>
+
+                <!-- Filtros: Aprazamento -->
+                <div id="opp-filters-aprazamento" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-4 flex flex-wrap gap-3 items-center">
                     <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex-1 min-w-[180px]">
                         <i class="fas fa-search text-slate-400 text-xs"></i>
-                        <input type="text" id="oport-search" placeholder="Buscar paciente ou CPF..."
-                            oninput="oppFilterSearch(this.value)"
+                        <input type="text" placeholder="Buscar paciente ou CPF..."
+                            oninput="oppFilterSearch(this.value,'aprazamento')"
                             class="bg-transparent text-sm outline-none flex-1 text-slate-700 placeholder-slate-400">
                     </div>
-                    <select id="oport-filter-vacina" onchange="oppFilterVacina(this.value)"
+                    <select id="oport-filter-vacina-apr" onchange="oppFilterVacina(this.value,'aprazamento')"
                         class="px-3 py-2 border border-slate-200 rounded-xl text-sm outline-none bg-white text-slate-700 focus:ring-2 focus:ring-indigo-300">
                     </select>
-                    <select id="oport-filter-urgencia" onchange="oppFilterUrgencia(this.value)"
+                    <select onchange="oppFilterUrgencia(this.value)"
                         class="px-3 py-2 border border-slate-200 rounded-xl text-sm outline-none bg-white text-slate-700 focus:ring-2 focus:ring-indigo-300">
                         <option value="">Todas as urgências</option>
                         <option value="vencida">Vencidas</option>
@@ -733,12 +755,39 @@
                         <option value="futura">Futuras</option>
                         <option value="sem_data">Sem data</option>
                     </select>
+                    <button id="opp-ticket-btn-aprazamento" onclick="openTicketPopover(this)" title="Filtrar por ticket"
+                        class="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 font-black text-xs uppercase tracking-wide hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 transition">
+                        <i class="fas fa-tag text-[10px]"></i>
+                        <span class="ticket-lbl">Ticket</span>
+                    </button>
                     <button onclick="renderOportunidades()" title="Atualizar" class="h-9 w-9 bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-600 rounded-xl flex items-center justify-center transition border border-slate-200">
                         <i class="fas fa-sync-alt text-xs"></i>
                     </button>
                 </div>
+
+                <!-- Filtros: Oferta -->
+                <div id="opp-filters-oferta" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-4 flex flex-wrap gap-3 items-center">
+                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex-1 min-w-[180px]">
+                        <i class="fas fa-search text-slate-400 text-xs"></i>
+                        <input type="text" placeholder="Buscar paciente ou CPF..."
+                            oninput="oppFilterSearch(this.value,'oferta')"
+                            class="bg-transparent text-sm outline-none flex-1 text-slate-700 placeholder-slate-400">
+                    </div>
+                    <select id="oport-filter-vacina-ofe" onchange="oppFilterVacina(this.value,'oferta')"
+                        class="px-3 py-2 border border-slate-200 rounded-xl text-sm outline-none bg-white text-slate-700 focus:ring-2 focus:ring-indigo-300">
+                    </select>
+                    <button id="opp-ticket-btn-oferta" onclick="openTicketPopover(this)" title="Filtrar por ticket"
+                        class="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 font-black text-xs uppercase tracking-wide hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-600 transition">
+                        <i class="fas fa-tag text-[10px]"></i>
+                        <span class="ticket-lbl">Ticket</span>
+                    </button>
+                    <button onclick="renderOportunidades()" title="Atualizar" class="h-9 w-9 bg-slate-100 hover:bg-emerald-100 text-slate-600 hover:text-emerald-600 rounded-xl flex items-center justify-center transition border border-slate-200">
+                        <i class="fas fa-sync-alt text-xs"></i>
+                    </button>
+                </div>
+
                 <!-- Stats bar -->
-                <div id="oport-stats" class="mb-4"></div>
+                <div id="oport-stats"></div>
                 <!-- Cards grid -->
                 <div id="oport-cards-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
                 <!-- Empty state -->
@@ -747,7 +796,47 @@
                         <i class="fas fa-bullseye text-2xl text-indigo-300"></i>
                     </div>
                     <p class="text-slate-500 font-bold text-sm">Nenhuma oportunidade encontrada</p>
-                    <p class="text-slate-400 text-xs mt-1">Todos os pacientes estão com o esquema vacinal em dia ou os filtros não retornaram resultados.</p>
+                    <p class="text-slate-400 text-xs mt-1">Ajuste os filtros ou aguarde novos agendamentos.</p>
+                </div>
+            </div>
+
+            <!-- Ticket Popover (posicionado por JS) -->
+            <div id="opp-ticket-popover" class="hidden fixed z-[9999] bg-white rounded-2xl shadow-2xl border border-slate-200 p-5 w-72" style="animation:fadeSlideDown .15s ease;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="font-black text-navy-900 text-sm uppercase tracking-wide flex items-center gap-2">
+                        <i class="fas fa-tag text-indigo-500"></i> Filtro por Ticket
+                    </span>
+                    <button onclick="closeTicketPopover()" class="h-7 w-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
+                </div>
+                <div class="flex flex-col gap-3">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Valor mínimo</label>
+                        <div class="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-indigo-300 focus-within:border-indigo-300 transition">
+                            <span class="text-xs text-slate-400 font-bold select-none">R$</span>
+                            <input type="number" id="opp-ticket-min" min="0" step="1" placeholder="0,00"
+                                class="flex-1 text-sm outline-none text-slate-700 bg-transparent">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Valor máximo</label>
+                        <div class="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-indigo-300 focus-within:border-indigo-300 transition">
+                            <span class="text-xs text-slate-400 font-bold select-none">R$</span>
+                            <input type="number" id="opp-ticket-max" min="0" step="1" placeholder="Sem limite"
+                                class="flex-1 text-sm outline-none text-slate-700 bg-transparent">
+                        </div>
+                    </div>
+                    <div class="pt-1 flex gap-2">
+                        <button onclick="clearTicketFilter()"
+                            class="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-500 font-black text-xs uppercase tracking-wide hover:bg-slate-50 transition">
+                            Limpar
+                        </button>
+                        <button onclick="applyTicketFilter()"
+                            class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-black text-xs uppercase tracking-wide hover:bg-indigo-700 transition shadow">
+                            Aplicar
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -1342,7 +1431,7 @@
                 <!-- Linha 2: 4 campos -->
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Data Agendada *</label>
-                    <input type="date" id="reg-data" required onchange="onLoteChange()" class="w-full border border-clinic-300 rounded-lg py-2 px-3 ring-2 ring-clinic-100 focus:ring-clinic-500 outline-none font-bold text-sm">
+                    <input type="date" id="reg-data" required onchange="onLoteChange(); updateIdadeField();" class="w-full border border-clinic-300 rounded-lg py-2 px-3 ring-2 ring-clinic-100 focus:ring-clinic-500 outline-none font-bold text-sm">
                     <p id="sugestao-data" class="text-[9px] text-clinic-600 mt-1 hidden"><i class="fas fa-magic"></i> Aprazamento sugerido: <span id="span-sugestao-data" class="font-bold cursor-pointer underline" onclick="applySuggestedDate()"></span></p>
                 </div>
                 <div class="col-span-1 md:col-span-1">
@@ -1377,7 +1466,7 @@
                         <option value="Em negociação">Em negociação</option>
                         <option value="Agendado">Agendado</option>
                         <option value="Aplicado">Aplicado</option>
-                        <option value="Cancelado">Cancelado</option>
+                        <option value="Perdido">Perdido</option>
                     </select>
                     <div id="aviso-sem-perm-aplicado" class="hidden mt-2 flex items-start gap-2 bg-red-50 border border-red-300 rounded-lg px-3 py-2">
                         <i class="fas fa-lock text-red-500 text-sm mt-0.5 shrink-0"></i>
@@ -1409,12 +1498,22 @@
 
                 <div class="col-span-1 md:col-span-4 flex items-center gap-2" id="div-motivo-cancelamento" style="display:none;">
                     <div class="flex-1">
-                        <label class="block text-[10px] font-black text-red-500 uppercase mb-1">Motivo do Cancelamento *</label>
+                        <label class="block text-[10px] font-black text-red-500 uppercase mb-1">Motivo de Perda *</label>
                         <select id="reg-motivo-cancelamento" class="w-full border border-red-200 bg-red-50 rounded-lg py-2 px-3 text-sm text-red-800 outline-none">
                             <option value="">Selecione...</option>
                         </select>
                     </div>
                     <button type="button" onclick="openCancelReasonsModal()" class="mt-5 h-9 w-9 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 font-bold transition flex items-center justify-center shadow-sm" title="Gerenciar Motivos"><i class="fas fa-plus"></i></button>
+                    <!-- Checkbox: vacina aplicada em outro local -->
+                    <div id="lbl-aplicada-outro-local" class="flex flex-col items-center gap-0.5 shrink-0 mt-5">
+                        <span class="text-[8px] font-black uppercase text-violet-500 leading-tight tracking-wide">Outro Local</span>
+                        <label class="cursor-pointer select-none group" title="Vacina já aplicada em outro local">
+                            <input type="checkbox" id="reg-aplicada-outro-local" class="sr-only peer" onchange="toggleAplicadaOutroLocal(this)">
+                            <div class="w-9 h-9 rounded-lg border-2 border-violet-300 bg-violet-50 flex items-center justify-center transition-all duration-200 shadow-sm">
+                                <i class="fas fa-map-marker-alt text-violet-400 text-sm" id="icon-aplicada-outro-local"></i>
+                            </div>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="col-span-1 md:col-span-4 mt-4 flex gap-3">
@@ -1427,10 +1526,10 @@
         </div>
     </div>
 
-    <div id="modal-cancel-reasons" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[130] justify-center items-center p-4">
+    <div id="modal-cancel-reasons" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[400] justify-center items-center p-4">
         <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
             <div class="bg-navy-900 p-5 text-white flex justify-between items-center shrink-0">
-                <h3 class="font-black uppercase tracking-tight text-lg">Motivos de Cancelamento</h3>
+                <h3 class="font-black uppercase tracking-tight text-lg">Motivos de Perda</h3>
                 <button onclick="document.getElementById('modal-cancel-reasons').classList.remove('active')" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-5 bg-slate-50 border-b border-slate-200 flex gap-2 shrink-0">
@@ -1491,7 +1590,7 @@
                     <i class="fas fa-ban text-white text-base"></i>
                 </div>
                 <div>
-                    <h3 class="font-black uppercase tracking-tight text-base leading-tight">Cancelar Atendimento</h3>
+                    <h3 class="font-black uppercase tracking-tight text-base leading-tight">Motivo da Perda</h3>
                     <p class="text-[10px] text-red-200 font-bold uppercase tracking-widest mt-0.5">Informe o motivo da perda</p>
                 </div>
             </div>
@@ -1516,6 +1615,145 @@
         </div>
     </div>
     <!-- ════════════════════════════════════════════════════ -->
+
+    <!-- ══════ MODAL AGENDAR GRUPO ══════ -->
+    <div id="modal-agendar-grupo" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[350] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col" style="max-height:90vh;">
+            <div class="bg-gradient-to-br from-blue-600 to-blue-800 p-5 text-white flex items-center gap-3 shrink-0">
+                <div class="h-10 w-10 bg-white/15 rounded-xl flex items-center justify-center border border-white/20 shrink-0">
+                    <i class="fas fa-layer-group text-white text-base"></i>
+                </div>
+                <div class="min-w-0">
+                    <h3 class="font-black uppercase tracking-tight text-base leading-tight">Agendar Grupo</h3>
+                    <p id="agendar-grupo-paciente" class="text-[11px] text-blue-200 font-bold truncate mt-0.5"></p>
+                </div>
+            </div>
+            <div class="h-1 w-full bg-gradient-to-r from-blue-400 via-blue-300 to-transparent shrink-0"></div>
+            <div class="p-5 space-y-4 overflow-y-auto flex-1">
+                <!-- Info -->
+                <div class="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
+                    <i class="fas fa-info-circle text-blue-500 text-xs shrink-0"></i>
+                    <p class="text-[11px] text-blue-700 font-bold">
+                        <span id="agendar-grupo-count"></span> serão agendadas. Status anterior: <span id="agendar-grupo-from-status" class="font-black"></span>
+                    </p>
+                </div>
+                <!-- Lista de vacinas -->
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Vacinas do Grupo</label>
+                    <div id="agendar-grupo-lines" class="flex flex-col gap-2"></div>
+                </div>
+                <!-- Total -->
+                <div class="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-wide">Total</span>
+                    <span id="agendar-grupo-total" class="text-sm font-black text-emerald-700"></span>
+                </div>
+            </div>
+            <div class="p-5 pt-0 flex gap-3 shrink-0">
+                <button onclick="closeAgendarGrupoModal()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Cancelar</button>
+                <button id="btn-confirm-agendar-grupo" onclick="confirmAgendarGrupo()"
+                    class="flex-1 bg-blue-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-700 cursor-pointer shadow-md">
+                    <i class="fas fa-calendar-check mr-1"></i>Confirmar Agendamento
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- ════════════════════════════════════════════════════ -->
+
+    <!-- ══════ MODAL MOVER GRUPO PARA PERDIDO ══════ -->
+    <div id="modal-grupo-perdido" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[350] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col" style="max-height:90vh;">
+            <div class="bg-gradient-to-br from-red-600 to-red-800 p-5 text-white flex items-center gap-3 shrink-0">
+                <div class="h-10 w-10 bg-white/15 rounded-xl flex items-center justify-center border border-white/20 shrink-0">
+                    <i class="fas fa-exclamation-triangle text-white text-base"></i>
+                </div>
+                <div class="min-w-0">
+                    <h3 class="font-black uppercase tracking-tight text-base leading-tight">Mover Grupo para Perdido</h3>
+                    <p id="grupo-perdido-paciente" class="text-[11px] text-red-200 font-bold truncate mt-0.5"></p>
+                </div>
+            </div>
+            <div class="h-1 w-full bg-gradient-to-r from-red-400 via-red-300 to-transparent shrink-0"></div>
+            <div class="p-5 space-y-4 overflow-y-auto flex-1">
+                <!-- Alerta -->
+                <div class="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-3 py-3">
+                    <i class="fas fa-ban text-red-500 text-sm shrink-0 mt-0.5"></i>
+                    <div>
+                        <p class="text-[11px] font-black text-red-700 mb-0.5">Atenção: ação irreversível</p>
+                        <p class="text-[10px] text-red-600">As vacinas abaixo serão marcadas como <strong>Perdido</strong>.</p>
+                        <p id="grupo-perdido-count" class="text-[10px] font-black text-red-700 mt-1"></p>
+                    </div>
+                </div>
+                <!-- Lista de vacinas -->
+                <div class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 max-h-36 overflow-y-auto">
+                    <div id="grupo-perdido-list"></div>
+                </div>
+                <!-- Motivo -->
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Motivo da Perda *</label>
+                    <div class="flex gap-2 items-center">
+                        <select id="grupo-perdido-reason" class="flex-1 border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-700 focus:ring-2 focus:ring-red-400 outline-none bg-white">
+                            <option value="">Selecione o motivo...</option>
+                        </select>
+                        <button type="button" onclick="openCancelReasonsModal()" class="h-10 w-10 shrink-0 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl flex items-center justify-center transition shadow-sm border border-red-200" title="Gerenciar motivos"><i class="fas fa-plus text-xs"></i></button>
+                    </div>
+                    <p id="grupo-perdido-err" class="hidden text-[11px] text-red-500 font-bold mt-1"><i class="fas fa-exclamation-circle mr-1"></i>Selecione um motivo para continuar</p>
+                </div>
+            </div>
+            <div class="p-5 pt-0 flex gap-3 shrink-0">
+                <button onclick="closeMoverGrupoPerdidoModal()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Cancelar</button>
+                <button onclick="confirmMoverGrupoPerdido()" class="flex-1 py-3 rounded-xl bg-red-600 text-white font-black text-xs uppercase tracking-wider hover:bg-red-700 transition shadow-md">
+                    <i class="fas fa-ban mr-1"></i>Confirmar Perda
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- ════════════════════════════════════════════════════ -->
+
+    <!-- ══════ MODAL OPORTUNIDADES — DESCARTAR ══════ -->
+    <div id="modal-dismiss-opp" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[350] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="bg-gradient-to-br from-slate-700 to-slate-900 p-5 text-white flex items-center gap-3">
+                <div class="h-10 w-10 bg-white/15 rounded-xl flex items-center justify-center border border-white/20 shrink-0">
+                    <i class="fas fa-times-circle text-white text-base"></i>
+                </div>
+                <div>
+                    <h3 class="font-black uppercase tracking-tight text-base leading-tight">Perda da Oportunidade</h3>
+                    <p class="text-[10px] text-slate-300 font-bold uppercase tracking-widest mt-0.5">Registrar como perdida</p>
+                </div>
+            </div>
+            <div class="h-1 w-full bg-gradient-to-r from-slate-400 via-slate-300 to-transparent"></div>
+            <div class="p-5 space-y-4">
+                <p id="dismiss-opp-info" class="text-sm font-bold text-slate-700 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200"></p>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Data da Perda *</label>
+                    <input type="date" id="dismiss-opp-data" class="w-full border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-700 focus:ring-2 focus:ring-slate-400 outline-none bg-white mb-3">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Motivo da Perda *</label>
+                    <div class="flex gap-2 items-center">
+                        <select id="dismiss-opp-reason" class="flex-1 border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-700 focus:ring-2 focus:ring-slate-400 outline-none bg-white">
+                            <option value="">Selecione o motivo...</option>
+                        </select>
+                        <button type="button" onclick="openCancelReasonsModal()" class="h-10 w-10 shrink-0 bg-slate-100 text-slate-500 hover:bg-slate-600 hover:text-white rounded-xl flex items-center justify-center transition shadow-sm border border-slate-200" title="Gerenciar motivos"><i class="fas fa-plus text-xs"></i></button>
+                        <!-- Checkbox: vacina aplicada em outro local -->
+                        <div class="flex flex-col items-center gap-0.5 shrink-0">
+                            <span class="text-[8px] font-black uppercase text-violet-500 leading-tight tracking-wide">Outro Local</span>
+                            <label class="cursor-pointer select-none group" title="Já aplicada em outro local">
+                                <input type="checkbox" id="dismiss-opp-outro-local" class="sr-only peer" onchange="toggleDismissOutroLocal(this)">
+                                <div class="w-10 h-10 rounded-xl border-2 border-violet-300 bg-violet-50 flex items-center justify-center transition-all duration-200 shadow-sm">
+                                    <i class="fas fa-map-marker-alt text-violet-400 text-sm" id="icon-dismiss-outro-local"></i>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    <p id="dismiss-opp-err" class="hidden text-[11px] text-red-500 font-bold mt-1"><i class="fas fa-exclamation-circle mr-1"></i>Selecione um motivo para continuar</p>
+                </div>
+                <div class="flex gap-3 pt-1">
+                    <button onclick="closeDismissOppModal()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Voltar</button>
+                    <button onclick="confirmDismissOpp()" class="flex-1 py-3 rounded-xl bg-slate-700 text-white font-black text-xs uppercase tracking-wider hover:bg-slate-800 transition shadow-md">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="modal-paciente" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[120] justify-center items-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
@@ -1634,25 +1872,7 @@
                         <span id="btn-reforco-knob" class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
                     </button>
                     <input type="hidden" id="vac-reforco" value="0">
-                    <div class="h-4 w-px bg-slate-200"></div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><i class="fas fa-venus-mars text-slate-300"></i> Gênero</span>
-                        <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
-                            <button type="button" data-sexo="Ambos" onclick="setSexoVacina(this)"
-                                class="vac-sexo-btn px-2.5 py-1 rounded-md text-[10px] font-black transition-all duration-150 bg-white text-slate-700 shadow-sm">
-                                <i class="fas fa-infinity mr-0.5"></i> Ambos
-                            </button>
-                            <button type="button" data-sexo="Masculino" onclick="setSexoVacina(this)"
-                                class="vac-sexo-btn px-2.5 py-1 rounded-md text-[10px] font-black transition-all duration-150 text-slate-400 hover:text-blue-600">
-                                <i class="fas fa-mars mr-0.5"></i> Masc.
-                            </button>
-                            <button type="button" data-sexo="Feminino" onclick="setSexoVacina(this)"
-                                class="vac-sexo-btn px-2.5 py-1 rounded-md text-[10px] font-black transition-all duration-150 text-slate-400 hover:text-pink-500">
-                                <i class="fas fa-venus mr-0.5"></i> Fem.
-                            </button>
-                        </div>
-                        <input type="hidden" id="vac-sexo" value="Ambos">
-                    </div>
+
                 </div>
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Valor Padrão *</label>
@@ -2117,23 +2337,6 @@
         </div>
     </div>
 
-    <!-- ══════════════════ MODAL RESTRIÇÃO DE GÊNERO ══════════════════ -->
-    <div id="modal-sex-warning" class="modal fixed inset-0 bg-navy-900/60 backdrop-blur-sm z-[130] justify-center items-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div id="sex-warning-header" class="p-5 text-center">
-                <div id="sex-warning-icon-wrap" class="mx-auto mb-3 h-16 w-16 rounded-full flex items-center justify-center text-3xl"></div>
-                <h3 id="sex-warning-title" class="text-base font-black mb-0.5"></h3>
-                <p id="sex-warning-subtitle" class="text-[11px] font-bold uppercase tracking-widest opacity-70"></p>
-            </div>
-            <div class="px-6 pb-6">
-                <div id="sex-warning-body" class="rounded-xl p-4 mb-5 text-sm text-center leading-relaxed"></div>
-                <button onclick="clearVacinaField(); document.getElementById('modal-sex-warning').classList.remove('active')" id="sex-warning-btn"
-                    class="w-full text-white font-black py-3 rounded-xl transition uppercase text-xs shadow-lg">
-                    Entendido — não agendar
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- ══════════════════ MODAL FAIXA ETÁRIA DO ESQUEMA ══════════════════ -->
     <div id="modal-faixa-etaria" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[200] justify-center items-center p-4">

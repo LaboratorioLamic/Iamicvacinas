@@ -34,6 +34,13 @@ let _kanbanSortDir = 'asc';
 let _kanbanDragId = null;
 let _kanbanPendingCancelId = null;
 let _kanbanPage = {}; // { [colKey]: pageIndex (0-based) }
+let _kanbanGrouped = false;
+let _kanbanGroupDragPatId = null;
+let _kanbanGroupDragFromStatus = null;
+let _agendarGrupoPending = null;
+let _agendarGrupoRemovedIds = new Set();
+let _agendarGrupoRemovePending = null;
+let _moverGrupoPerdidoPending = null;
 
 // Agenda day selection
 let selectedDayDate = null;

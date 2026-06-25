@@ -148,7 +148,7 @@ function renderTable() {
         const pat = patients.find(p=>p.id==a.patientId);
         const vac = vaccines.find(v=>v.id==a.vaccineId);
         const isDelayed = a.data < todayStr && a.status === 'Agendado';
-        let stClass = a.status==='Aplicado'?'bg-green-100 text-green-700':a.status==='Cancelado'?'bg-red-100 text-red-700':a.status==='Em negociação'?'bg-cyan-100 text-cyan-700':isDelayed?'bg-yellow-100 text-yellow-700 border border-yellow-300':'bg-blue-100 text-blue-700';
+        let stClass = a.status==='Aplicado'?'bg-green-100 text-green-700':a.status==='Perdido'?'bg-red-100 text-red-700':a.status==='Em negociação'?'bg-cyan-100 text-cyan-700':isDelayed?'bg-yellow-100 text-yellow-700 border border-yellow-300':'bg-blue-100 text-blue-700';
 
         tbody.innerHTML += `<tr onclick="editRecord(${a.id})" class="cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-clinic-50 hover:shadow-md active:translate-y-0 active:bg-clinic-100 group">
             <td class="p-4 font-bold text-slate-700 whitespace-nowrap group-hover:text-clinic-700">${a.data.split('-').reverse().join('/')}${a.hora ? ' <span class="text-[10px] text-slate-400 font-bold">'+a.hora+'</span>' : ''} ${isDelayed?'<i class="fas fa-exclamation-triangle text-yellow-500 ml-1" title="Atrasado"></i>':''}</td>

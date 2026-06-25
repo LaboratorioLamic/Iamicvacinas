@@ -28,9 +28,9 @@ function getAge(dateStr) {
     return age;
 }
 
-function getAgeInMonths(dateStr) {
+function getAgeInMonths(dateStr, refDateStr) {
     if(!dateStr) return {years: 0, months: 0};
-    const today = new Date();
+    const today = refDateStr ? new Date(refDateStr + 'T00:00:00') : new Date();
     const birthDate = new Date(dateStr);
     let years = today.getFullYear() - birthDate.getFullYear();
     let months = today.getMonth() - birthDate.getMonth();
@@ -49,8 +49,8 @@ function getAgeInMonths(dateStr) {
     return {years: years, months: months};
 }
 
-function getAgeDisplay(dateStr) {
-    const {years, months} = getAgeInMonths(dateStr);
+function getAgeDisplay(dateStr, refDateStr) {
+    const {years, months} = getAgeInMonths(dateStr, refDateStr);
     if (years === 0) return months + (months === 1 ? ' mês' : ' meses');
     if (months === 0) return years + (years === 1 ? ' ano' : ' anos');
     return years + (years === 1 ? ' ano' : ' anos') + ' e ' + months + (months === 1 ? ' mês' : ' meses');

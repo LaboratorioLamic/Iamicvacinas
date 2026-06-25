@@ -68,6 +68,14 @@ function selectPatientFromDropdown(id) {
     autoFillPatient();
 }
 
+function updateIdadeField() {
+    const dtNasc = document.getElementById('reg-dtnasc').value;
+    const dtAgendada = document.getElementById('reg-data').value;
+    const el = document.getElementById('reg-idade');
+    if (!el) return;
+    el.value = dtNasc ? getAgeDisplay(dtNasc, dtAgendada || null) : '';
+}
+
 function openRecordModal() {
     if (!checkPerm('criar_agendamento')) return;
     document.getElementById('record-form').reset(); document.getElementById('reg-id').value = '';
@@ -185,7 +193,7 @@ function autoFillPatient() {
         document.getElementById('hidden-patient-id').value = p.id;
         document.getElementById('reg-cpf').value = p.cpf;
         document.getElementById('reg-dtnasc').value = p.dtNasc;
-        document.getElementById('reg-idade').value = getAgeDisplay(p.dtNasc);
+        updateIdadeField();
         document.getElementById('reg-contato').value = formatPhone(p.contato);
         if(p.responsavel) {
             document.getElementById('div-responsavel').style.display = 'block';
@@ -391,59 +399,11 @@ function autoFillVaccine() {
             document.getElementById('reg-valor').value = String(v.valor || '').replace('R$', '').trim();
             resetDescontoUI();
             checkAgeConstraint();
-            checkGeneroConstraint();
             updateSuggestedDate();
         }
     }
 }
 
-function checkGeneroConstraint() {
-    const vId = document.getElementById('reg-vacina').value;
-    const patId = document.getElementById('hidden-patient-id').value;
-    if (!vId || !patId) return;
-    const vac = vaccines.find(x => x.id == vId);
-    if (!vac || !vac.sexo || vac.sexo === 'Ambos') return;
-    const pat = patients.find(x => x.id == patId);
-    const genPac = pat ? (pat.genero || '') : '';
-    if (genPac && genPac !== vac.sexo) {
-        const isFem = vac.sexo === 'Feminino';
-        showSexBlockAlert(vac.nome, vac.sexo, genPac, isFem ? '♀' : '♂', isFem ? '#ec4899' : '#3b82f6');
-    }
-}
-
-function showSexBlockAlert(vacNome, sexoVac, sexoPac, icone, cor) {
-    const isFem = sexoVac === 'Feminino';
-    const bgHeader = isFem ? '#fdf2f8' : '#eff6ff';
-    const borderColor = isFem ? '#f9a8d4' : '#93c5fd';
-    const textColor = isFem ? '#9d174d' : '#1e3a5f';
-    const bgBody = isFem ? '#fdf2f8' : '#eff6ff';
-    const iconBg = isFem ? '#fce7f3' : '#dbeafe';
-
-    const header = document.getElementById('sex-warning-header');
-    header.style.background = bgHeader;
-    header.style.borderBottom = `1px solid ${borderColor}`;
-
-    const iconWrap = document.getElementById('sex-warning-icon-wrap');
-    iconWrap.style.background = iconBg;
-    iconWrap.style.border = `2px solid ${borderColor}`;
-    iconWrap.innerHTML = `<span style="color:${cor}">${icone}</span>`;
-
-    document.getElementById('sex-warning-title').style.color = textColor;
-    document.getElementById('sex-warning-title').textContent = 'Restrição de Gênero';
-    document.getElementById('sex-warning-subtitle').style.color = cor;
-    document.getElementById('sex-warning-subtitle').textContent = `Vacina exclusiva para ${sexoVac}`;
-
-    const body = document.getElementById('sex-warning-body');
-    body.style.background = bgBody;
-    body.style.border = `1px solid ${borderColor}`;
-    body.style.color = textColor;
-    body.innerHTML = `A vacina <b>${vacNome}</b> está configurada como exclusiva para o gênero <b>${sexoVac}</b>.<br><br>O paciente selecionado possui gênero cadastrado como <b>${sexoPac}</b>.<br><br>O agendamento desta vacina para este paciente <b>não é permitido</b>.`;
-
-    const btn = document.getElementById('sex-warning-btn');
-    btn.style.background = cor;
-
-    document.getElementById('modal-sex-warning').classList.add('active');
-}
 
 function checkAgeConstraint() {
     const vId = document.getElementById('reg-vacina').value;
@@ -799,9 +759,11 @@ function editRecord(id) {
         document.getElementById('reg-status').value = a.status;
         populateLoteSelect(a.vaccineId, a.loteId);
         toggleCancelReason();
-        if(a.status === 'Cancelado') document.getElementById('reg-motivo-cancelamento').value = a.motivoCancelamento || '';
+        if(a.status === 'Perdido') document.getElementById('reg-motivo-cancelamento').value = a.motivoCancelamento || '';
         document.getElementById('reg-vendedor').value = a.vendedor || '';
         document.getElementById('reg-aplicador').value = a.aplicador || '';
+        const chkOutroLocal = document.getElementById('reg-aplicada-outro-local');
+        if(chkOutroLocal) { chkOutroLocal.checked = !!a.aplicadaOutroLocal; toggleAplicadaOutroLocal(chkOutroLocal); }
 
         if (canEdit) {
             document.getElementById('modal-title-agenda').innerText = 'Editar Agendamento';
@@ -845,7 +807,7 @@ function duplicarAgendamento() {
             document.getElementById('hidden-patient-id').value = p.id;
             document.getElementById('reg-cpf').value     = p.cpf;
             document.getElementById('reg-dtnasc').value  = p.dtNasc;
-            document.getElementById('reg-idade').value   = getAgeDisplay(p.dtNasc);
+            updateIdadeField();
             document.getElementById('reg-contato').value = formatPhone(p.contato);
             if (p.responsavel) {
                 document.getElementById('div-responsavel').style.display = 'block';
@@ -886,7 +848,12 @@ function toggleCancelReason() {
 
     const div = document.getElementById('div-motivo-cancelamento');
     const sel = document.getElementById('reg-motivo-cancelamento');
-    if(s === 'Cancelado') { div.style.display = 'flex'; sel.required = true; } else { div.style.display = 'none'; sel.required = false; sel.value=''; }
+    const outroLocal = document.getElementById('reg-aplicada-outro-local');
+    if (s === 'Perdido' && !(outroLocal && outroLocal.checked)) {
+        div.style.display = 'flex'; sel.required = true; sel.disabled = false;
+    } else {
+        div.style.display = 'none'; sel.required = false; sel.value = '';
+    }
 
     const loteSel = document.getElementById('reg-lote');
     const loteLabel = document.getElementById('lbl-lote');
@@ -907,6 +874,28 @@ function toggleCancelReason() {
         loteSel.classList.remove('border-clinic-300', 'ring-2', 'ring-clinic-100');
         aplicadorInput.required = false;
         aplicadorLabel.innerText = 'Aplicador';
+    }
+}
+
+function toggleAplicadaOutroLocal(chk) {
+    const icon    = document.getElementById('icon-aplicada-outro-local');
+    const box     = chk.closest('label') && chk.closest('label').querySelector('div');
+    const motivoSel = document.getElementById('reg-motivo-cancelamento');
+    const motivoDiv = document.getElementById('div-motivo-cancelamento');
+
+    if (chk.checked) {
+        if (icon) { icon.classList.remove('text-violet-400'); icon.classList.add('text-white'); }
+        if (box)  { box.classList.add('bg-violet-600', 'border-violet-600'); box.classList.remove('bg-violet-50', 'border-violet-300'); }
+        if (motivoDiv) motivoDiv.style.display = 'none';
+        if (motivoSel) { motivoSel.disabled = true; motivoSel.required = false; motivoSel.value = ''; }
+    } else {
+        if (icon) { icon.classList.add('text-violet-400'); icon.classList.remove('text-white'); }
+        if (box)  { box.classList.remove('bg-violet-600', 'border-violet-600'); box.classList.add('bg-violet-50', 'border-violet-300'); }
+        const statusSel = document.getElementById('reg-status');
+        if (statusSel && statusSel.value === 'Perdido') {
+            if (motivoDiv) motivoDiv.style.display = 'flex';
+            if (motivoSel) { motivoSel.disabled = false; motivoSel.required = true; motivoSel.classList.remove('opacity-40', 'cursor-not-allowed', 'bg-slate-100'); }
+        }
     }
 }
 
@@ -1073,7 +1062,7 @@ function saveRecord(e) {
             String(x.patientId) === String(patId) &&
             String(x.vaccineId) === String(vId) &&
             x.doseAtual === doseAtualStr &&
-            x.status !== 'Cancelado' &&
+            x.status !== 'Perdido' &&
             String(x.id) !== String(id)
         );
         if (dupl) {
@@ -1169,7 +1158,8 @@ function saveRecord(e) {
         status: statusVal,
         loteId: loteId,
         lote: loteNumero,
-        motivoCancelamento: statusVal === 'Cancelado' ? document.getElementById('reg-motivo-cancelamento').value : '',
+        motivoCancelamento: statusVal === 'Perdido' ? document.getElementById('reg-motivo-cancelamento').value : '',
+        aplicadaOutroLocal: document.getElementById('reg-aplicada-outro-local')?.checked || false,
         vendedor: vendedorVal,
         aplicador: aplicadorVal
     };
@@ -1182,7 +1172,7 @@ function saveRecord(e) {
     const fmtDate = d => (d && d.includes('-')) ? d.split('-').reverse().join('/') : (d || '—');
     const oldAppFmt = oldApp ? {...oldApp, data: fmtDate(oldApp.data)} : null;
     const newAppFmt = {...a, data: fmtDate(a.data)};
-    const appChanges = isNew ? null : computeChanges(oldAppFmt, newAppFmt, {data:'Data', hora:'Hora', doseAtual:'Dose', status:'Status', lote:'Lote', valorAplicado:'Valor', vendedor:'Vendedor', aplicador:'Aplicador', motivoCancelamento:'Motivo Cancel.'});
+    const appChanges = isNew ? null : computeChanges(oldAppFmt, newAppFmt, {data:'Data', hora:'Hora', doseAtual:'Dose', status:'Status', lote:'Lote', valorAplicado:'Valor', vendedor:'Vendedor', aplicador:'Aplicador', motivoCancelamento:'Motivo de Perda'});
     logAudit(isNew ? 'Criado' : 'Editado', 'agendamento', a.id,
         `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a.doseAtual} | ${a.data ? a.data.split('-').reverse().join('/') : '—'}`,
         isNew ? `Status: ${a.status}${a.vendedor ? ' | Vendedor: ' + a.vendedor : ''}` : null, appChanges);

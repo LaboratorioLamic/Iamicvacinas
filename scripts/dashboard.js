@@ -119,7 +119,7 @@ function renderRankingTable(containerId) {
 function renderDashAnalitico(apps) {
     const total = apps.length;
     const applied = apps.filter(a => a.status === 'Aplicado').length;
-    const cancelled = apps.filter(a => a.status === 'Cancelado').length;
+    const cancelled = apps.filter(a => a.status === 'Perdido').length;
     const todayStr = new Date().toISOString().split('T')[0];
     const delayed = apps.filter(a => a.data < todayStr && a.status === 'Agendado').length;
 
@@ -130,7 +130,7 @@ function renderDashAnalitico(apps) {
 
     // ── Donut: status com % ──
     const ctxStatus = document.getElementById('statusChart').getContext('2d');
-    const statusCounts = {'Em negociação':0, 'Agendado':0, 'Aplicado':0, 'Cancelado':0};
+    const statusCounts = {'Em negociação':0, 'Agendado':0, 'Aplicado':0, 'Perdido':0};
     apps.forEach(a => { if(statusCounts[a.status]!==undefined) statusCounts[a.status]++; });
     const statusTotal = Object.values(statusCounts).reduce((s,v)=>s+v,0);
 
@@ -219,7 +219,7 @@ function renderDashAnalitico(apps) {
 
     // ── Ranking: Motivo de Perda (analítico) ──
     const analMotMap = {};
-    apps.filter(a => a.status === 'Cancelado').forEach(a => {
+    apps.filter(a => a.status === 'Perdido').forEach(a => {
         const m = (a.motivoCancelamento || '').trim() || 'Não informado';
         analMotMap[m] = (analMotMap[m] || 0) + 1;
     });
@@ -425,7 +425,7 @@ function renderDashFinanceiro(apps) {
 
     const aplicados   = apps.filter(a => a.status === 'Aplicado');
     const pendentes   = apps.filter(a => a.status === 'Agendado' || a.status === 'Em negociação');
-    const cancelados  = apps.filter(a => a.status === 'Cancelado');
+    const cancelados  = apps.filter(a => a.status === 'Perdido');
 
     const receitaReal  = aplicados.reduce((s,a) => s + toVal(a), 0);
     const receitaPrev  = pendentes.reduce((s,a) => s + toVal(a), 0);
@@ -452,7 +452,7 @@ function renderDashFinanceiro(apps) {
     document.getElementById('kpi-fin-prevista').innerText        = fmt(receitaPrev);
     document.getElementById('kpi-fin-prevista-qtd').innerText    = `${pendentes.length} agendamento(s)`;
     document.getElementById('kpi-fin-cancelado').innerText       = fmt(receitaCanc);
-    document.getElementById('kpi-fin-cancelado-qtd').innerText   = `${cancelados.length} cancelamento(s)`;
+    document.getElementById('kpi-fin-cancelado-qtd').innerText   = `${cancelados.length} perda(s)`;
     document.getElementById('kpi-fin-ticket').innerText          = fmt(ticketMedio);
     document.getElementById('kpi-fin-ticket-esperado').innerText = fmt(ticketEsperado);
 

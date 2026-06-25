@@ -1,4 +1,4 @@
-// ─── CALENDAR & KANBAN (from index.html lines ~3133-3967) ────────────────────
+﻿// ─── CALENDAR & KANBAN (from index.html lines ~3133-3967) ────────────────────
 
 let _calView = 'mensal'; // 'mensal' | 'semanal'
 let _weekStart = null; // Date do domingo da semana atual
@@ -55,7 +55,7 @@ function renderWeekly() {
         const dateStr = day.toISOString().split('T')[0];
         const isToday = dateStr === todayStr;
         const col = DAY_COLORS[i];
-        const dayApps = appointments.filter(a => a.data === dateStr && a.status !== 'Cancelado');
+        const dayApps = appointments.filter(a => a.data === dateStr && a.status !== 'Perdido');
 
         const cardsHtml = dayApps.map(a => {
             const pat = patients.find(p => p.id == a.patientId);
@@ -411,13 +411,13 @@ function renderCalendar() {
                 const emAndamento = dayApps.filter(a => a.status === 'Em negociação').length;
                 const agendados = dayApps.filter(a => a.status === 'Agendado').length;
                 const aplicados = dayApps.filter(a => a.status === 'Aplicado').length;
-                const cancelados = dayApps.filter(a => a.status === 'Cancelado').length;
+                const cancelados = dayApps.filter(a => a.status === 'Perdido').length;
 
                 let summary = '';
                 if(emAndamento) summary += `<div class="text-[9px] font-black text-cyan-700 bg-cyan-50 border border-cyan-100 rounded px-1 mb-0.5 truncate shadow-sm">${emAndamento} NEGOCIANDO</div>`;
                 if(agendados)   summary += `<div class="text-[9px] font-black text-blue-700 bg-blue-50 border border-blue-100 rounded px-1 mb-0.5 truncate shadow-sm">${agendados} AGENDADO(S)</div>`;
                 if(aplicados)   summary += `<div class="text-[9px] font-black text-green-700 bg-green-50 border border-green-100 rounded px-1 mb-0.5 truncate shadow-sm">${aplicados} APLICADO(S)</div>`;
-                if(cancelados)  summary += `<div class="text-[9px] font-black text-red-700 bg-red-50 border border-red-100 rounded px-1 mb-0.5 truncate shadow-sm">${cancelados} CANCELADO(S)</div>`;
+                if(cancelados)  summary += `<div class="text-[9px] font-black text-red-700 bg-red-50 border border-red-100 rounded px-1 mb-0.5 truncate shadow-sm">${cancelados} PERDIDO(S)</div>`;
 
                 cell.innerHTML = `<div class="text-right text-xs font-black mb-1 ${dateStr===todayStr?'text-clinic-600':'text-slate-400'}">${d}</div><div class="flex flex-col gap-[1px]">${summary}</div>`;
             }
@@ -455,8 +455,8 @@ function openDayModal(dateStr, d, month, year) {
                 if(!pat || !vac) return '';
 
                 const isDelayed = dateStr < new Date().toISOString().split('T')[0] && a.status === 'Agendado';
-                let stClass = a.status==='Aplicado'?'bg-green-50 border-green-200':a.status==='Cancelado'?'bg-red-50 border-red-200':a.status==='Em negociação'?'bg-cyan-50 border-cyan-200':a.status==='Nova oportunidade'?'bg-slate-50 border-slate-200':isDelayed?'bg-yellow-50 border-yellow-200':'bg-white border-blue-200';
-                let stBadgeClass = a.status==='Aplicado'?'bg-green-100 text-green-700':a.status==='Cancelado'?'bg-red-100 text-red-700':a.status==='Em negociação'?'bg-cyan-100 text-cyan-700':a.status==='Nova oportunidade'?'bg-slate-100 text-slate-600':isDelayed?'bg-yellow-100 text-yellow-700':'bg-blue-100 text-blue-700';
+                let stClass = a.status==='Aplicado'?'bg-green-50 border-green-200':a.status==='Perdido'?'bg-red-50 border-red-200':a.status==='Em negociação'?'bg-cyan-50 border-cyan-200':a.status==='Nova oportunidade'?'bg-slate-50 border-slate-200':isDelayed?'bg-yellow-50 border-yellow-200':'bg-white border-blue-200';
+                let stBadgeClass = a.status==='Aplicado'?'bg-green-100 text-green-700':a.status==='Perdido'?'bg-red-100 text-red-700':a.status==='Em negociação'?'bg-cyan-100 text-cyan-700':a.status==='Nova oportunidade'?'bg-slate-100 text-slate-600':isDelayed?'bg-yellow-100 text-yellow-700':'bg-blue-100 text-blue-700';
 
                 return `
                 <div class="p-4 rounded-xl border shadow-sm ${stClass} flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition hover:shadow-md">
@@ -722,17 +722,20 @@ function switchTableView(view) {
     const vPlan = document.getElementById('view-planilhas');
     const vKan  = document.getElementById('view-kanban');
     const statusSel = document.getElementById('filter-status-agenda');
+    const groupWrap = document.getElementById('btn-kanban-group-wrap');
 
     if (view === 'kanban') {
         if (vPlan) vPlan.classList.add('hidden');
         if (vKan)  { vKan.style.display = 'flex'; vKan.style.flexDirection = 'column'; }
         if (statusSel) statusSel.style.display = 'none';
+        if (groupWrap) groupWrap.style.display = '';
         _kanbanPage = {};
         renderKanban();
     } else {
         if (vPlan) vPlan.classList.remove('hidden');
         if (vKan)  vKan.style.display = 'none';
         if (statusSel) statusSel.style.display = '';
+        if (groupWrap) groupWrap.style.display = 'none';
         renderTable();
     }
 }
@@ -764,6 +767,7 @@ function _getKanbanFiltered() {
 }
 
 function renderKanban() {
+    if (_kanbanGrouped) { renderKanbanGrouped(); return; }
     const board = document.getElementById('kanban-board');
     if (!board) return;
     _populateTableColabDropdowns();
@@ -776,7 +780,7 @@ function renderKanban() {
         { key: 'Em negociação', label: 'Em Negociação', icon: 'fa-comments', color: '#0891b2', light: '#ecfeff', border: '#a5f3fc', text: '#0e7490', gradFrom: '#0891b2', gradTo: '#0e7490' },
         { key: 'Agendado',      label: 'Agendado',      icon: 'fa-calendar-check', color: '#2563eb', light: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', gradFrom: '#2563eb', gradTo: '#1d4ed8' },
         { key: 'Aplicado',      label: 'Aplicado',      icon: 'fa-syringe', color: '#16a34a', light: '#f0fdf4', border: '#bbf7d0', text: '#15803d', gradFrom: '#16a34a', gradTo: '#15803d' },
-        { key: 'Cancelado',     label: 'Cancelado',     icon: 'fa-ban', color: '#dc2626', light: '#fff1f2', border: '#fecdd3', text: '#b91c1c', gradFrom: '#dc2626', gradTo: '#b91c1c' },
+        { key: 'Perdido',     label: 'Perdido',     icon: 'fa-ban', color: '#dc2626', light: '#fff1f2', border: '#fecdd3', text: '#b91c1c', gradFrom: '#dc2626', gradTo: '#b91c1c' },
     ];
 
     board.innerHTML = columns.map(col => {
@@ -794,48 +798,51 @@ function renderKanban() {
             const pat = patients.find(p=>p.id==a.patientId);
             const vac = vaccines.find(v=>v.id==a.vaccineId);
             if (!pat || !vac) return '';
-            const isDelayed = a.data < todayStr && a.status === 'Agendado';
-            const dateLabel = a.data ? a.data.split('-').reverse().join('/') : '—';
-            const waLink = `https://wa.me/55${formatWa(pat.contato)}`;
+            const isDelayed    = a.data < todayStr && a.status === 'Agendado';
+            const isOutroLocal = a.status === 'Perdido' && a.aplicadaOutroLocal;
+            const dateLabel    = a.data ? a.data.split('-').reverse().join('/') : '—';
+            const waLink       = `https://wa.me/55${formatWa(pat.contato)}`;
+
+            // Cores de acento: outro local → roxo, atrasado → âmbar, padrão → cor da coluna
+            const accentColor  = isOutroLocal ? '#7c3aed' : isDelayed ? '#f59e0b' : col.color;
+            const accentLight  = isOutroLocal ? '#f5f3ff' : isDelayed ? '#fffbeb' : col.light;
+            const accentBorder = isOutroLocal ? '#ddd6fe' : isDelayed ? '#fde68a' : col.border;
+            const accentText   = isOutroLocal ? '#6d28d9' : isDelayed ? '#92400e'  : col.text;
+            const cardBg       = isDelayed ? '#fffbeb' : '#fff';
+
             return `<div
                 draggable="true"
                 ondragstart="kanbanDragStart(event,${a.id})"
                 ondragend="kanbanDragEnd(event)"
                 class="kanban-card group rounded-xl shadow-sm overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-lg transition-all duration-200 select-none"
-                style="border:1px solid ${isDelayed ? '#fde68a' : '#e2e8f0'};border-left:4px solid ${isDelayed ? '#f59e0b' : col.color};background:${isDelayed ? '#fffbeb' : '#fff'};">
-                <!-- Card header -->
-                <div class="px-3 pt-2.5 pb-1.5 flex items-start justify-between gap-2">
+                style="border:1px solid ${accentBorder};border-left:4px solid ${accentColor};background:${cardBg};">
+                <!-- Linha 1: paciente + grip -->
+                <div class="px-3 pt-2.5 pb-1 flex items-center justify-between gap-2">
                     <div class="flex-1 min-w-0">
-                        <p class="font-black text-navy-900 text-sm leading-tight truncate" title="${pat.nome}">${pat.nome}</p>
-                        <p class="text-[10px] text-slate-400 font-bold mt-0.5 truncate">CPF: ${pat.cpf} · ${getAge(pat.dtNasc)} anos</p>
+                        <p class="font-black text-navy-900 text-[12px] leading-tight truncate" title="${pat.nome}">${pat.nome}</p>
+                        <p class="text-[10px] text-slate-400 font-bold truncate">CPF: ${pat.cpf} · ${getAge(pat.dtNasc)} anos</p>
                     </div>
-                    <div class="shrink-0 text-slate-200 group-hover:text-slate-400 transition pt-0.5">
-                        <i class="fas fa-grip-vertical text-xs"></i>
-                    </div>
+                    <i class="fas fa-grip-vertical text-slate-200 group-hover:text-slate-400 transition text-xs shrink-0"></i>
                 </div>
-                <!-- Vaccine + Date + Actions row -->
-                <div class="px-3 pb-2.5 flex items-start gap-2">
-                    <!-- Vaccine icon -->
-                    <div class="h-6 w-6 rounded-md flex items-center justify-center shrink-0 mt-0.5" style="background:${col.light};border:1px solid ${col.border};">
-                        <i class="fas fa-syringe text-[9px]" style="color:${col.text};"></i>
+                <!-- Linha 2: vacina + dose -->
+                <div class="px-3 py-1.5 flex items-center gap-2 border-t border-slate-50">
+                    <div class="h-6 w-6 rounded-md flex items-center justify-center shrink-0" style="background:${accentLight};border:1px solid ${accentBorder};">
+                        <i class="fas ${isOutroLocal ? 'fa-map-marker-alt' : 'fa-syringe'} text-[9px]" style="color:${accentText};"></i>
                     </div>
-                    <!-- Vaccine name + dose -->
-                    <div class="flex-1 min-w-0">
-                        <p class="kanban-vac-name font-black text-slate-700 text-[11px] leading-tight truncate">${vac.nome}</p>
-                        <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md" style="background:${col.light};color:${col.text};border:1px solid ${col.border};">${a.doseAtual}</span>
+                    <p class="font-black text-slate-700 text-[11px] leading-tight flex-1 min-w-0 truncate" title="${vac.nome}">${vac.nome}</p>
+                    <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md shrink-0" style="background:${accentLight};color:${accentText};border:1px solid ${accentBorder};">${a.doseAtual}</span>
+                </div>
+                <!-- Linha 3: data + valor + ações -->
+                <div class="px-3 pb-2.5 pt-1 flex items-center justify-between gap-2 border-t border-slate-50">
+                    <div class="flex items-center gap-1 min-w-0">
+                        <i class="far fa-calendar text-[9px] text-slate-400 shrink-0"></i>
+                        <span class="text-[10px] font-bold text-slate-600 whitespace-nowrap">${dateLabel}${a.hora ? ' · '+a.hora : ''}</span>
+                        ${isDelayed ? '<span class="text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded-full ml-1">!</span>' : ''}
                     </div>
-                    <!-- Date + Actions (right column) -->
-                    <div class="flex flex-col items-end gap-1 shrink-0">
-                        <div class="flex items-center gap-1 text-slate-500 whitespace-nowrap">
-                            <i class="far fa-calendar text-[9px] text-slate-400"></i>
-                            <span class="text-[10px] font-bold">${dateLabel}${a.hora ? ' · '+a.hora : ''}</span>
-                            ${isDelayed ? '<span class="text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded-full">!</span>' : ''}
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            ${a.valorAplicado ? `<span class="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md whitespace-nowrap">R$ ${a.valorAplicado}</span>` : ''}
-                            <a href="${waLink}" target="_blank" onclick="event.stopPropagation()" class="h-6 w-6 rounded-md bg-green-50 text-green-600 hover:bg-green-500 hover:text-white flex items-center justify-center transition text-xs" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
-                            ${permBtn('agendar', `<button onclick="editRecord(${a.id})" class="h-6 w-6 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white flex items-center justify-center transition text-xs" title="Abrir"><i class="fas fa-eye text-[10px]"></i></button>`)}
-                        </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        ${a.valorAplicado ? `<span class="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md whitespace-nowrap">R$ ${a.valorAplicado}</span>` : ''}
+                        <a href="${waLink}" target="_blank" onclick="event.stopPropagation()" class="h-6 w-6 rounded-md bg-green-50 text-green-600 hover:bg-green-500 hover:text-white flex items-center justify-center transition text-xs" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                        ${permBtn('agendar', `<button onclick="editRecord(${a.id})" class="h-6 w-6 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white flex items-center justify-center transition text-xs" title="Abrir"><i class="fas fa-eye text-[10px]"></i></button>`)}
                     </div>
                 </div>
             </div>`;
@@ -934,6 +941,16 @@ function kanbanDragLeave(event) {
 function kanbanDrop(event, targetStatus) {
     event.preventDefault();
     event.currentTarget.style.boxShadow = '';
+
+    if (_kanbanGroupDragPatId !== null) {
+        const patId = _kanbanGroupDragPatId;
+        const fromStatus = _kanbanGroupDragFromStatus;
+        _kanbanGroupDragPatId = null;
+        _kanbanGroupDragFromStatus = null;
+        _handleGroupDrop(patId, fromStatus, targetStatus);
+        return;
+    }
+
     const id = _kanbanDragId;
     if (!id) return;
     const a = appointments.find(x => x.id == id);
@@ -945,7 +962,7 @@ function kanbanDrop(event, targetStatus) {
     } else if (targetStatus === 'Aplicado') {
         if (!checkPerm('aplicar')) return;
         openConcluirModal(id);
-    } else if (targetStatus === 'Cancelado') {
+    } else if (targetStatus === 'Perdido') {
         openKanbanCancelModal(id);
     } else {
         const idx = appointments.findIndex(x => x.id == id);
@@ -993,7 +1010,7 @@ function confirmKanbanCancel() {
     }
     const idx = appointments.findIndex(x => x.id == _kanbanPendingCancelId);
     if (idx > -1) {
-        appointments[idx].status = 'Cancelado';
+        appointments[idx].status = 'Perdido';
         appointments[idx].motivoCancelamento = reason;
         closeKanbanCancelModal();
         if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
@@ -1002,6 +1019,510 @@ function confirmKanbanCancel() {
         renderKanban();
         if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
         if (typeof refreshOpenModals === 'function') refreshOpenModals();
-        showNotification('Atendimento cancelado.', 'info');
+        showNotification('Registro marcado como perdido.', 'info');
     }
+}
+
+// ─── KANBAN GRUPO ─────────────────────────────────────────────────────────────
+
+function kanbanToggleGroup() {
+    _kanbanGrouped = !_kanbanGrouped;
+    const btn = document.getElementById('btn-kanban-group');
+    if (btn) {
+        btn.classList.toggle('bg-indigo-600', _kanbanGrouped);
+        btn.classList.toggle('text-white', _kanbanGrouped);
+        btn.classList.toggle('border-indigo-600', _kanbanGrouped);
+        btn.classList.toggle('bg-white', !_kanbanGrouped);
+        btn.classList.toggle('text-slate-600', !_kanbanGrouped);
+        btn.classList.toggle('border-slate-200', !_kanbanGrouped);
+        const lbl = btn.querySelector('.group-btn-lbl');
+        if (lbl) lbl.textContent = _kanbanGrouped ? 'Agrupado' : 'Agrupar';
+    }
+    _kanbanPage = {};
+    renderKanban();
+}
+
+function renderKanbanGrouped() {
+    const board = document.getElementById('kanban-board');
+    if (!board) return;
+    _populateTableColabDropdowns();
+    const todayStr = new Date().toISOString().split('T')[0];
+    const allFiltered = _getKanbanFiltered();
+    const dir = _kanbanSortDir === 'asc' ? 1 : -1;
+
+    const columns = [
+        { key: 'Nova oportunidade', label: 'Nova Oportunidade', icon: 'fa-star',         color: '#64748b', light: '#f8fafc', border: '#cbd5e1', text: '#475569', gradFrom: '#64748b', gradTo: '#475569' },
+        { key: 'Em negociação',     label: 'Em Negociação',     icon: 'fa-comments',      color: '#0891b2', light: '#ecfeff', border: '#a5f3fc', text: '#0e7490', gradFrom: '#0891b2', gradTo: '#0e7490' },
+        { key: 'Agendado',          label: 'Agendado',          icon: 'fa-calendar-check',color: '#2563eb', light: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', gradFrom: '#2563eb', gradTo: '#1d4ed8' },
+        { key: 'Aplicado',          label: 'Aplicado',          icon: 'fa-syringe',       color: '#16a34a', light: '#f0fdf4', border: '#bbf7d0', text: '#15803d', gradFrom: '#16a34a', gradTo: '#15803d' },
+        { key: 'Perdido',           label: 'Perdido',           icon: 'fa-ban',           color: '#dc2626', light: '#fff1f2', border: '#fecdd3', text: '#b91c1c', gradFrom: '#dc2626', gradTo: '#b91c1c' },
+    ];
+
+    board.innerHTML = columns.map(col => {
+        const colApps = allFiltered
+            .filter(a => a.status === col.key)
+            .sort((a, b) => (new Date(a.data) - new Date(b.data)) * dir);
+
+        const byPat = {};
+        colApps.forEach(a => {
+            if (!byPat[a.patientId]) byPat[a.patientId] = [];
+            byPat[a.patientId].push(a);
+        });
+        const groups = Object.entries(byPat);
+        const totalApps = colApps.length;
+        const totalGroups = groups.length;
+
+        const PAGE_SIZE = 6;
+        const totalPages = Math.max(1, Math.ceil(groups.length / PAGE_SIZE));
+        if (_kanbanPage[col.key] === undefined) _kanbanPage[col.key] = 0;
+        if (_kanbanPage[col.key] >= totalPages) _kanbanPage[col.key] = totalPages - 1;
+        const page = _kanbanPage[col.key];
+        const pageGroups = groups.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+
+        const colKeyEsc = col.key.replace(/'/g, "\\'");
+
+        const PURPLE = { color: '#7c3aed', border: '#ddd6fe', light: '#faf5ff', text: '#6d28d9' };
+
+        const groupsHtml = pageGroups.map(([patId, apps]) => {
+            const pat = patients.find(p => p.id == patId);
+            if (!pat) return '';
+            const totalVal = apps.reduce((s, a) => s + (parseBRL(String(a.valorAplicado || '0')) || 0), 0);
+            const age = pat.dtNasc ? getAge(pat.dtNasc) : '';
+            const waLink = `https://wa.me/55${formatWa(pat.contato || '')}`;
+            const hasDelayed = apps.some(a => a.data < todayStr && a.status === 'Agendado');
+            const allOutroLocal = col.key === 'Perdido' && apps.length > 0 && apps.every(a => a.aplicadaOutroLocal);
+            const groupCol = allOutroLocal ? PURPLE : col;
+
+            const minicardsHtml = apps.map(a => {
+                const vac = vaccines.find(v => v.id == a.vaccineId);
+                if (!vac) return '';
+                const isDelayed = a.data < todayStr && a.status === 'Agendado';
+                const isOutroLocal = col.key === 'Perdido' && a.aplicadaOutroLocal;
+                const miniCol = isOutroLocal ? PURPLE : col;
+                const dateLabel = a.data ? a.data.split('-').reverse().join('/') : '—';
+                return `<div
+                    draggable="true"
+                    ondragstart="kanbanMiniInGroupDragStart(event,${a.id})"
+                    ondragend="kanbanDragEnd(event)"
+                    onclick="kanbanMiniInGroupClick(event,${a.id})"
+                    class="flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 border cursor-pointer hover:shadow-sm hover:border-indigo-300 transition-all select-none"
+                    style="border-color:${isDelayed ? '#fde68a' : miniCol.border};border-left:3px solid ${isDelayed ? '#f59e0b' : miniCol.color};">
+                    <i class="fas fa-syringe text-[9px] shrink-0" style="color:${miniCol.text};"></i>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[10px] font-black text-navy-900 truncate leading-tight">${vac.nome}</p>
+                        <p class="text-[9px] text-slate-400 font-bold">${a.doseAtual} · ${dateLabel}${a.hora ? ' ' + a.hora : ''}</p>
+                    </div>
+                    ${a.valorAplicado ? `<span class="text-[9px] font-black text-emerald-600 shrink-0 whitespace-nowrap">R$ ${a.valorAplicado}</span>` : ''}
+                    ${isDelayed ? `<span class="text-[8px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded-full shrink-0">!</span>` : ''}
+                </div>`;
+            }).join('');
+
+            return `<div
+                draggable="true"
+                ondragstart="kanbanGroupDragStart(event,${patId},'${colKeyEsc}')"
+                ondragend="kanbanGroupDragEnd(event)"
+                class="kanban-group-card rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing select-none"
+                style="border:2px solid ${hasDelayed ? '#fde68a' : groupCol.border};background:#fff;">
+                <div class="px-3 py-2 flex items-center justify-between gap-2" style="background:${groupCol.light};border-bottom:1px solid ${groupCol.border};">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div class="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 font-black text-xs text-white" style="background:${groupCol.color};">
+                            ${(pat.nome || '?')[0].toUpperCase()}
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-black text-navy-900 text-[11px] truncate leading-tight">${pat.nome}</p>
+                            <p class="text-[9px] text-slate-400 font-bold">${pat.cpf}${age ? ' · ' + age + 'a' : ''}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <div class="text-right">
+                            <div class="text-[8px] text-slate-400 uppercase tracking-wide">Ticket</div>
+                            <div class="text-[10px] font-black text-emerald-600">${formatCurrency(totalVal)}</div>
+                        </div>
+                        <div class="h-5 w-5 rounded-full flex items-center justify-center font-black text-[9px] text-white" style="background:${groupCol.color};" title="${apps.length} vacina(s)">${apps.length}</div>
+                        <a href="${waLink}" target="_blank" onclick="event.stopPropagation()"
+                            class="h-6 w-6 rounded-md bg-green-50 text-green-600 hover:bg-green-500 hover:text-white flex items-center justify-center transition text-xs shrink-0"
+                            title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                        <i class="fas fa-grip-vertical text-slate-300 text-xs shrink-0"></i>
+                    </div>
+                </div>
+                <div class="p-2 flex flex-col gap-1.5">${minicardsHtml}</div>
+            </div>`;
+        }).join('');
+
+        const emptyHtml = `<div class="flex flex-col items-center justify-center py-10 text-center opacity-60">
+            <div class="h-12 w-12 rounded-full flex items-center justify-center mb-2" style="background:${col.light};">
+                <i class="fas ${col.icon} text-lg" style="color:${col.color};"></i>
+            </div>
+            <p class="text-[11px] font-black uppercase tracking-wider" style="color:${col.text};">Sem registros</p>
+        </div>`;
+
+        const sortIconClass = _kanbanSortDir === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up-alt';
+        const paginationHtml = totalPages > 1 ? `
+            <div class="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-b border-slate-100 shrink-0">
+                <button onclick="kanbanPageGo('${colKeyEsc}',${page - 1})" ${page === 0 ? 'disabled' : ''}
+                    class="h-6 w-6 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span class="text-[11px] font-bold text-slate-500">${page + 1}/${totalPages} <span class="text-slate-400 font-normal">(${totalGroups}g · ${totalApps}v)</span></span>
+                <button onclick="kanbanPageGo('${colKeyEsc}',${page + 1})" ${page >= totalPages - 1 ? 'disabled' : ''}
+                    class="h-6 w-6 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>` : '';
+
+        return `<div class="kanban-col flex flex-col rounded-2xl overflow-hidden shadow-md border border-slate-200/60 transition-all duration-200" style="height:100%;flex:1 1 0;min-width:240px;"
+            ondragover="kanbanDragOver(event)"
+            ondragleave="kanbanDragLeave(event)"
+            ondrop="kanbanDrop(event,'${colKeyEsc}')"
+            data-col="${col.key}">
+            <div class="px-4 py-3 flex items-center justify-between shrink-0 cursor-pointer select-none" style="background:linear-gradient(135deg,${col.gradFrom},${col.gradTo});" onclick="kanbanToggleSort()">
+                <div class="flex items-center gap-2">
+                    <div class="h-7 w-7 bg-white/20 rounded-lg flex items-center justify-center border border-white/30">
+                        <i class="fas ${col.icon} text-white text-xs"></i>
+                    </div>
+                    <span class="font-black text-white text-xs uppercase tracking-wider">${col.label}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="h-6 min-w-6 px-1.5 bg-white/25 text-white font-black text-xs rounded-full flex items-center justify-center border border-white/30">${totalGroups}</span>
+                    <i class="fas ${sortIconClass} text-white/70 text-xs"></i>
+                </div>
+            </div>
+            ${paginationHtml}
+            <div class="kanban-col-body flex-1 overflow-y-auto p-3 space-y-3 bg-white/70 backdrop-blur-sm">
+                ${pageGroups.length ? groupsHtml : emptyHtml}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function kanbanGroupDragStart(event, patId, fromStatus) {
+    _kanbanGroupDragPatId = String(patId);
+    _kanbanGroupDragFromStatus = fromStatus;
+    _kanbanDragId = null;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', 'group:' + patId + ':' + fromStatus);
+    setTimeout(() => {
+        const card = event.target.closest('.kanban-group-card');
+        if (card) { card.style.opacity = '0.45'; card.style.transform = 'scale(0.97)'; }
+    }, 0);
+}
+
+function kanbanGroupDragEnd(event) {
+    const card = event.target.closest ? event.target.closest('.kanban-group-card') : null;
+    if (card) { card.style.opacity = ''; card.style.transform = ''; }
+    document.querySelectorAll('.kanban-col').forEach(c => {
+        c.style.boxShadow = '';
+        c.style.borderColor = '';
+        c.style.background = '';
+    });
+}
+
+let _miniGroupDragging = false;
+
+function kanbanMiniInGroupDragStart(event, id) {
+    _kanbanDragId = id;
+    _kanbanGroupDragPatId = null;
+    _kanbanGroupDragFromStatus = null;
+    _miniGroupDragging = true;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(id));
+    event.stopPropagation();
+    setTimeout(() => { event.target.style.opacity = '0.45'; }, 0);
+}
+
+function kanbanMiniInGroupClick(event, id) {
+    if (_miniGroupDragging) { _miniGroupDragging = false; return; }
+    event.stopPropagation();
+    editRecord(id);
+}
+
+function _handleGroupDrop(patId, fromStatus, targetStatus) {
+    if (!patId || fromStatus === targetStatus) return;
+    const groupApps = appointments.filter(a => a.patientId == patId && a.status === fromStatus);
+    if (!groupApps.length) return;
+
+    if (targetStatus === 'Aplicado') {
+        showNotification('Não é possível mover um grupo para Aplicado. Mova cada vacina individualmente.', 'error');
+        return;
+    }
+    if (targetStatus === 'Agendado') {
+        if (!checkPerm('agendar')) return;
+        openAgendarGrupoModal(patId, fromStatus, groupApps);
+        return;
+    }
+    if (targetStatus === 'Perdido') {
+        openMoverGrupoPerdidoModal(patId, fromStatus, groupApps);
+        return;
+    }
+
+    groupApps.forEach(a => {
+        const idx = appointments.findIndex(x => x.id == a.id);
+        if (idx > -1) {
+            appointments[idx].status = targetStatus;
+            if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
+        }
+    });
+    if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
+    saveAll(); renderCalendar(); renderDashboard();
+    renderKanban();
+    if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+    if (typeof refreshOpenModals === 'function') refreshOpenModals();
+    showNotification(`${groupApps.length} agendamento(s) movido(s) para ${targetStatus}!`, 'success');
+}
+
+// ─── MODAL: AGENDAR GRUPO ─────────────────────────────────────────────────────
+
+function openAgendarGrupoModal(patId, fromStatus, groupApps) {
+    _agendarGrupoPending = {
+        patId: String(patId),
+        fromStatus,
+        apps: groupApps.map(a => ({
+            id: a.id,
+            vaccineId: a.vaccineId,
+            dose: a.doseAtual,
+            data: a.data,
+            valorAplicado: a.valorAplicado
+        }))
+    };
+    _agendarGrupoRemovedIds = new Set();
+    _agendarGrupoRemovePending = null;
+
+    const pat = patients.find(p => p.id == patId);
+    const titleEl = document.getElementById('agendar-grupo-paciente');
+    if (titleEl) titleEl.textContent = pat ? pat.nome : '—';
+
+    const fromEl = document.getElementById('agendar-grupo-from-status');
+    if (fromEl) fromEl.textContent = fromStatus;
+
+    const countEl = document.getElementById('agendar-grupo-count');
+    if (countEl) countEl.textContent = groupApps.length + ' vacina' + (groupApps.length !== 1 ? 's' : '');
+
+    _renderAgendarGrupoLines();
+    document.getElementById('modal-agendar-grupo').classList.add('active');
+}
+
+function _renderAgendarGrupoLines() {
+    if (!_agendarGrupoPending) return;
+    const container = document.getElementById('agendar-grupo-lines');
+    if (!container) return;
+
+    const lines = _agendarGrupoPending.apps;
+    const removedIds = _agendarGrupoRemovedIds;
+    const fromStatus = _agendarGrupoPending.fromStatus;
+
+    container.innerHTML = lines.map(app => {
+        const vac = vaccines.find(v => v.id == app.vaccineId);
+        const isRemoved = removedIds.has(app.id);
+        const isConfirming = _agendarGrupoRemovePending === app.id;
+        const nomVac = vac ? vac.nome : '—';
+        const valorStr = app.valorAplicado ? ` · R$ ${app.valorAplicado}` : '';
+
+        if (isRemoved) {
+            return `<div class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 border border-dashed border-slate-200">
+                <i class="fas fa-syringe text-slate-300 text-xs shrink-0"></i>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[11px] font-black text-slate-400 line-through truncate">${nomVac}</p>
+                    <p class="text-[10px] text-slate-400">${app.dose}</p>
+                </div>
+                <span class="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full whitespace-nowrap">Mantido em ${fromStatus}</span>
+                <button onclick="undoRemoveAgendarGrupoLine(${app.id})" class="h-7 w-7 rounded-lg bg-slate-100 hover:bg-indigo-100 text-slate-400 hover:text-indigo-600 flex items-center justify-center transition shrink-0" title="Restaurar">
+                    <i class="fas fa-undo text-[9px]"></i>
+                </button>
+            </div>`;
+        }
+
+        if (isConfirming) {
+            return `<div class="flex flex-col gap-2 px-3 py-2.5 rounded-xl bg-red-50 border-2 border-red-300 transition">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-xs shrink-0"></i>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[11px] font-black text-red-700 truncate">${nomVac} — ${app.dose}</p>
+                        <p class="text-[10px] text-red-600">Esta vacina ficará em <strong>${fromStatus}</strong></p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="cancelRemoveAgendarGrupoLine()" class="flex-1 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[10px] font-black uppercase tracking-wider hover:bg-slate-50 transition">Cancelar</button>
+                    <button onclick="executeRemoveAgendarGrupoLine(${app.id})" class="flex-1 py-1.5 rounded-lg bg-red-600 text-white text-[10px] font-black uppercase tracking-wider hover:bg-red-700 transition shadow-sm">Remover</button>
+                </div>
+            </div>`;
+        }
+
+        return `<div class="flex flex-col gap-2 px-3 py-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-syringe text-indigo-400 text-xs shrink-0"></i>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[11px] font-black text-navy-900 truncate leading-tight">${nomVac}</p>
+                    <p class="text-[10px] text-slate-500">${app.dose}${valorStr}</p>
+                </div>
+                <button onclick="removeAgendarGrupoLine(${app.id})"
+                    class="h-7 w-7 rounded-lg bg-red-50 hover:bg-red-500 text-red-400 hover:text-white flex items-center justify-center transition shrink-0" title="Remover desta lista">
+                    <i class="fas fa-times text-[9px]"></i>
+                </button>
+            </div>
+            <input type="date" id="agendar-grupo-date-${app.id}" value="${app.data || ''}"
+                class="w-full border border-slate-200 rounded-lg py-1.5 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50">
+        </div>`;
+    }).join('');
+
+    const activeApps = lines.filter(a => !removedIds.has(a.id));
+    const total = activeApps.reduce((s, a) => s + (parseBRL(String(a.valorAplicado || '0')) || 0), 0);
+    const totalEl = document.getElementById('agendar-grupo-total');
+    if (totalEl) totalEl.textContent = `${activeApps.length} vacina${activeApps.length !== 1 ? 's' : ''} · ${formatCurrency(total)}`;
+
+    const btn = document.getElementById('btn-confirm-agendar-grupo');
+    if (btn) {
+        const canConfirm = activeApps.length > 0;
+        btn.disabled = !canConfirm;
+        btn.className = canConfirm
+            ? 'flex-1 bg-blue-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-700 cursor-pointer shadow-md'
+            : 'flex-1 bg-blue-200 text-blue-400 font-black py-3 rounded-xl uppercase text-xs cursor-not-allowed';
+    }
+}
+
+function removeAgendarGrupoLine(appId) {
+    _agendarGrupoRemovePending = appId;
+    _renderAgendarGrupoLines();
+}
+
+function cancelRemoveAgendarGrupoLine() {
+    _agendarGrupoRemovePending = null;
+    _renderAgendarGrupoLines();
+}
+
+function executeRemoveAgendarGrupoLine(appId) {
+    _agendarGrupoRemovedIds.add(appId);
+    _agendarGrupoRemovePending = null;
+    _renderAgendarGrupoLines();
+}
+
+function undoRemoveAgendarGrupoLine(appId) {
+    _agendarGrupoRemovedIds.delete(appId);
+    _renderAgendarGrupoLines();
+}
+
+function confirmAgendarGrupo() {
+    if (!_agendarGrupoPending) return;
+
+    const activeApps = _agendarGrupoPending.apps.filter(a => !_agendarGrupoRemovedIds.has(a.id));
+    if (!activeApps.length) {
+        showNotification('Nenhuma vacina ativa para agendar.', 'error');
+        return;
+    }
+
+    // Valida datas de cada linha ativa
+    const dateMap = {};
+    for (const app of activeApps) {
+        const input = document.getElementById(`agendar-grupo-date-${app.id}`);
+        const data = input ? input.value : '';
+        if (!data) {
+            showNotification(`Informe a data para "${vaccines.find(v => v.id == app.vaccineId)?.nome || 'vacina'}".`, 'error');
+            if (input) { input.focus(); input.classList.add('border-red-400', 'ring-2', 'ring-red-200'); }
+            return;
+        }
+        if (typeof holidays !== 'undefined' && holidays.includes(data)) {
+            showNotification('Bloqueio: Uma das datas está marcada como feriado.', 'error');
+            return;
+        }
+        if (new Date(data + 'T00:00:00').getDay() === 0) {
+            showNotification('Bloqueio: Agendamentos aos domingos não são permitidos.', 'error');
+            return;
+        }
+        dateMap[app.id] = data;
+    }
+
+    activeApps.forEach(app => {
+        const idx = appointments.findIndex(a => a.id == app.id);
+        if (idx > -1) {
+            appointments[idx].status = 'Agendado';
+            appointments[idx].data = dateMap[app.id];
+            if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
+        }
+    });
+
+    if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
+    saveAll(); renderCalendar(); renderTable(); renderDashboard();
+    if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+    if (typeof refreshOpenModals === 'function') refreshOpenModals();
+
+    const count = activeApps.length;
+    closeAgendarGrupoModal();
+    renderKanban();
+    showNotification(`${count} vacina${count !== 1 ? 's' : ''} agendada${count !== 1 ? 's' : ''} com sucesso!`, 'success');
+}
+
+function closeAgendarGrupoModal() {
+    document.getElementById('modal-agendar-grupo').classList.remove('active');
+    _agendarGrupoPending = null;
+    _agendarGrupoRemovedIds = new Set();
+    _agendarGrupoRemovePending = null;
+}
+
+// ─── MODAL: MOVER GRUPO PARA PERDIDO ─────────────────────────────────────────
+
+function openMoverGrupoPerdidoModal(patId, fromStatus, groupApps) {
+    _moverGrupoPerdidoPending = { patId: String(patId), fromStatus, apps: groupApps };
+
+    const pat = patients.find(p => p.id == patId);
+    const infoEl = document.getElementById('grupo-perdido-paciente');
+    if (infoEl) infoEl.textContent = pat ? pat.nome : '—';
+
+    const contEl = document.getElementById('grupo-perdido-count');
+    if (contEl) contEl.textContent = `${groupApps.length} vacina${groupApps.length !== 1 ? 's' : ''} em "${fromStatus}"`;
+
+    const listEl = document.getElementById('grupo-perdido-list');
+    if (listEl) {
+        listEl.innerHTML = groupApps.map(a => {
+            const vac = vaccines.find(v => v.id == a.vaccineId);
+            return `<div class="flex items-center gap-2 text-[11px] text-slate-600 py-1 border-b border-slate-100 last:border-0">
+                <i class="fas fa-syringe text-red-300 text-[9px] shrink-0"></i>
+                <span class="font-bold truncate">${vac ? vac.nome : '—'}</span>
+                <span class="text-slate-400">·</span>
+                <span class="text-slate-500">${a.doseAtual}</span>
+            </div>`;
+        }).join('');
+    }
+
+    const sel = document.getElementById('grupo-perdido-reason');
+    if (sel) {
+        sel.innerHTML = '<option value="">Selecione o motivo...</option>' +
+            (typeof cancelReasons !== 'undefined' ? cancelReasons : []).map(r => `<option value="${r}">${r}</option>`).join('');
+        sel.value = '';
+    }
+
+    document.getElementById('grupo-perdido-err').classList.add('hidden');
+    document.getElementById('modal-grupo-perdido').classList.add('active');
+}
+
+function closeMoverGrupoPerdidoModal() {
+    document.getElementById('modal-grupo-perdido').classList.remove('active');
+    _moverGrupoPerdidoPending = null;
+}
+
+function confirmMoverGrupoPerdido() {
+    const reason = document.getElementById('grupo-perdido-reason').value;
+    if (!reason) {
+        document.getElementById('grupo-perdido-err').classList.remove('hidden');
+        return;
+    }
+    if (!_moverGrupoPerdidoPending) return;
+
+    const { apps } = _moverGrupoPerdidoPending;
+    apps.forEach(a => {
+        const idx = appointments.findIndex(x => x.id == a.id);
+        if (idx > -1) {
+            appointments[idx].status = 'Perdido';
+            appointments[idx].motivoCancelamento = reason;
+            if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
+        }
+    });
+
+    if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
+    saveAll(); renderCalendar(); renderDashboard();
+    renderKanban();
+    if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+    if (typeof refreshOpenModals === 'function') refreshOpenModals();
+
+    const count = apps.length;
+    closeMoverGrupoPerdidoModal();
+    showNotification(`${count} vacina${count !== 1 ? 's' : ''} marcada${count !== 1 ? 's' : ''} como perdida${count !== 1 ? 's' : ''}.`, 'info');
 }
