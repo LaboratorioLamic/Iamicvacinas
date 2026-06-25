@@ -106,6 +106,12 @@ function openRecordModal() {
     document.getElementById('btn-duplicar-record').classList.add('hidden');
     const _chkOutroLocalNew = document.getElementById('reg-aplicada-outro-local');
     if (_chkOutroLocalNew) { _chkOutroLocalNew.checked = false; toggleAplicadaOutroLocal(_chkOutroLocalNew); }
+    if (currentUser) {
+        const _fullUser = appUsers.find(u => u.id === currentUser.id);
+        if (_fullUser && _fullUser.isVendedor) {
+            document.getElementById('reg-vendedor').value = _fullUser.nome;
+        }
+    }
     document.getElementById('modal-record').classList.add('active');
 }
 
@@ -702,6 +708,8 @@ function confirmDeleteRecord() {
     saveAll(); renderCalendar(); renderTable(); renderDashboard(); renderPatients(); closeModals();
     if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
     if (typeof refreshOpenModals === 'function') refreshOpenModals();
+    const _oppElDel = document.getElementById('agendaview-oportunidades');
+    if (_oppElDel && !_oppElDel.classList.contains('hidden') && typeof renderOportunidades === 'function') renderOportunidades();
     showNotification('Agendamento excluído com sucesso.', 'success');
 }
 
@@ -1195,5 +1203,7 @@ function saveRecord(e) {
     if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
     if (typeof refreshOpenModals === 'function') refreshOpenModals();
     if (typeof updateExpiryBadge === 'function') updateExpiryBadge();
+    const _oppElSave = document.getElementById('agendaview-oportunidades');
+    if (_oppElSave && !_oppElSave.classList.contains('hidden') && typeof renderOportunidades === 'function') renderOportunidades();
     showNotification('Agendamento salvo com sucesso!', 'success');
 }

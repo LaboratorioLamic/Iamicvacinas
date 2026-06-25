@@ -3,17 +3,27 @@
 function setupRealtimeSync() {
     db.ref('patients').on('value', snap => {
         patients = _fbToArr(snap.val());
-        if (_appReady) { renderPatients(); populateDashDropdowns(); }
+        if (_appReady) {
+            renderPatients(); populateDashDropdowns();
+            const _oppElPat = document.getElementById('agendaview-oportunidades');
+            if (_oppElPat && !_oppElPat.classList.contains('hidden') && typeof renderOportunidades === 'function') renderOportunidades();
+        }
     });
     db.ref('vaccines').on('value', snap => {
         vaccines = _fbToArr(snap.val());
-        if (_appReady) { renderVaccines(); populateVaccineSelects(); updateExpiryBadge(); populateDashDropdowns(); }
+        if (_appReady) {
+            renderVaccines(); populateVaccineSelects(); updateExpiryBadge(); populateDashDropdowns();
+            const _oppElVac = document.getElementById('agendaview-oportunidades');
+            if (_oppElVac && !_oppElVac.classList.contains('hidden') && typeof renderOportunidades === 'function') renderOportunidades();
+        }
     });
     db.ref('appointments').on('value', snap => {
         appointments = _fbToArr(snap.val());
         if (_appReady) {
             renderCalendar(); renderTable(); renderPatients();
             if (document.getElementById('tab-dashboard').classList.contains('active')) renderDashboard();
+            const _oppEl = document.getElementById('agendaview-oportunidades');
+            if (_oppEl && !_oppEl.classList.contains('hidden') && typeof renderOportunidades === 'function') renderOportunidades();
         }
     });
     db.ref('cancelReasons').on('value', snap => {

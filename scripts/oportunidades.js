@@ -103,44 +103,50 @@ function calcAprazamento() {
             const numDoses  = esq ? (esq.numDoses || 1) : (vac.numDoses || 1);
 
             // Case 1 — próxima dose
-            if (numDoses > 1) {
-                const appliedNums = applied
-                    .filter(a => a.doseAtual && /^\d+ª Dose$/.test(a.doseAtual))
-                    .map(a => parseInt(a.doseAtual));
+            // Usa o máximo de doses entre todos os esquemas da vacina, não só o esquema atual
+            // do paciente. Assim, "1ª Dose" sempre gera "2ª Dose" mesmo que o paciente tenha
+            // envelhecido para fora da faixa do esquema multi-dose.
+            const appliedNums = applied
+                .filter(a => a.doseAtual && /^\d+ª Dose$/.test(a.doseAtual))
+                .map(a => parseInt(a.doseAtual));
 
-                if (appliedNums.length) {
-                    const maxApplied = Math.max(...appliedNums);
-                    if (maxApplied < numDoses) {
-                        const nextDoseStr = `${maxApplied + 1}ª Dose`;
-                        // Suprime se já existe registro ativo (não-Perdido) para esta dose
-                        if (!active.some(a => a.doseAtual === nextDoseStr)) {
-                            const lastBase = applied
-                                .filter(a => a.doseAtual === `${maxApplied}ª Dose`)
-                                .sort((a, b) => new Date(b.data) - new Date(a.data))[0];
+            if (appliedNums.length) {
+                const maxApplied = Math.max(...appliedNums);
+                const totalDoses = vac.esquemas && vac.esquemas.length
+                    ? Math.max(...vac.esquemas.map(e => e.numDoses || 1))
+                    : numDoses;
+                if (maxApplied < totalDoses) {
+                    const nextDoseStr = `${maxApplied + 1}ª Dose`;
+                    // Suprime se já existe registro ativo (não-Perdido) para esta dose
+                    if (!active.some(a => a.doseAtual === nextDoseStr)) {
+                        const lastBase = applied
+                            .filter(a => a.doseAtual === `${maxApplied}ª Dose`)
+                            .sort((a, b) => new Date(b.data) - new Date(a.data))[0];
 
-                            let suggestedDate = null;
-                            if (lastBase) {
-                                const intervalos = (esq && esq.intervalos && esq.intervalos.length) ? esq.intervalos
-                                    : (vac.intervalos && vac.intervalos.length ? vac.intervalos
-                                        : (vac.intervaloDias > 0 ? [vac.intervaloDias] : []));
-                                let intervalo = intervalos.length
-                                    ? (intervalos[maxApplied - 1] != null ? intervalos[maxApplied - 1] : intervalos[intervalos.length - 1])
-                                    : 30;
-                                if (!intervalo || intervalo <= 0) intervalo = 30;
-                                const baseDate = new Date(lastBase.data + 'T00:00:00');
-                                const calcDate = new Date(baseDate); calcDate.setDate(calcDate.getDate() + intervalo);
-                                // Se a data sugerida já passou, usa hoje como base para não mostrar data no passado distante
-                                suggestedDate = calcDate < today ? today : calcDate;
-                            }
-                            opps.push({ type:'proxima_dose', vaccine:vac, dose:nextDoseStr, suggestedDate, revenue: parseBRL(String(vac.valor||'0'))||0, urgency:_urgency(suggestedDate,today,in30) });
+                        let suggestedDate = null;
+                        if (lastBase) {
+                            const intervalos = (esq && esq.intervalos && esq.intervalos.length) ? esq.intervalos
+                                : (vac.intervalos && vac.intervalos.length ? vac.intervalos
+                                    : (vac.intervaloDias > 0 ? [vac.intervaloDias] : []));
+                            let intervalo = intervalos.length
+                                ? (intervalos[maxApplied - 1] != null ? intervalos[maxApplied - 1] : intervalos[intervalos.length - 1])
+                                : 30;
+                            if (!intervalo || intervalo <= 0) intervalo = 30;
+                            const baseDate = new Date(lastBase.data + 'T00:00:00');
+                            const calcDate = new Date(baseDate); calcDate.setDate(calcDate.getDate() + intervalo);
+                            // Se a data sugerida já passou, usa hoje como base para não mostrar data no passado distante
+                            suggestedDate = calcDate < today ? today : calcDate;
                         }
+                        opps.push({ type:'proxima_dose', vaccine:vac, dose:nextDoseStr, suggestedDate, revenue: parseBRL(String(vac.valor||'0'))||0, urgency:_urgency(suggestedDate,today,in30) });
                     }
                 }
             }
 
             // Case 2 — dose única repetível
+            // Só dispara se o esquema aplicável ao paciente for de dose única (numDoses===1).
+            // Se o paciente se encaixa num esquema multi-dose, o repeat anual não se aplica a ele.
             const repScheme = vac.esquemas && vac.esquemas.find(e => e.numDoses===1 && e.repete && e.repeteMeses>0);
-            if (repScheme) {
+            if (repScheme && numDoses === 1) {
                 const lastDU = applied.filter(a=>a.doseAtual==='Dose Única').sort((a,b)=>new Date(b.data)-new Date(a.data))[0];
                 // Suprime se já existe registro ativo futuro para Dose Única
                 const hasActiveDU = active.some(a => a.doseAtual === 'Dose Única' && new Date(a.data+'T00:00:00') >= today);
