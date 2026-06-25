@@ -82,10 +82,11 @@ function calcAprazamento() {
             a.status === 'Aplicado' || (a.status === 'Perdido' && a.aplicadaOutroLocal)
         );
         if (!appliedApps.length) return;
-        // "Ativa" = qualquer status que não seja Aplicado nem Perdido.
-        // Perdido NÃO suprime (exceto aplicadaOutroLocal, que vira "aplicado").
-        // Em negociação / Nova oportunidade / Agendado SUPRIMEM — dose já está no funil.
-        const activeApps = patApps.filter(a => a.status !== 'Aplicado' && a.status !== 'Perdido');
+        // "Ativa" = tudo exceto Aplicado e Perdido+outroLocal.
+        // Perdido sem outroLocal SUPRIME — a oportunidade já foi descartada/perdida.
+        const activeApps = patApps.filter(a =>
+            a.status !== 'Aplicado' && !(a.status === 'Perdido' && a.aplicadaOutroLocal)
+        );
 
         const byVac = {};
         appliedApps.forEach(a => { if (!byVac[a.vaccineId]) byVac[a.vaccineId] = []; byVac[a.vaccineId].push(a); });

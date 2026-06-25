@@ -104,6 +104,8 @@ function openRecordModal() {
     document.getElementById('modal-title-agenda').innerText = 'Novo Agendamento Clínico';
     document.getElementById('btn-delete-record').classList.add('hidden');
     document.getElementById('btn-duplicar-record').classList.add('hidden');
+    const _chkOutroLocalNew = document.getElementById('reg-aplicada-outro-local');
+    if (_chkOutroLocalNew) { _chkOutroLocalNew.checked = false; toggleAplicadaOutroLocal(_chkOutroLocalNew); }
     document.getElementById('modal-record').classList.add('active');
 }
 
@@ -659,6 +661,11 @@ function confirmarDoseAnterior() {
 function openDeleteModal(id) {
     if(!id) return;
     if (!checkPerm('excluir_agendamento')) return;
+    const _appToDelete = appointments.find(x => x.id == id);
+    if (_appToDelete && _appToDelete.status === 'Aplicado') {
+        showNotification('Vacinas com status <b>Aplicado</b> não podem ser excluídas.', 'error');
+        return;
+    }
     pendingDeleteId = Number(id);
     const a = appointments.find(x=>x.id==pendingDeleteId);
     const p = a ? patients.find(x=>x.id==a.patientId) : null;
@@ -707,6 +714,8 @@ function editRecord(id) {
     closeModals();
     // Setup modal sem checar permissão de criação
     document.getElementById('record-form').reset();
+    const _chkOutroLocalEdit = document.getElementById('reg-aplicada-outro-local');
+    if (_chkOutroLocalEdit) { _chkOutroLocalEdit.checked = false; toggleAplicadaOutroLocal(_chkOutroLocalEdit); }
     document.getElementById('reg-id').value = '';
     document.getElementById('hidden-patient-id').value = '';
     document.getElementById('div-responsavel').style.display = 'none';
@@ -767,7 +776,11 @@ function editRecord(id) {
 
         if (canEdit) {
             document.getElementById('modal-title-agenda').innerText = 'Editar Agendamento';
-            document.getElementById('btn-delete-record').classList.remove('hidden');
+            if (a.status === 'Aplicado') {
+                document.getElementById('btn-delete-record').classList.add('hidden');
+            } else {
+                document.getElementById('btn-delete-record').classList.remove('hidden');
+            }
             document.getElementById('btn-duplicar-record').classList.remove('hidden');
             document.querySelectorAll('#record-form input:not([type="hidden"]):not(#reg-valor), #record-form select, #record-form textarea').forEach(el => { el.disabled = false; });
             document.getElementById('btn-desconto').disabled = false;
@@ -849,10 +862,17 @@ function toggleCancelReason() {
     const div = document.getElementById('div-motivo-cancelamento');
     const sel = document.getElementById('reg-motivo-cancelamento');
     const outroLocal = document.getElementById('reg-aplicada-outro-local');
-    if (s === 'Perdido' && !(outroLocal && outroLocal.checked)) {
-        div.style.display = 'flex'; sel.required = true; sel.disabled = false;
+    const isOutroLocal = outroLocal && outroLocal.checked;
+    if (s === 'Perdido') {
+        div.style.display = 'flex';
+        sel.disabled = isOutroLocal;
+        sel.required = !isOutroLocal;
+        sel.classList.toggle('opacity-40', isOutroLocal);
+        sel.classList.toggle('cursor-not-allowed', isOutroLocal);
+        sel.classList.toggle('bg-slate-100', isOutroLocal);
+        if (isOutroLocal) sel.value = '';
     } else {
-        div.style.display = 'none'; sel.required = false; sel.value = '';
+        div.style.display = 'none'; sel.required = false; sel.disabled = false; sel.value = '';
     }
 
     const loteSel = document.getElementById('reg-lote');
@@ -878,25 +898,17 @@ function toggleCancelReason() {
 }
 
 function toggleAplicadaOutroLocal(chk) {
-    const icon    = document.getElementById('icon-aplicada-outro-local');
-    const box     = chk.closest('label') && chk.closest('label').querySelector('div');
-    const motivoSel = document.getElementById('reg-motivo-cancelamento');
-    const motivoDiv = document.getElementById('div-motivo-cancelamento');
+    const icon = document.getElementById('icon-aplicada-outro-local');
+    const box  = chk.closest('label') && chk.closest('label').querySelector('div');
 
     if (chk.checked) {
         if (icon) { icon.classList.remove('text-violet-400'); icon.classList.add('text-white'); }
         if (box)  { box.classList.add('bg-violet-600', 'border-violet-600'); box.classList.remove('bg-violet-50', 'border-violet-300'); }
-        if (motivoDiv) motivoDiv.style.display = 'none';
-        if (motivoSel) { motivoSel.disabled = true; motivoSel.required = false; motivoSel.value = ''; }
     } else {
         if (icon) { icon.classList.add('text-violet-400'); icon.classList.remove('text-white'); }
         if (box)  { box.classList.remove('bg-violet-600', 'border-violet-600'); box.classList.add('bg-violet-50', 'border-violet-300'); }
-        const statusSel = document.getElementById('reg-status');
-        if (statusSel && statusSel.value === 'Perdido') {
-            if (motivoDiv) motivoDiv.style.display = 'flex';
-            if (motivoSel) { motivoSel.disabled = false; motivoSel.required = true; motivoSel.classList.remove('opacity-40', 'cursor-not-allowed', 'bg-slate-100'); }
-        }
     }
+    toggleCancelReason();
 }
 
 // ─── MOTIVOS DE CANCELAMENTO (CRUD) ───────────────────────────────────────────
