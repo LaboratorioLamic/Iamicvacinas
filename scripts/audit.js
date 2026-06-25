@@ -170,6 +170,51 @@ function clearAuditFilter() {
     _renderAuditTimeline();
 }
 
+function cleanOrphanAuditLogs() {
+    if (!isCurrentUserAdmin()) return;
+    const patientIds   = new Set(patients.map(p => String(p.id)));
+    const vaccineIds   = new Set(vaccines.map(v => String(v.id)));
+    const appointIds   = new Set(appointments.map(a => String(a.id)));
+    const loteIds      = new Set(vaccineLots.map(l => String(l.id)));
+    const userIds      = new Set(appUsers.map(u => String(u.id)));
+    const groupIds     = new Set(appGroups.map(g => String(g.id)));
+
+    const entityMap = {
+        paciente:     patientIds,
+        vacina:       vaccineIds,
+        agendamento:  appointIds,
+        lote:         loteIds,
+        usuario:      userIds,
+        grupo:        groupIds,
+    };
+
+    const orphans = auditLog.filter(e => {
+        if (e.entityType === 'sistema') return false;
+        const set = entityMap[e.entityType];
+        if (!set) return false;
+        return e.entityId && !set.has(e.entityId);
+    });
+
+    if (orphans.length === 0) {
+        showNotification('Nenhum log órfão encontrado.', 'info');
+        return;
+    }
+
+    showConfirmDanger(
+        `Excluir ${orphans.length} log${orphans.length > 1 ? 's' : ''} órfão${orphans.length > 1 ? 's' : ''} (sem item vinculado)?`,
+        () => {
+            const removes = orphans.map(e => db.ref('auditLog/' + e.id).remove());
+            Promise.all(removes)
+                .then(() => {
+                    const orphanIds = new Set(orphans.map(e => e.id));
+                    auditLog = auditLog.filter(e => !orphanIds.has(e.id));
+                    showNotification(`${orphans.length} log${orphans.length > 1 ? 's' : ''} órfão${orphans.length > 1 ? 's' : ''} removido${orphans.length > 1 ? 's' : ''}.`, 'success');
+                })
+                .catch(() => showNotification('Erro ao limpar logs órfãos.', 'error'));
+        }
+    );
+}
+
 function deleteAuditEntry(entryId) {
     if (!isCurrentUserAdmin()) return;
     showConfirmDanger('Excluir este registro do histórico permanentemente?', () => {
