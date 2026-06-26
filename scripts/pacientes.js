@@ -11,29 +11,28 @@ function renderPatients() {
         const age = getAge(p.dtNasc);
         const hasAppointments = appointments.some(a => a.patientId == p.id);
 
-        grid.innerHTML += `<div class="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-lg transition relative flex flex-col h-full group">
-            <div class="absolute top-4 right-4 flex items-center gap-2">
-                ${permBtn('editar_paciente', `<button onclick="editPatient(${p.id})" class="text-slate-300 hover:text-clinic-600 transition" title="Editar Cadastro"><i class="fas fa-pen"></i></button>`)}
-                ${!hasAppointments ? permBtn('excluir_paciente', `<button onclick="deletePatient(${p.id})" class="text-slate-300 hover:text-red-500 transition" title="Excluir Paciente"><i class="fas fa-trash text-sm"></i></button>`) : ''}
+        grid.innerHTML += `<div class="bg-white border border-slate-200 p-3 rounded-xl shadow-sm hover:shadow-md transition relative flex flex-col gap-2 group">
+            <div class="absolute top-2 right-2 flex items-center gap-1">
+                ${permBtn('editar_paciente', `<button onclick="editPatient(${p.id})" class="text-slate-300 hover:text-clinic-600 transition text-xs" title="Editar"><i class="fas fa-pen"></i></button>`)}
+                ${!hasAppointments ? permBtn('excluir_paciente', `<button onclick="deletePatient(${p.id})" class="text-slate-300 hover:text-red-500 transition text-xs" title="Excluir"><i class="fas fa-trash"></i></button>`) : ''}
             </div>
-            <div class="flex items-center gap-3 mb-4">
-                <div class="h-12 w-12 bg-gradient-to-br from-navy-800 to-navy-600 text-white rounded-full flex items-center justify-center font-black text-xl shadow-md">${p.nome.charAt(0)}</div>
-                <div><h4 class="font-black text-navy-900 text-sm truncate max-w-[150px] leading-tight">${p.nome}</h4><p class="text-[10px] font-black text-slate-400 tracking-wider">${age} ANOS | ${p.cpf}</p></div>
+            <div class="flex items-center gap-2 pr-10">
+                <div class="h-9 w-9 shrink-0 bg-gradient-to-br from-navy-800 to-navy-600 text-white rounded-full flex items-center justify-center font-black text-base shadow">${p.nome.charAt(0)}</div>
+                <div class="min-w-0">
+                    <h4 class="font-black text-navy-900 text-xs leading-tight truncate">${p.nome}</h4>
+                    <p class="text-[9px] font-bold text-slate-400 truncate">${age}a | ${p.cpf}</p>
+                </div>
             </div>
-            <div class="text-[10px] text-slate-600 mb-4 space-y-1.5 flex-1 font-bold">
-                <p class="flex items-center"><i class="fab fa-whatsapp w-5 text-green-500 text-sm"></i> ${p.contato}</p>
-                ${p.responsavel ? `<p class="flex items-center gap-1"><i class="fas fa-user-shield w-5 text-slate-400 text-sm"></i> Resp: ${p.responsavel}${p.responsavelParentesco ? ` <span class="bg-slate-100 px-1 rounded text-[9px] uppercase font-black text-slate-500">${p.responsavelParentesco}</span>` : ''}</p>` : ''}
-                ${p.responsavelCPF ? `<p class="flex items-center"><i class="fas fa-id-card w-5 text-slate-400 text-sm"></i> CPF Resp: ${p.responsavelCPF}</p>` : ''}
+            <div class="text-[9px] text-slate-500 font-bold space-y-0.5">
+                <p class="flex items-center gap-1 truncate"><i class="fab fa-whatsapp text-green-500"></i>${p.contato}</p>
+                ${p.responsavel ? `<p class="flex items-center gap-1 truncate"><i class="fas fa-user-shield text-slate-300"></i>Resp: ${p.responsavel}${p.responsavelParentesco ? ` <span class="bg-slate-100 px-1 rounded text-[8px] uppercase font-black text-slate-400">${p.responsavelParentesco}</span>` : ''}</p>` : ''}
             </div>
-
-            <div class="border-t border-slate-100 pt-3 mb-4">
-                <button onclick="viewPatientHistory(${p.id})" class="w-full flex justify-between items-center bg-slate-50 hover:bg-slate-100 p-3 rounded-xl transition border border-slate-100 group/btn shadow-sm">
-                    <span class="text-xs font-black uppercase text-navy-900"><i class="fas fa-file-medical-alt mr-2 text-clinic-500"></i> Prontuário Vacinal</span>
-                    <i class="fas fa-chevron-right text-xs text-slate-300 group-hover/btn:text-clinic-500 transition"></i>
+            <div class="flex gap-1 mt-auto pt-2 border-t border-slate-100">
+                <button onclick="viewPatientHistory(${p.id})" class="flex-1 flex items-center justify-center gap-1 bg-slate-50 hover:bg-clinic-50 hover:text-clinic-600 px-2 py-1.5 rounded-lg transition border border-slate-100 text-[9px] font-black uppercase text-navy-900">
+                    <i class="fas fa-file-medical-alt text-clinic-500"></i>Prontuário
                 </button>
+                ${permBtn('criar_agendamento', `<button onclick="openRecordModalWithPatient(${p.id})" class="flex-1 border border-clinic-600 text-clinic-600 hover:bg-clinic-600 hover:text-white font-black py-1.5 rounded-lg text-[9px] uppercase tracking-wide transition"><i class="fas fa-plus mr-1"></i>Agendar</button>`)}
             </div>
-
-            ${permBtn('criar_agendamento', `<button onclick="openRecordModalWithPatient(${p.id})" class="w-full mt-auto border-2 border-clinic-600 text-clinic-600 hover:bg-clinic-600 hover:text-white font-black py-2.5 rounded-xl text-[10px] uppercase tracking-widest transition shadow-sm"><i class="fas fa-plus mr-1"></i> Agendar Vacina</button>`)}
         </div>`;
     });
 }

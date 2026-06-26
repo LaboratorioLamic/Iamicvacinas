@@ -1,5 +1,10 @@
 // ─── APPOINTMENT MANAGEMENT (from index.html lines ~4972-5787) ───────────────
 
+function _toggleBtnProntuario(show) {
+    const btn = document.getElementById('btn-prontuario-agenda');
+    if (btn) btn.classList.toggle('hidden', !show);
+}
+
 function populatePatientDatalist() { /* substituído por dropdown customizado */ }
 
 function filterPatientDropdown() {
@@ -9,6 +14,7 @@ function filterPatientDropdown() {
 
     // Ao digitar qualquer coisa, invalida a seleção anterior até selecionar novamente
     document.getElementById('hidden-patient-id').value = '';
+    _toggleBtnProntuario(false);
     input.setCustomValidity('Selecione um paciente válido da lista.');
     input.classList.add('border-red-400');
     input.classList.remove('border-slate-200');
@@ -81,6 +87,7 @@ function openRecordModal() {
     document.getElementById('record-form').reset(); document.getElementById('reg-id').value = '';
     resetDescontoUI();
     document.getElementById('hidden-patient-id').value = '';
+    _toggleBtnProntuario(false);
     document.getElementById('div-responsavel').style.display = 'none';
     document.getElementById('div-responsavel-placeholder').style.display = 'block';
     document.getElementById('div-motivo-cancelamento').style.display = 'none';
@@ -199,6 +206,7 @@ function autoFillPatient() {
         const si = document.getElementById('reg-patient-search');
         si.setCustomValidity(''); si.classList.remove('border-red-400'); si.classList.add('border-slate-200');
         document.getElementById('hidden-patient-id').value = p.id;
+        _toggleBtnProntuario(true);
         document.getElementById('reg-cpf').value = p.cpf;
         document.getElementById('reg-dtnasc').value = p.dtNasc;
         updateIdadeField();
@@ -218,6 +226,7 @@ function autoFillPatient() {
     }
     // Paciente inválido ou apagado — limpa campos e bloqueia vacina
     document.getElementById('hidden-patient-id').value = '';
+    _toggleBtnProntuario(false);
     document.getElementById('reg-cpf').value = '';
     document.getElementById('reg-dtnasc').value = '';
     document.getElementById('reg-idade').value = '';
@@ -751,6 +760,7 @@ function editRecord(id) {
     if (_chkOutroLocalEdit) { _chkOutroLocalEdit.checked = false; toggleAplicadaOutroLocal(_chkOutroLocalEdit); }
     document.getElementById('reg-id').value = '';
     document.getElementById('hidden-patient-id').value = '';
+    _toggleBtnProntuario(false);
     document.getElementById('div-responsavel').style.display = 'none';
     document.getElementById('div-responsavel-placeholder').style.display = 'block';
     document.getElementById('div-motivo-cancelamento').style.display = 'none';

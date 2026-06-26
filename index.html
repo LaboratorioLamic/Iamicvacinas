@@ -1108,7 +1108,7 @@
                         <button id="btn-novo-paciente" onclick="openPatientModal()" class="px-4 py-2 bg-clinic-600 text-white rounded-xl hover:bg-clinic-700 font-black text-xs shadow-lg transition"><i class="fas fa-plus mr-2"></i>NOVO PACIENTE</button>
                     </div>
                 </div>
-                <div class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="patients-grid"></div>
+                <div class="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" id="patients-grid"></div>
             </div>
         </section>
 
@@ -1624,6 +1624,7 @@
                             <div id="patient-dropdown" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:220px;"></div>
                         </div>
                         <button type="button" onclick="openPatientModal(document.getElementById('hidden-patient-id').value)" class="bg-slate-100 px-3 rounded-lg border hover:bg-slate-200 transition"><i class="fas fa-user-edit text-slate-600"></i></button>
+                        <button type="button" id="btn-prontuario-agenda" onclick="viewPatientHistory(document.getElementById('hidden-patient-id').value)" title="Prontuário Vacinal" class="hidden bg-indigo-50 px-3 rounded-lg border border-indigo-100 hover:bg-indigo-600 hover:text-white text-indigo-500 transition"><i class="fas fa-clipboard-list"></i></button>
                         <input type="hidden" id="hidden-patient-id">
                     </div>
                 </div>
@@ -2010,8 +2011,8 @@
         </div>
     </div>
 
-    <div id="modal-paciente" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[120] justify-center items-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+    <div id="modal-paciente" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[120] justify-center items-start p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden my-auto">
             <div class="bg-slate-100 p-4 border-b border-slate-200 flex justify-between items-center">
                 <h3 class="font-black text-navy-900 uppercase">Ficha do Paciente</h3>
                 <div class="flex items-center gap-1">
@@ -2093,8 +2094,8 @@
         </div>
     </div>
 
-    <div id="modal-vacina" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[120] justify-center items-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+    <div id="modal-vacina" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[120] justify-center items-start p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden my-auto">
             <div class="bg-slate-100 p-4 border-b border-slate-200 flex justify-between items-center">
                 <h3 class="font-black text-navy-900 uppercase">Cadastro de Vacina</h3>
                 <div class="flex items-center gap-1">

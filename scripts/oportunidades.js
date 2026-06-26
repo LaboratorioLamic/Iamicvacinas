@@ -511,7 +511,7 @@ function _renderPatientCard({ patient, opps }, tab) {
                 </button>
             </div>
         </div>
-        <div class="p-4 flex flex-wrap gap-2">${micro}</div>
+        <div class="p-4 flex flex-wrap gap-2 max-h-80 overflow-y-auto">${micro}</div>
     </div>`;
 }
 
