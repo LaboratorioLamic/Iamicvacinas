@@ -237,17 +237,22 @@ function _setReforco(on) {
     const btn  = document.getElementById('btn-reforco-toggle');
     const knob = document.getElementById('btn-reforco-knob');
     const inp  = document.getElementById('vac-reforco');
+    const wrap = document.getElementById('reforco-meses-wrap');
     if (!btn) return;
     if (on) {
         btn.classList.replace('bg-slate-200', 'bg-indigo-600');
         knob.classList.replace('translate-x-1', 'translate-x-6');
         btn.setAttribute('aria-pressed', 'true');
         inp.value = '1';
+        if (wrap) { wrap.classList.remove('hidden'); wrap.classList.add('flex'); }
     } else {
         btn.classList.replace('bg-indigo-600', 'bg-slate-200');
         knob.classList.replace('translate-x-6', 'translate-x-1');
         btn.setAttribute('aria-pressed', 'false');
         inp.value = '0';
+        if (wrap) { wrap.classList.add('hidden'); wrap.classList.remove('flex'); }
+        const mesesInp = document.getElementById('vac-reforco-meses');
+        if (mesesInp) mesesInp.value = '';
     }
 }
 function toggleReforco() { _setReforco(document.getElementById('vac-reforco').value !== '1'); }
@@ -271,6 +276,7 @@ function editVaccine(id) {
     document.getElementById('vac-id').value = v.id;
     document.getElementById('vac-nome').value = v.nome;
     _setReforco(v.reforco);
+    document.getElementById('vac-reforco-meses').value = v.reforcoMeses != null ? v.reforcoMeses : '';
     document.getElementById('vac-valor').value = String(v.valor || '').replace('R$', '').trim();
     document.getElementById('vac-estoque-minimo').value = v.estoqueMinimo != null ? v.estoqueMinimo : '';
     if (v.esquemas && v.esquemas.length) {
@@ -325,7 +331,11 @@ function saveVaccine(e) {
     const v = {
         id: id ? Number(id) : Date.now(), nome: document.getElementById('vac-nome').value.toUpperCase(),
         numDoses: n, intervalos: intervalosBase, intervaloDias: intervalosBase[0] || 0,
-        reforco: document.getElementById('vac-reforco').value === '1', doseUnica,
+        reforco: document.getElementById('vac-reforco').value === '1',
+        reforcoMeses: document.getElementById('vac-reforco').value === '1'
+            ? (parseInt(document.getElementById('vac-reforco-meses').value, 10) || null)
+            : null,
+        doseUnica,
         idadeMinimaAnos, idadeMinimaMeses,
         esquemas: JSON.parse(JSON.stringify(_esquemas)),
         valor: document.getElementById('vac-valor').value,
@@ -334,10 +344,10 @@ function saveVaccine(e) {
     };
     const isNewVac = !id;
     const oldVac = isNewVac ? null : vaccines.find(x => x.id == v.id);
-    const oldVacFlat = oldVac ? {...oldVac, intervalosStr: (oldVac.intervalos||[]).join('/') || '—', reforcoStr: oldVac.reforco ? 'Sim' : 'Não', doseUnicaStr: oldVac.doseUnica ? 'Sim' : 'Não'} : null;
-    const newVacFlat = {...v, intervalosStr: (v.intervalos||[]).join('/') || '—', reforcoStr: v.reforco ? 'Sim' : 'Não', doseUnicaStr: v.doseUnica ? 'Sim' : 'Não'};
+    const oldVacFlat = oldVac ? {...oldVac, intervalosStr: (oldVac.intervalos||[]).join('/') || '—', reforcoStr: oldVac.reforco ? 'Sim' : 'Não', reforcoMesesStr: (oldVac.reforco && oldVac.reforcoMeses) ? `${oldVac.reforcoMeses} mês(es)` : '—', doseUnicaStr: oldVac.doseUnica ? 'Sim' : 'Não'} : null;
+    const newVacFlat = {...v, intervalosStr: (v.intervalos||[]).join('/') || '—', reforcoStr: v.reforco ? 'Sim' : 'Não', reforcoMesesStr: (v.reforco && v.reforcoMeses) ? `${v.reforcoMeses} mês(es)` : '—', doseUnicaStr: v.doseUnica ? 'Sim' : 'Não'};
     if(id) vaccines = vaccines.map(x=>x.id==v.id?v:x); else vaccines.push(v);
-    const vacChanges = isNewVac ? null : computeChanges(oldVacFlat, newVacFlat, {nome:'Nome', numDoses:'Doses', intervalosStr:'Intervalos', reforcoStr:'Dose Reforço', doseUnicaStr:'Dose Única', idadeMinimaAnos:'Idade Mín. (Anos)', idadeMinimaMeses:'Idade Mín. (Meses)', valor:'Valor'});
+    const vacChanges = isNewVac ? null : computeChanges(oldVacFlat, newVacFlat, {nome:'Nome', numDoses:'Doses', intervalosStr:'Intervalos', reforcoStr:'Dose Reforço', reforcoMesesStr:'Reforço (após)', doseUnicaStr:'Dose Única', idadeMinimaAnos:'Idade Mín. (Anos)', idadeMinimaMeses:'Idade Mín. (Meses)', valor:'Valor'});
     logAudit(isNewVac ? 'Criado' : 'Editado', 'vacina', v.id, v.nome, isNewVac ? `${v.numDoses} dose(s) | Valor: ${v.valor}` : null, vacChanges);
     saveAll(); renderVaccines(); updateExpiryBadge(); closeModals(); showNotification('Vacina salva!','success');
 }

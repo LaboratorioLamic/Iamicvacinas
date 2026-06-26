@@ -37,21 +37,6 @@ function toggleTableFilter(wrapId, focusId, isSelect) {
     }
 }
 
-function toggleMonthFilter() {
-    const sel = document.getElementById('filter-date-agenda').value;
-    const mInput = document.getElementById('filter-month-agenda');
-    if(sel === 'mes') {
-        mInput.classList.remove('hidden');
-        if(!mInput.value) {
-            const now = new Date();
-            mInput.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-        }
-    } else {
-        mInput.classList.add('hidden');
-    }
-    renderTable();
-}
-
 function getStartOfWeek(date) { const d = new Date(date); const day = d.getDay(); const diff = d.getDate() - day; return new Date(d.setDate(diff)); }
 
 function _populateTableColabDropdowns() {
@@ -175,4 +160,194 @@ function renderTable() {
         </tr>`;
     });
     if (tableView === 'kanban') renderKanban();
+}
+
+// ─── FILTROS POPOVER (Período / Status) ───────────────────────────────────────
+const _DATE_FILTER_META = {
+    todos:  { label: 'Todas as Datas' },
+    hoje:   { label: 'Hoje' },
+    semana: { label: 'Esta Semana' },
+    mes:    { label: 'Selecionar Mês' },
+};
+
+const _STATUS_FILTER_OPTS = [
+    { val: '',                  label: 'Todos os Status',   color: '#94a3b8', icon: 'fa-layer-group' },
+    { val: 'Nova oportunidade', label: 'Nova oportunidade', color: '#64748b', icon: 'fa-star' },
+    { val: 'Em negociação',     label: 'Em negociação',     color: '#0891b2', icon: 'fa-comments' },
+    { val: 'Agendado',          label: 'Agendado',          color: '#2563eb', icon: 'fa-calendar-check' },
+    { val: 'Aplicado',          label: 'Aplicado',          color: '#16a34a', icon: 'fa-syringe' },
+    { val: 'Perdido',           label: 'Perdido',           color: '#dc2626', icon: 'fa-ban' },
+];
+
+// Posiciona um popover (fixed) sob o botão, alinhado à direita, sem ser cortado por overflow.
+function _positionFilterPop(btn, pop) {
+    const r = btn.getBoundingClientRect();
+    const w = pop.offsetWidth || 256;
+    let left = r.right - w;
+    if (left < 8) left = 8;
+    const maxLeft = window.innerWidth - w - 8;
+    if (left > maxLeft) left = Math.max(8, maxLeft);
+    pop.style.top  = (r.bottom + 8) + 'px';
+    pop.style.left = left + 'px';
+}
+
+function _closeAllFilterPops() {
+    ['date-filter-pop', 'status-filter-pop'].forEach(id => {
+        const p = document.getElementById(id);
+        if (p) p.classList.add('hidden');
+    });
+    const dc = document.getElementById('date-filter-chev');
+    const sc = document.getElementById('status-filter-chev');
+    if (dc) dc.style.transform = '';
+    if (sc) sc.style.transform = '';
+    document.removeEventListener('click', _filterPopOutside);
+}
+
+function _filterPopOutside(e) {
+    if (e.target.closest('#date-filter-pop') || e.target.closest('#date-filter-btn') ||
+        e.target.closest('#status-filter-pop') || e.target.closest('#status-filter-btn')) return;
+    _closeAllFilterPops();
+}
+
+// ── Período ──
+function toggleDateFilterPop(e) {
+    if (e) e.stopPropagation();
+    const pop = document.getElementById('date-filter-pop');
+    const btn = document.getElementById('date-filter-btn');
+    const chev = document.getElementById('date-filter-chev');
+    const isHidden = pop.classList.contains('hidden');
+    _closeAllFilterPops();
+    if (isHidden) {
+        if (pop.parentElement !== document.body) document.body.appendChild(pop);
+        _syncDateFilterUI();
+        pop.classList.remove('hidden');
+        _positionFilterPop(btn, pop);
+        if (chev) chev.style.transform = 'rotate(180deg)';
+        setTimeout(() => document.addEventListener('click', _filterPopOutside), 10);
+    }
+}
+
+function _syncDateFilterUI() {
+    const val = document.getElementById('filter-date-agenda').value || 'todos';
+    const lbl = document.getElementById('date-filter-label');
+    if (lbl) {
+        if (val === 'mes') {
+            const mInput = document.getElementById('filter-month-agenda');
+            if (mInput && mInput.value) {
+                const [y, m] = mInput.value.split('-');
+                const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+                lbl.textContent = `${meses[parseInt(m,10)-1]} ${y}`;
+            } else {
+                lbl.textContent = 'Selecionar Mês';
+            }
+        } else {
+            lbl.textContent = (_DATE_FILTER_META[val] || _DATE_FILTER_META.todos).label;
+        }
+    }
+    document.querySelectorAll('#date-filter-pop .date-opt').forEach(opt => {
+        const active = opt.getAttribute('data-dval') === val;
+        opt.classList.toggle('bg-clinic-50', active);
+        opt.classList.toggle('text-clinic-700', active);
+        const check = opt.querySelector('.date-opt-check');
+        if (check) check.classList.toggle('opacity-0', !active);
+    });
+    const mWrap = document.getElementById('date-filter-month-wrap');
+    if (mWrap) mWrap.classList.toggle('hidden', val !== 'mes');
+    // Realça o botão quando há filtro ativo
+    const btn = document.getElementById('date-filter-btn');
+    if (btn) {
+        const on = val !== 'todos';
+        btn.classList.toggle('border-clinic-300', on);
+        btn.classList.toggle('text-clinic-600', on);
+        btn.classList.toggle('bg-clinic-50', on);
+    }
+}
+
+function selectDateFilter(val) {
+    document.getElementById('filter-date-agenda').value = val;
+    if (val === 'mes') {
+        const mInput = document.getElementById('filter-month-agenda');
+        if (mInput && !mInput.value) {
+            const now = new Date();
+            mInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        }
+        _syncDateFilterUI();
+        // Mantém o popover aberto para escolher o mês
+        const pop = document.getElementById('date-filter-pop');
+        const btn = document.getElementById('date-filter-btn');
+        if (pop && btn) _positionFilterPop(btn, pop);
+        renderTable();
+        return;
+    }
+    _syncDateFilterUI();
+    _closeAllFilterPops();
+    renderTable();
+}
+
+function onDateMonthChange() {
+    document.getElementById('filter-date-agenda').value = 'mes';
+    _syncDateFilterUI();
+    renderTable();
+}
+
+// ── Status ──
+function _buildStatusFilterOptions() {
+    const box = document.getElementById('status-filter-opts');
+    if (!box || box.dataset.built === '1') return;
+    box.innerHTML = _STATUS_FILTER_OPTS.map(o => `
+        <button type="button" onclick="selectStatusFilter('${o.val.replace(/'/g, "\\'")}')" data-sval="${o.val}"
+            class="status-opt w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition text-left">
+            <span class="h-8 w-8 rounded-lg flex items-center justify-center shrink-0" style="background:${o.color}1a;color:${o.color};">
+                <i class="fas ${o.icon} text-xs"></i>
+            </span>
+            <span class="flex-1">${o.label}</span>
+            <i class="status-opt-check fas fa-check text-clinic-500 text-xs opacity-0"></i>
+        </button>`).join('');
+    box.dataset.built = '1';
+}
+
+function toggleStatusFilterPop(e) {
+    if (e) e.stopPropagation();
+    _buildStatusFilterOptions();
+    const pop = document.getElementById('status-filter-pop');
+    const btn = document.getElementById('status-filter-btn');
+    const chev = document.getElementById('status-filter-chev');
+    const isHidden = pop.classList.contains('hidden');
+    _closeAllFilterPops();
+    if (isHidden) {
+        if (pop.parentElement !== document.body) document.body.appendChild(pop);
+        _syncStatusFilterUI();
+        pop.classList.remove('hidden');
+        _positionFilterPop(btn, pop);
+        if (chev) chev.style.transform = 'rotate(180deg)';
+        setTimeout(() => document.addEventListener('click', _filterPopOutside), 10);
+    }
+}
+
+function _syncStatusFilterUI() {
+    const val = document.getElementById('filter-status-agenda').value || '';
+    const meta = _STATUS_FILTER_OPTS.find(o => o.val === val) || _STATUS_FILTER_OPTS[0];
+    const lbl = document.getElementById('status-filter-label');
+    const dot = document.getElementById('status-filter-dot');
+    if (lbl) lbl.textContent = meta.label;
+    if (dot) dot.style.background = meta.color;
+    document.querySelectorAll('#status-filter-pop .status-opt').forEach(opt => {
+        const active = opt.getAttribute('data-sval') === val;
+        opt.classList.toggle('bg-slate-100', active);
+        const check = opt.querySelector('.status-opt-check');
+        if (check) check.classList.toggle('opacity-0', !active);
+    });
+    const btn = document.getElementById('status-filter-btn');
+    if (btn) {
+        const on = val !== '';
+        btn.classList.toggle('border-clinic-300', on);
+        btn.classList.toggle('bg-clinic-50', on);
+    }
+}
+
+function selectStatusFilter(val) {
+    document.getElementById('filter-status-agenda').value = val;
+    _syncStatusFilterUI();
+    _closeAllFilterPops();
+    renderTable();
 }

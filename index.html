@@ -673,21 +673,62 @@
                                 </div>
                             </div>
 
-                            <select id="filter-date-agenda" onchange="toggleMonthFilter()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
-                                <option value="todos">Todas as Datas</option>
-                                <option value="hoje">Hoje</option>
-                                <option value="semana">Esta Semana</option>
-                                <option value="mes">Selecionar Mês...</option>
-                            </select>
-                            <input type="month" id="filter-month-agenda" onchange="renderTable()" oninput="renderTable()" onclick="try{this.showPicker()}catch(e){}" class="hidden px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none cursor-pointer" style="color-scheme: light;">
-                            <select id="filter-status-agenda" onchange="renderTable()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
-                                <option value="">Todos os Status</option>
-                                <option value="Nova oportunidade">Nova oportunidade</option>
-                                <option value="Em negociação">Em negociação</option>
-                                <option value="Agendado">Agendado</option>
-                                <option value="Aplicado">Aplicado</option>
-                                <option value="Perdido">Perdido</option>
-                            </select>
+                            <!-- Filtro de Período (popover) -->
+                            <div class="relative" id="date-filter-wrap">
+                                <input type="hidden" id="filter-date-agenda" value="todos">
+                                <button type="button" id="date-filter-btn" onclick="toggleDateFilterPop(event)"
+                                    class="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 transition shadow-sm">
+                                    <i class="fas fa-calendar-day text-clinic-500 text-xs"></i>
+                                    <span id="date-filter-label">Todas as Datas</span>
+                                    <i id="date-filter-chev" class="fas fa-chevron-down text-[9px] text-slate-400 transition-transform"></i>
+                                </button>
+                                <div id="date-filter-pop" class="hidden fixed z-[200] w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 select-none" style="animation:fadeSlideDown .15s ease;">
+                                    <p class="px-3 pt-1.5 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">Filtrar por período</p>
+                                    <div class="space-y-0.5">
+                                        <button type="button" onclick="selectDateFilter('todos')" data-dval="todos" class="date-opt w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition text-left">
+                                            <span class="date-opt-ic h-8 w-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center shrink-0"><i class="fas fa-infinity text-xs"></i></span>
+                                            <span class="flex-1">Todas as Datas</span>
+                                            <i class="date-opt-check fas fa-check text-clinic-500 text-xs opacity-0"></i>
+                                        </button>
+                                        <button type="button" onclick="selectDateFilter('hoje')" data-dval="hoje" class="date-opt w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition text-left">
+                                            <span class="date-opt-ic h-8 w-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center shrink-0"><i class="fas fa-calendar-day text-xs"></i></span>
+                                            <span class="flex-1">Hoje</span>
+                                            <i class="date-opt-check fas fa-check text-clinic-500 text-xs opacity-0"></i>
+                                        </button>
+                                        <button type="button" onclick="selectDateFilter('semana')" data-dval="semana" class="date-opt w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition text-left">
+                                            <span class="date-opt-ic h-8 w-8 rounded-lg bg-violet-50 text-violet-500 flex items-center justify-center shrink-0"><i class="fas fa-calendar-week text-xs"></i></span>
+                                            <span class="flex-1">Esta Semana</span>
+                                            <i class="date-opt-check fas fa-check text-clinic-500 text-xs opacity-0"></i>
+                                        </button>
+                                        <button type="button" onclick="selectDateFilter('mes')" data-dval="mes" class="date-opt w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition text-left">
+                                            <span class="date-opt-ic h-8 w-8 rounded-lg bg-amber-50 text-amber-500 flex items-center justify-center shrink-0"><i class="fas fa-calendar-alt text-xs"></i></span>
+                                            <span class="flex-1">Selecionar Mês</span>
+                                            <i class="date-opt-check fas fa-check text-clinic-500 text-xs opacity-0"></i>
+                                        </button>
+                                    </div>
+                                    <div id="date-filter-month-wrap" class="hidden mt-1 px-1 pb-1">
+                                        <div class="border-t border-slate-100 pt-2">
+                                            <label class="block px-1.5 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">Mês / Ano</label>
+                                            <input type="month" id="filter-month-agenda" onchange="onDateMonthChange()" oninput="onDateMonthChange()" onclick="try{this.showPicker()}catch(e){}"
+                                                class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-clinic-500 outline-none cursor-pointer" style="color-scheme: light;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Filtro de Status (popover) — visível apenas na Planilha -->
+                            <div class="relative" id="status-filter-wrap">
+                                <input type="hidden" id="filter-status-agenda" value="">
+                                <button type="button" id="status-filter-btn" onclick="toggleStatusFilterPop(event)"
+                                    class="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 transition shadow-sm">
+                                    <span id="status-filter-dot" class="h-2.5 w-2.5 rounded-full bg-slate-300 shrink-0"></span>
+                                    <span id="status-filter-label">Todos os Status</span>
+                                    <i id="status-filter-chev" class="fas fa-chevron-down text-[9px] text-slate-400 transition-transform"></i>
+                                </button>
+                                <div id="status-filter-pop" class="hidden fixed z-[200] w-60 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 select-none" style="animation:fadeSlideDown .15s ease;">
+                                    <p class="px-3 pt-1.5 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">Filtrar por status</p>
+                                    <div id="status-filter-opts" class="space-y-0.5"></div>
+                                </div>
+                            </div>
                             <!-- Botão Agrupar por Paciente (visível apenas no kanban) -->
                             <div id="btn-kanban-group-wrap" style="display:none;">
                                 <button id="btn-kanban-group" onclick="kanbanToggleGroup()"
@@ -2086,7 +2127,11 @@
                         <span id="btn-reforco-knob" class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
                     </button>
                     <input type="hidden" id="vac-reforco" value="0">
-
+                    <div id="reforco-meses-wrap" class="hidden items-center gap-2">
+                        <label for="vac-reforco-meses" class="text-[10px] font-black text-slate-400 uppercase">Após</label>
+                        <input type="number" id="vac-reforco-meses" min="1" step="1" placeholder="12" inputmode="numeric" class="w-16 border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-clinic-500 outline-none text-sm font-bold text-center">
+                        <span class="text-[10px] font-black text-slate-400 uppercase">meses (opcional)</span>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Valor Padrão *</label>

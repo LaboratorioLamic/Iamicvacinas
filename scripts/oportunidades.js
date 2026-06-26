@@ -173,10 +173,14 @@ function calcAprazamento() {
                         const lastApp = applied.sort((a,b)=>new Date(b.data)-new Date(a.data))[0];
                         let suggestedDate = null;
                         if (lastApp) {
-                            const intervalos = (esq && esq.intervalos && esq.intervalos.length) ? esq.intervalos : [];
-                            const intervalo = intervalos[numDoses] || vac.intervaloDias || 365;
                             const d = new Date(lastApp.data+'T00:00:00');
-                            d.setDate(d.getDate() + intervalo);
+                            if (vac.reforcoMeses > 0) {
+                                d.setMonth(d.getMonth() + vac.reforcoMeses);
+                            } else {
+                                const intervalos = (esq && esq.intervalos && esq.intervalos.length) ? esq.intervalos : [];
+                                const intervalo = intervalos[numDoses] || vac.intervaloDias || 365;
+                                d.setDate(d.getDate() + intervalo);
+                            }
                             suggestedDate = d;
                         }
                         opps.push({ type:'reforco', vaccine:vac, dose:'Reforço', suggestedDate, revenue:parseBRL(String(vac.valor||'0'))||0, urgency:_urgency(suggestedDate,today,in30) });

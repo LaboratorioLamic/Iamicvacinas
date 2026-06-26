@@ -721,8 +721,9 @@ function switchTableView(view) {
     tableView = view;
     const vPlan = document.getElementById('view-planilhas');
     const vKan  = document.getElementById('view-kanban');
-    const statusSel = document.getElementById('filter-status-agenda');
+    const statusSel = document.getElementById('status-filter-wrap');
     const groupWrap = document.getElementById('btn-kanban-group-wrap');
+    if (typeof _closeAllFilterPops === 'function') _closeAllFilterPops();
 
     if (view === 'kanban') {
         if (vPlan) vPlan.classList.add('hidden');

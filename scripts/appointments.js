@@ -465,10 +465,35 @@ function updateSuggestedDate() {
     sugDiv.classList.add('hidden');
     document.getElementById('reg-data').removeAttribute('min');
 
-    if (!patId || !vId || !dose || dose.includes('1ª') || dose === 'Reforço') return;
+    if (!patId || !vId || !dose || dose.includes('1ª')) return;
 
     const v = vaccines.find(x => String(x.id) === String(vId));
     if (!v) return;
+
+    // Reforço: sugere data com base na última dose (não-reforço) + reforcoMeses meses
+    if (dose === 'Reforço') {
+        if (!v.reforco || !(v.reforcoMeses > 0)) return;
+
+        const editingId = document.getElementById('reg-id').value;
+        const prevApps = appointments.filter(a =>
+            String(a.patientId) === String(patId) &&
+            String(a.vaccineId) === String(vId) &&
+            (!editingId || String(a.id) !== String(editingId)) &&
+            a.doseAtual !== 'Reforço'
+        ).sort((a, b) => new Date(b.data) - new Date(a.data));
+
+        if (!prevApps.length) return;
+
+        const baseDate = new Date(prevApps[0].data + 'T00:00:00');
+        baseDate.setMonth(baseDate.getMonth() + v.reforcoMeses);
+        const isoDate = baseDate.toISOString().split('T')[0];
+
+        spanEl.innerText = isoDate.split('-').reverse().join('/');
+        spanEl.setAttribute('data-iso', isoDate);
+        document.getElementById('reg-data').min = isoDate;
+        sugDiv.classList.remove('hidden');
+        return;
+    }
 
     // Dose Única recorrente: sugerir próxima data com base no repeteMeses do esquema
     if (dose === 'Dose Única') {
