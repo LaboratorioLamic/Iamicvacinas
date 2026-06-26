@@ -3,8 +3,10 @@
 let _oppSubTab = 'aprazamento'; // 'aprazamento' | 'oferta'
 
 let _oppFilter = {
-    aprazamento: { search: '', vacina: '', urgencia: '', ticketMin: '', ticketMax: '' },
-    oferta:      { search: '', vacina: '', ticketMin: '', ticketMax: '' }
+    aprazamento: { search: '', vacina: '', vacinaIds: new Set(), urgencia: '', proxDias: 30, ticketMin: '', ticketMax: '' },
+    oferta:      { search: '', vacina: '', vacinaIds: new Set(), ticketMin: '', ticketMax: '',
+                   idadeMinAnos: '', idadeMinMeses: '', idadeMaxAnos: '', idadeMaxMeses: '',
+                   genero: '', fidMin: '', fidMax: '' }
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -72,7 +74,8 @@ function _firstDoseLabel(vac, patient) {
 
 function calcAprazamento() {
     const today = new Date(); today.setHours(0,0,0,0);
-    const in30  = new Date(today); in30.setDate(in30.getDate() + 30);
+    const dias  = Number(_oppFilter.aprazamento.proxDias) || 30;
+    const in30  = new Date(today); in30.setDate(in30.getDate() + dias);
     const byPatient = {};
 
     patients.forEach(patient => {
@@ -357,11 +360,14 @@ function _applyCommonFilters(groups, tab) {
     const f       = _oppFilter[tab];
     const search  = normalizeStr(f.search || '');
     const vacFilt = f.vacina || '';
+    const vacinaIds = f.vacinaIds && f.vacinaIds.size ? f.vacinaIds : null;
 
     return groups.map(pg => ({
         ...pg,
         opps: pg.opps.filter(o => {
-            if (vacFilt && String(o.vaccine.id) !== String(vacFilt)) return false;
+            const id = String(o.vaccine ? o.vaccine.id : o.vaccineId);
+            if (vacinaIds) { if (!vacinaIds.has(id)) return false; }
+            else if (vacFilt && id !== String(vacFilt)) return false;
             return true;
         })
     })).filter(pg => {
@@ -384,6 +390,7 @@ function _renderAprazamento() {
     let groups = calcAprazamento();
     if (f.urgencia) groups = groups.map(pg => ({ ...pg, opps: pg.opps.filter(o=>o.urgency===f.urgencia) })).filter(pg=>pg.opps.length);
     groups = _applyCommonFilters(groups, 'aprazamento');
+    _updateAprPrazoBadge();
     groups.forEach(pg => pg.opps.sort((a,b)=>(urgOrder[a.urgency]??9)-(urgOrder[b.urgency]??9)));
     _sortGroups(groups, true);
 
@@ -392,12 +399,13 @@ function _renderAprazamento() {
     const totVenc = groups.reduce((s,pg)=>s+pg.opps.filter(o=>o.urgency==='vencida').length,0);
     const totProx = groups.reduce((s,pg)=>s+pg.opps.filter(o=>o.urgency==='proxima').length,0);
 
-    _renderStats(groups.length, totOpps, totRev, totVenc, totProx);
+    _renderStats(groups.length, totOpps, totRev, totVenc, totProx, false, _oppFilter.aprazamento.proxDias);
     _renderCards(groups, 'aprazamento');
 }
 
 function _renderOferta() {
     let groups = calcOferta();
+    groups = _applyOfertaPatientFilters(groups);
     groups = _applyCommonFilters(groups, 'oferta');
     _sortGroups(groups, false);
 
@@ -408,7 +416,7 @@ function _renderOferta() {
     _renderCards(groups, 'oferta');
 }
 
-function _renderStats(npat, nopps, rev, nvenc, nprox, isOferta=false) {
+function _renderStats(npat, nopps, rev, nvenc, nprox, isOferta=false, proxDias=30) {
     const el = document.getElementById('oport-stats');
     if (!el) return;
     el.innerHTML = `
@@ -429,7 +437,7 @@ function _renderStats(npat, nopps, rev, nvenc, nprox, isOferta=false) {
                 <span class="text-xs text-emerald-600 uppercase tracking-wide">Receita potencial</span>
             </div>
             ${nvenc > 0 ? `<div class="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-2 shadow-sm"><i class="fas fa-exclamation-circle text-red-500 text-sm"></i><span class="font-black text-red-700">${nvenc}</span><span class="text-xs text-red-600 uppercase tracking-wide">Vencidas</span></div>` : ''}
-            ${nprox > 0 ? `<div class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 shadow-sm"><i class="fas fa-clock text-amber-500 text-sm"></i><span class="font-black text-amber-700">${nprox}</span><span class="text-xs text-amber-600 uppercase tracking-wide">Próx. 30 dias</span></div>` : ''}
+            ${nprox > 0 ? `<div class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 shadow-sm"><i class="fas fa-clock text-amber-500 text-sm"></i><span class="font-black text-amber-700">${nprox}</span><span class="text-xs text-amber-600 uppercase tracking-wide">Próx. ${proxDias} dias</span></div>` : ''}
         </div>`;
 }
 
@@ -726,21 +734,9 @@ function agendarOportunidade(patId, vacId, dose, dataIso) {
 // ── Populadores de filtros ────────────────────────────────────────────────────
 
 function populateOppVacinaFilter() {
-    const selApr = document.getElementById('oport-filter-vacina-apr');
-    const selOfe = document.getElementById('oport-filter-vacina-ofe');
-
-    const appliedIds = new Set(appointments.filter(a=>a.status==='Aplicado').map(a=>a.vaccineId));
-    const activeVacs = vaccines.filter(v=>v.ativo!==false).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
-
-    if (selApr) {
-        const usedInApr = activeVacs.filter(v=>appliedIds.has(v.id));
-        selApr.innerHTML = '<option value="">Todas as vacinas</option>' + usedInApr.map(v=>`<option value="${v.id}">${v.nome}</option>`).join('');
-        selApr.value = _oppFilter.aprazamento.vacina || '';
-    }
-    if (selOfe) {
-        selOfe.innerHTML = '<option value="">Todas as vacinas</option>' + activeVacs.map(v=>`<option value="${v.id}">${v.nome}</option>`).join('');
-        selOfe.value = _oppFilter.oferta.vacina || '';
-    }
+    // Selects foram substituídos por popovers — badges atualizados separadamente
+    _updateAprVacinaBadge();
+    _updateOfertaVacinaBadge();
 }
 
 // ── Handlers de filtro ────────────────────────────────────────────────────────
@@ -748,3 +744,495 @@ function populateOppVacinaFilter() {
 function oppFilterSearch(val, tab) { _oppFilter[tab].search = val; renderOportunidades(); }
 function oppFilterVacina(val, tab) { _oppFilter[tab].vacina = val; renderOportunidades(); }
 function oppFilterUrgencia(val)    { _oppFilter.aprazamento.urgencia = val; renderOportunidades(); }
+
+// ── Popover Multi-Vacina genérico ─────────────────────────────────────────────
+
+function _openVacinaPopover({ popId, searchId, listId, clearId, allVacs, filterFn, closeFn, anchorBtn }) {
+    const pop = document.getElementById(popId);
+    if (!pop) return;
+
+    const searchEl = document.getElementById(searchId);
+    if (searchEl) searchEl.value = '';
+    filterFn('');
+
+    const rect = anchorBtn.getBoundingClientRect();
+    pop.style.top  = (rect.bottom + 8) + 'px';
+    pop.style.left = '8px';
+    pop.classList.remove('hidden');
+
+    requestAnimationFrame(() => {
+        const maxLeft = window.innerWidth - pop.offsetWidth - 8;
+        pop.style.left = Math.max(8, Math.min(rect.left, maxLeft)) + 'px';
+    });
+}
+
+function _renderVacinaList({ listId, allVacs, selSet, toggleFn, searchVal }) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+    const q = normalizeStr(searchVal || '');
+    const filtered = q ? allVacs.filter(v => normalizeStr(v.nome).includes(q)) : allVacs;
+
+    list.innerHTML = filtered.map(v => {
+        const checked = selSet.has(String(v.id));
+        return `<div class="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer select-none transition vac-row ${checked ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-slate-50 border border-transparent'}" data-id="${v.id}">
+            <div class="h-4 w-4 rounded flex items-center justify-center shrink-0 border-2 transition ${checked ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 bg-white'}">
+                ${checked ? '<i class="fas fa-check text-white" style="font-size:8px"></i>' : ''}
+            </div>
+            <span class="text-sm text-navy-900 font-bold flex-1 leading-tight">${v.nome}</span>
+        </div>`;
+    }).join('') || '<p class="text-xs text-slate-400 text-center py-4">Nenhuma vacina encontrada</p>';
+
+    list.querySelectorAll('.vac-row').forEach(row => {
+        row.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleFn(row.dataset.id);
+        });
+    });
+}
+
+function _updateVacinaBadge({ btnId, lblClass, selSet }) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    const lbl = btn.querySelector(`.${lblClass}`);
+    const hasFilter = selSet.size > 0;
+
+    btn.classList.toggle('bg-indigo-600', hasFilter);
+    btn.classList.toggle('text-white', hasFilter);
+    btn.classList.toggle('border-indigo-600', hasFilter);
+    btn.classList.toggle('bg-white', !hasFilter);
+    btn.classList.toggle('text-slate-600', !hasFilter);
+    btn.classList.toggle('border-slate-200', !hasFilter);
+
+    if (lbl) {
+        if (!hasFilter) { lbl.textContent = 'Todas as vacinas'; return; }
+        if (selSet.size === 1) {
+            const vac = vaccines.find(v => String(v.id) === [...selSet][0]);
+            lbl.textContent = vac ? vac.nome : '1 vacina';
+        } else {
+            lbl.textContent = `${selSet.size} vacinas`;
+        }
+    }
+}
+
+// ── Popover Vacina — Oferta ───────────────────────────────────────────────────
+
+let _ofertaVacinaOutside = null;
+let _ofertaVacinaAllVacs = [];
+
+function openOfertaVacinaPopover(btn) {
+    ['idade','genero','fidelidade'].forEach(t => _closeOfertaPop(t));
+    closeTicketPopover();
+    closeAprVacinaPopover();
+    closeAprPrazoPopover();
+
+    _ofertaVacinaAllVacs = vaccines.filter(v => v.ativo !== false).sort((a,b) => a.nome.localeCompare(b.nome,'pt-BR'));
+    _openVacinaPopover({ popId:'ofe-vacina-popover', searchId:'ofe-vacina-search', listId:'ofe-vacina-list',
+        allVacs: _ofertaVacinaAllVacs, filterFn: filterOfertaVacinaList, closeFn: closeOfertaVacinaPopover, anchorBtn: btn });
+
+    if (_ofertaVacinaOutside) document.removeEventListener('click', _ofertaVacinaOutside);
+    const pop = document.getElementById('ofe-vacina-popover');
+    _ofertaVacinaOutside = (e) => {
+        if (pop && !e.composedPath().includes(pop) && e.target !== btn) closeOfertaVacinaPopover();
+        else setTimeout(() => document.addEventListener('click', _ofertaVacinaOutside, { once: true }), 10);
+    };
+    setTimeout(() => document.addEventListener('click', _ofertaVacinaOutside, { once: true }), 10);
+}
+
+function closeOfertaVacinaPopover() {
+    const pop = document.getElementById('ofe-vacina-popover');
+    if (pop) pop.classList.add('hidden');
+    if (_ofertaVacinaOutside) { document.removeEventListener('click', _ofertaVacinaOutside); _ofertaVacinaOutside = null; }
+    _updateOfertaVacinaBadge();
+    renderOportunidades();
+}
+
+function filterOfertaVacinaList(val) {
+    const clear = document.getElementById('ofe-vacina-search-clear');
+    if (clear) clear.classList.toggle('hidden', !val);
+    _renderVacinaList({ listId:'ofe-vacina-list', allVacs:_ofertaVacinaAllVacs,
+        selSet:_oppFilter.oferta.vacinaIds, toggleFn:toggleOfertaVacina, searchVal:val });
+}
+
+function toggleOfertaVacina(id) {
+    const sel = _oppFilter.oferta.vacinaIds;
+    if (sel.has(id)) sel.delete(id); else sel.add(id);
+    filterOfertaVacinaList(document.getElementById('ofe-vacina-search')?.value || '');
+}
+
+function clearOfertaVacinas() {
+    _oppFilter.oferta.vacinaIds.clear();
+    filterOfertaVacinaList(document.getElementById('ofe-vacina-search')?.value || '');
+    _updateOfertaVacinaBadge();
+    renderOportunidades();
+}
+
+function _updateOfertaVacinaBadge() {
+    _updateVacinaBadge({ btnId:'ofe-vacina-btn', lblClass:'ofe-vacina-lbl', selSet:_oppFilter.oferta.vacinaIds });
+}
+
+// ── Popover Vacina — Aprazamento ──────────────────────────────────────────────
+
+let _aprVacinaOutside = null;
+let _aprVacinaAllVacs = [];
+
+function openAprVacinaPopover(btn) {
+    closeTicketPopover();
+    closeAprPrazoPopover();
+
+    _aprVacinaAllVacs = vaccines.filter(v => v.ativo !== false)
+        .filter(v => appointments.some(a => a.vaccineId == v.id && a.status === 'Aplicado'))
+        .sort((a,b) => a.nome.localeCompare(b.nome,'pt-BR'));
+
+    _openVacinaPopover({ popId:'apr-vacina-popover', searchId:'apr-vacina-search', listId:'apr-vacina-list',
+        allVacs: _aprVacinaAllVacs, filterFn: filterAprVacinaList, closeFn: closeAprVacinaPopover, anchorBtn: btn });
+
+    if (_aprVacinaOutside) document.removeEventListener('click', _aprVacinaOutside);
+    const pop = document.getElementById('apr-vacina-popover');
+    _aprVacinaOutside = (e) => {
+        if (pop && !e.composedPath().includes(pop) && e.target !== btn) closeAprVacinaPopover();
+        else setTimeout(() => document.addEventListener('click', _aprVacinaOutside, { once: true }), 10);
+    };
+    setTimeout(() => document.addEventListener('click', _aprVacinaOutside, { once: true }), 10);
+}
+
+function closeAprVacinaPopover() {
+    const pop = document.getElementById('apr-vacina-popover');
+    if (pop) pop.classList.add('hidden');
+    if (_aprVacinaOutside) { document.removeEventListener('click', _aprVacinaOutside); _aprVacinaOutside = null; }
+    _updateAprVacinaBadge();
+    renderOportunidades();
+}
+
+function filterAprVacinaList(val) {
+    const clear = document.getElementById('apr-vacina-search-clear');
+    if (clear) clear.classList.toggle('hidden', !val);
+    _renderVacinaList({ listId:'apr-vacina-list', allVacs:_aprVacinaAllVacs,
+        selSet:_oppFilter.aprazamento.vacinaIds, toggleFn:toggleAprVacina, searchVal:val });
+}
+
+function toggleAprVacina(id) {
+    const sel = _oppFilter.aprazamento.vacinaIds;
+    if (sel.has(id)) sel.delete(id); else sel.add(id);
+    filterAprVacinaList(document.getElementById('apr-vacina-search')?.value || '');
+}
+
+function clearAprVacinas() {
+    _oppFilter.aprazamento.vacinaIds.clear();
+    filterAprVacinaList(document.getElementById('apr-vacina-search')?.value || '');
+    _updateAprVacinaBadge();
+    renderOportunidades();
+}
+
+function _updateAprVacinaBadge() {
+    _updateVacinaBadge({ btnId:'apr-vacina-btn', lblClass:'apr-vacina-lbl', selSet:_oppFilter.aprazamento.vacinaIds });
+}
+
+// ── Popover Prazo — Aprazamento ───────────────────────────────────────────────
+
+let _aprPrazoOutside = null;
+
+function openAprPrazoPopover(btn) {
+    closeTicketPopover();
+    closeAprVacinaPopover();
+
+    const pop = document.getElementById('apr-prazo-popover');
+    if (!pop) return;
+
+    const diasEl = document.getElementById('apr-prazo-dias');
+    if (diasEl) diasEl.value = _oppFilter.aprazamento.proxDias || 30;
+    _renderAprPrazoSelection();
+
+    const rect = btn.getBoundingClientRect();
+    pop.style.top  = (rect.bottom + 8) + 'px';
+    pop.style.left = '8px';
+    pop.classList.remove('hidden');
+
+    requestAnimationFrame(() => {
+        const maxLeft = window.innerWidth - pop.offsetWidth - 8;
+        pop.style.left = Math.max(8, Math.min(rect.left, maxLeft)) + 'px';
+    });
+
+    if (_aprPrazoOutside) document.removeEventListener('click', _aprPrazoOutside);
+    _aprPrazoOutside = (e) => {
+        if (!e.composedPath().includes(pop) && e.target !== btn) closeAprPrazoPopover();
+        else setTimeout(() => document.addEventListener('click', _aprPrazoOutside, { once: true }), 10);
+    };
+    setTimeout(() => document.addEventListener('click', _aprPrazoOutside, { once: true }), 10);
+}
+
+function closeAprPrazoPopover() {
+    const pop = document.getElementById('apr-prazo-popover');
+    if (pop) pop.classList.add('hidden');
+    if (_aprPrazoOutside) { document.removeEventListener('click', _aprPrazoOutside); _aprPrazoOutside = null; }
+}
+
+function _renderAprPrazoSelection() {
+    const cur = _oppFilter.aprazamento.urgencia;
+    const colorMap = { '':'slate', 'vencida':'red', 'proxima':'amber', 'futura':'green', 'sem_data':'slate' };
+    document.querySelectorAll('.apr-prazo-opt').forEach(btn => {
+        const val = btn.dataset.prazo;
+        const active = val === cur;
+        const color = colorMap[val] || 'slate';
+        btn.classList.toggle(`border-${color}-400`, active);
+        btn.classList.toggle(`bg-${color}-50`, active);
+        btn.classList.toggle('border-slate-200', !active);
+        btn.classList.toggle('bg-white', !active);
+    });
+}
+
+function selectAprPrazo(val) {
+    _oppFilter.aprazamento.urgencia = val;
+    _renderAprPrazoSelection();
+    _updateAprPrazoBadge();
+    renderOportunidades();
+}
+
+function onAprPrazoDiasChange() {
+    const val = parseInt(document.getElementById('apr-prazo-dias')?.value) || 30;
+    _oppFilter.aprazamento.proxDias = Math.max(1, val);
+    if (_oppFilter.aprazamento.urgencia === 'proxima') renderOportunidades();
+}
+
+function clearAprPrazo() {
+    _oppFilter.aprazamento.urgencia = '';
+    _oppFilter.aprazamento.proxDias = 30;
+    const diasEl = document.getElementById('apr-prazo-dias');
+    if (diasEl) diasEl.value = 30;
+    _renderAprPrazoSelection();
+    _updateAprPrazoBadge();
+    closeAprPrazoPopover();
+    renderOportunidades();
+}
+
+function _updateAprPrazoBadge() {
+    const btn = document.getElementById('apr-prazo-btn');
+    if (!btn) return;
+    const f = _oppFilter.aprazamento;
+    const lbl = btn.querySelector('.apr-prazo-lbl');
+    const hasFilter = !!f.urgencia;
+
+    const colorOn  = { vencida:'red', proxima:'amber', futura:'green', sem_data:'slate' };
+    const c = colorOn[f.urgencia] || 'orange';
+
+    btn.className = btn.className
+        .replace(/\bbg-\S+\b/g,'').replace(/\bborder-\S+\b/g,'').replace(/\btext-\S+\b/g,'').trim();
+    btn.classList.add('flex','items-center','gap-1.5','px-3','py-2','rounded-xl','border','font-black','text-xs','uppercase','tracking-wide','transition');
+
+    if (hasFilter) {
+        btn.classList.add(`bg-${c}-500`,'text-white',`border-${c}-500`,`hover:bg-${c}-600`);
+    } else {
+        btn.classList.add('bg-white','text-slate-600','border-slate-200','hover:bg-orange-50','hover:border-orange-300','hover:text-orange-600');
+    }
+
+    if (lbl) {
+        const labels = { vencida:'Vencidas', proxima:`Próximas (${f.proxDias}d)`, futura:'Futuras', sem_data:'Sem data' };
+        lbl.textContent = hasFilter ? (labels[f.urgencia] || 'Prazo') : 'Prazo';
+    }
+}
+
+// ── Popovers de Oferta (Idade / Gênero / Fidelidade) ─────────────────────────
+
+let _ofertaPopoverOutsideHandlers = {};
+
+function openOfertaPopover(type, btn) {
+    // Fecha todos os outros popovers
+    ['idade','genero','fidelidade'].forEach(t => { if (t !== type) _closeOfertaPop(t); });
+    closeTicketPopover();
+
+    const pop = document.getElementById(`ofe-${type}-popover`);
+    if (!pop) return;
+
+    // Preenche valores atuais
+    const f = _oppFilter.oferta;
+    if (type === 'idade') {
+        document.getElementById('ofe-idade-min-anos').value  = f.idadeMinAnos  || '';
+        document.getElementById('ofe-idade-min-meses').value = f.idadeMinMeses || '';
+        document.getElementById('ofe-idade-max-anos').value  = f.idadeMaxAnos  || '';
+        document.getElementById('ofe-idade-max-meses').value = f.idadeMaxMeses || '';
+    } else if (type === 'fidelidade') {
+        document.getElementById('ofe-fid-min').value = f.fidMin || '';
+        document.getElementById('ofe-fid-max').value = f.fidMax || '';
+    } else if (type === 'genero') {
+        _updateGeneroSelection(f.genero);
+    }
+
+    const rect = btn.getBoundingClientRect();
+    pop.style.top  = (rect.bottom + 8) + 'px';
+    pop.style.left = Math.max(8, rect.left - pop.offsetWidth + rect.width) + 'px';
+    pop.classList.remove('hidden');
+
+    // Aguarda render para calcular left correto
+    requestAnimationFrame(() => {
+        const maxLeft = window.innerWidth - pop.offsetWidth - 8;
+        pop.style.left = Math.max(8, Math.min(rect.left - pop.offsetWidth + rect.width, maxLeft)) + 'px';
+    });
+
+    const handler = (e) => { if (!pop.contains(e.target)) _closeOfertaPop(type); };
+    _ofertaPopoverOutsideHandlers[type] = handler;
+    setTimeout(() => document.addEventListener('click', handler, { once: true }), 10);
+}
+
+function _closeOfertaPop(type) {
+    const pop = document.getElementById(`ofe-${type}-popover`);
+    if (pop) pop.classList.add('hidden');
+}
+
+function closeOfertaPopover(type) { _closeOfertaPop(type); }
+
+function _updateGeneroSelection(val) {
+    ['ambos','masculino','feminino'].forEach(g => {
+        const btn = document.getElementById(`ofe-gen-${g}`);
+        if (!btn) return;
+        const active = val && val.toLowerCase() === g;
+        btn.classList.toggle('border-pink-500', active);
+        btn.classList.toggle('bg-pink-50', active);
+        btn.classList.toggle('border-slate-200', !active);
+    });
+}
+
+function applyOfertaFilter(type, value) {
+    const f = _oppFilter.oferta;
+    if (type === 'idade') {
+        f.idadeMinAnos  = parseInt(document.getElementById('ofe-idade-min-anos').value)  || '';
+        f.idadeMinMeses = parseInt(document.getElementById('ofe-idade-min-meses').value) || '';
+        f.idadeMaxAnos  = parseInt(document.getElementById('ofe-idade-max-anos').value)  || '';
+        f.idadeMaxMeses = parseInt(document.getElementById('ofe-idade-max-meses').value) || '';
+        _closeOfertaPop('idade');
+    } else if (type === 'genero') {
+        f.genero = (value === f.genero) ? '' : value;
+        if (f.genero === 'Ambos') f.genero = '';
+        _updateGeneroSelection(f.genero);
+        _closeOfertaPop('genero');
+    } else if (type === 'fidelidade') {
+        f.fidMin = parseInt(document.getElementById('ofe-fid-min').value) >= 0 ? parseInt(document.getElementById('ofe-fid-min').value) : '';
+        f.fidMax = parseInt(document.getElementById('ofe-fid-max').value) >= 0 ? parseInt(document.getElementById('ofe-fid-max').value) : '';
+        _closeOfertaPop('fidelidade');
+    }
+    _updateOfertaFilterBadges();
+    renderOportunidades();
+}
+
+function clearOfertaFilter(type) {
+    const f = _oppFilter.oferta;
+    if (type === 'idade') {
+        f.idadeMinAnos = f.idadeMinMeses = f.idadeMaxAnos = f.idadeMaxMeses = '';
+        ['ofe-idade-min-anos','ofe-idade-min-meses','ofe-idade-max-anos','ofe-idade-max-meses'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = '';
+        });
+        _closeOfertaPop('idade');
+    } else if (type === 'genero') {
+        f.genero = '';
+        _updateGeneroSelection('');
+        _closeOfertaPop('genero');
+    } else if (type === 'fidelidade') {
+        f.fidMin = f.fidMax = '';
+        ['ofe-fid-min','ofe-fid-max'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        _closeOfertaPop('fidelidade');
+    }
+    _updateOfertaFilterBadges();
+    renderOportunidades();
+}
+
+function _updateOfertaFilterBadges() {
+    const f = _oppFilter.oferta;
+
+    // Idade
+    const idadeBtn = document.getElementById('ofe-idade-btn');
+    if (idadeBtn) {
+        const hasIdade = f.idadeMinAnos !== '' || f.idadeMinMeses !== '' || f.idadeMaxAnos !== '' || f.idadeMaxMeses !== '';
+        idadeBtn.classList.toggle('bg-violet-600', hasIdade);
+        idadeBtn.classList.toggle('text-white', hasIdade);
+        idadeBtn.classList.toggle('border-violet-600', hasIdade);
+        idadeBtn.classList.toggle('bg-white', !hasIdade);
+        idadeBtn.classList.toggle('text-slate-600', !hasIdade);
+        idadeBtn.classList.toggle('border-slate-200', !hasIdade);
+        const lbl = idadeBtn.querySelector('.ofe-idade-lbl');
+        if (lbl) {
+            if (hasIdade) {
+                const minStr = (f.idadeMinAnos !== '' || f.idadeMinMeses !== '')
+                    ? `${f.idadeMinAnos||0}a ${f.idadeMinMeses||0}m` : '';
+                const maxStr = (f.idadeMaxAnos !== '' || f.idadeMaxMeses !== '')
+                    ? `${f.idadeMaxAnos||0}a ${f.idadeMaxMeses||0}m` : '';
+                lbl.textContent = [minStr, maxStr].filter(Boolean).join(' – ') || 'Idade';
+            } else { lbl.textContent = 'Idade'; }
+        }
+    }
+
+    // Gênero
+    const genBtn = document.getElementById('ofe-genero-btn');
+    if (genBtn) {
+        const hasGen = !!f.genero;
+        const isMasc = f.genero === 'Masculino';
+        genBtn.classList.toggle('bg-blue-500',  hasGen && isMasc);
+        genBtn.classList.toggle('border-blue-500', hasGen && isMasc);
+        genBtn.classList.toggle('hover:bg-blue-400', hasGen && isMasc);
+        genBtn.classList.toggle('bg-pink-500',  hasGen && !isMasc);
+        genBtn.classList.toggle('border-pink-500', hasGen && !isMasc);
+        genBtn.classList.toggle('hover:bg-pink-400', hasGen && !isMasc);
+        genBtn.classList.toggle('hover:bg-pink-50', !hasGen);
+        genBtn.classList.toggle('hover:border-pink-300', !hasGen);
+        genBtn.classList.toggle('hover:text-pink-600', !hasGen);
+        genBtn.classList.toggle('text-white', hasGen);
+        genBtn.classList.toggle('bg-white', !hasGen);
+        genBtn.classList.toggle('text-slate-600', !hasGen);
+        genBtn.classList.toggle('border-slate-200', !hasGen);
+        const lbl = genBtn.querySelector('.ofe-genero-lbl');
+        if (lbl) lbl.textContent = f.genero || 'Gênero';
+    }
+
+    // Fidelidade
+    const fidBtn = document.getElementById('ofe-fidelidade-btn');
+    if (fidBtn) {
+        const hasFid = f.fidMin !== '' || f.fidMax !== '';
+        fidBtn.classList.toggle('bg-amber-500', hasFid);
+        fidBtn.classList.toggle('text-white', hasFid);
+        fidBtn.classList.toggle('border-amber-500', hasFid);
+        fidBtn.classList.toggle('bg-white', !hasFid);
+        fidBtn.classList.toggle('text-slate-600', !hasFid);
+        fidBtn.classList.toggle('border-slate-200', !hasFid);
+        const lbl = fidBtn.querySelector('.ofe-fidelidade-lbl');
+        if (lbl) {
+            if (hasFid) {
+                const min = f.fidMin !== '' ? `${f.fidMin}` : '';
+                const max = f.fidMax !== '' ? `${f.fidMax}` : '';
+                lbl.textContent = [min, max].filter(Boolean).join(' – ') + ' doses';
+            } else { lbl.textContent = 'Fidelidade'; }
+        }
+    }
+}
+
+// ── Aplica filtros de paciente na renderOferta ────────────────────────────────
+
+function _applyOfertaPatientFilters(groups) {
+    const f = _oppFilter.oferta;
+
+    return groups.filter(pg => {
+        const p = pg.patient;
+
+        // Gênero
+        if (f.genero) {
+            const pGen = (p.genero || '').toLowerCase();
+            if (pGen !== f.genero.toLowerCase()) return false;
+        }
+
+        // Fidelidade (doses aplicadas)
+        if (f.fidMin !== '' || f.fidMax !== '') {
+            const doses = _appliedCount(p.id);
+            if (f.fidMin !== '' && doses < f.fidMin) return false;
+            if (f.fidMax !== '' && doses > f.fidMax) return false;
+        }
+
+        // Faixa etária
+        if (f.idadeMinAnos !== '' || f.idadeMinMeses !== '' || f.idadeMaxAnos !== '' || f.idadeMaxMeses !== '') {
+            if (!p.dtNasc) return false;
+            const ai = getAgeInMonths(p.dtNasc);
+            const totalMeses = ai.years * 12 + ai.months;
+            const minT = (parseInt(f.idadeMinAnos) || 0) * 12 + (parseInt(f.idadeMinMeses) || 0);
+            const hasMax = f.idadeMaxAnos !== '' || f.idadeMaxMeses !== '';
+            const maxT = hasMax ? ((parseInt(f.idadeMaxAnos) || 0) * 12 + (parseInt(f.idadeMaxMeses) || 0)) : Infinity;
+            if (totalMeses < minT || totalMeses > maxT) return false;
+        }
+
+        return true;
+    });
+}

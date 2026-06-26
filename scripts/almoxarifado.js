@@ -308,7 +308,8 @@ function renderEstoqueDashboard() {
             hover:      'hover:shadow-sky-100',
         };
 
-        const pct = e.total > 0 ? Math.round((e.disponivel / e.total) * 100) : 0;
+        const estoqueAtual = e.disponivel + e.reservado;
+        const pct = estoqueAtual > 0 ? Math.round((e.disponivel / estoqueAtual) * 100) : 0;
 
         const today = new Date(); today.setHours(0,0,0,0);
         const twoMonths = new Date(); twoMonths.setMonth(twoMonths.getMonth() + 2); twoMonths.setHours(0,0,0,0);
@@ -1136,10 +1137,11 @@ function openVaccineViewModal(vaccineId) {
                 : v.intervaloDias > 0 ? `${v.intervaloDias} dias` : '—';
         document.getElementById('vv-info-intervalos').textContent = ivs;
     }
-    const pct = e.total > 0 ? Math.round((e.disponivel / e.total) * 100) : 0;
+    const estoqueAtual = e.disponivel + e.reservado;
+    const pct = estoqueAtual > 0 ? Math.round((e.disponivel / estoqueAtual) * 100) : 0;
     document.getElementById('vv-bar').style.width = pct + '%';
     document.getElementById('vv-bar').className = `h-full rounded-full transition-all duration-500 ${e.disponivel <= 0 ? 'bg-red-400' : e.disponivel <= _vEstMin ? 'bg-amber-400' : 'bg-indigo-500'}`;
-    document.getElementById('vv-bar-label').textContent = `${e.disponivel} disponíveis de ${e.total} (${pct}%)`;
+    document.getElementById('vv-bar-label').textContent = `${e.disponivel} disponíveis de ${estoqueAtual} (${pct}%)`;
 
     switchVaccineViewTab('info');
     document.getElementById('modal-view-vaccine').classList.add('active');

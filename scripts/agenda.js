@@ -1347,20 +1347,18 @@ function _renderAgendarGrupoLines() {
             </div>`;
         }
 
-        return `<div class="flex flex-col gap-2 px-3 py-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition">
-            <div class="flex items-center gap-3">
+        return `<div class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition">
                 <i class="fas fa-syringe text-indigo-400 text-xs shrink-0"></i>
                 <div class="flex-1 min-w-0">
                     <p class="text-[11px] font-black text-navy-900 truncate leading-tight">${nomVac}</p>
                     <p class="text-[10px] text-slate-500">${app.dose}${valorStr}</p>
                 </div>
+                <input type="date" id="agendar-grupo-date-${app.id}" value="${app.data || ''}"
+                    class="border border-slate-200 rounded-lg py-1.5 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0">
                 <button onclick="removeAgendarGrupoLine(${app.id})"
                     class="h-7 w-7 rounded-lg bg-red-50 hover:bg-red-500 text-red-400 hover:text-white flex items-center justify-center transition shrink-0" title="Remover desta lista">
                     <i class="fas fa-times text-[9px]"></i>
                 </button>
-            </div>
-            <input type="date" id="agendar-grupo-date-${app.id}" value="${app.data || ''}"
-                class="w-full border border-slate-200 rounded-lg py-1.5 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50">
         </div>`;
     }).join('');
 
