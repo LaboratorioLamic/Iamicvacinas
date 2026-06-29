@@ -134,7 +134,7 @@ function renderDashAnalitico(apps) {
     document.getElementById('kpi-cancelados').innerText = cancelled;
     document.getElementById('kpi-atrasados').innerText = delayed;
 
-    // ── Pipeline Funil ──
+    // ── Pipeline Funil SVG ──
     const _dark = document.body.classList.contains('dark-mode');
     const negCount = apps.filter(a => ['Em negociação','Agendado','Aplicado'].includes(a.status)).length;
     const agdCount = apps.filter(a => ['Agendado','Aplicado'].includes(a.status)).length;
@@ -142,37 +142,112 @@ function renderDashAnalitico(apps) {
     const allCount = apps.length;
 
     const funnelStages = [
-        { label: 'Novas Oportunidades', count: allCount,  color: '#6366f1', pct: null },
-        { label: 'Em Negociação',       count: negCount,  color: '#3b82f6', pct: allCount > 0 ? (negCount/allCount*100).toFixed(0) : 0 },
-        { label: 'Agendado',            count: agdCount,  color: '#06b6d4', pct: negCount > 0 ? (agdCount/negCount*100).toFixed(0) : 0 },
-        { label: 'Aplicado',            count: aplCount,  color: '#10b981', pct: agdCount > 0 ? (aplCount/agdCount*100).toFixed(0) : 0 },
+        { label: 'Novas Oportunidades', icon: 'fa-star',           count: allCount, color: '#6366f1', colorDark: '#4f46e5', pct: null },
+        { label: 'Em Negociação',       icon: 'fa-comments-dollar', count: negCount, color: '#3b82f6', colorDark: '#2563eb', pct: allCount > 0 ? (negCount/allCount*100).toFixed(0) : 0 },
+        { label: 'Agendado',            icon: 'fa-calendar-check',  count: agdCount, color: '#06b6d4', colorDark: '#0891b2', pct: negCount > 0 ? (agdCount/negCount*100).toFixed(0) : 0 },
+        { label: 'Aplicado',            icon: 'fa-syringe',         count: aplCount, color: '#10b981', colorDark: '#059669', pct: agdCount > 0 ? (aplCount/agdCount*100).toFixed(0) : 0 },
     ];
 
-    const maxW = 100;
-    const minW = 40;
     const funnelEl = document.getElementById('pipeline-funil');
-    if (funnelEl) {
-        const textColor = _dark ? '#94a3b8' : '#64748b';
-        const convColor = _dark ? '#cbd5e1' : '#475569';
-        let html = `<div style="display:flex;flex-direction:column;align-items:center;gap:0;width:100%;">`;
-        funnelStages.forEach((s, i) => {
-            const w = allCount > 0 ? Math.max(minW, Math.round(minW + (maxW - minW) * (s.count / allCount))) : maxW;
-            html += `
-            <div style="display:flex;flex-direction:column;align-items:center;width:100%;">
-                ${i > 0 && s.pct !== null ? `<div style="display:flex;align-items:center;gap:6px;margin:2px 0;">
-                    <div style="height:1px;width:28px;background:${_dark?'#334155':'#e2e8f0'};"></div>
-                    <span style="font-size:10px;font-weight:900;color:${convColor};white-space:nowrap;">↓ ${s.pct}% conversão</span>
-                    <div style="height:1px;width:28px;background:${_dark?'#334155':'#e2e8f0'};"></div>
-                </div>` : ''}
-                <div style="width:${w}%;background:${s.color};border-radius:8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;transition:width .4s;margin-bottom:0;">
-                    <span style="font-size:10px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">${s.label}</span>
-                    <span style="font-size:14px;font-weight:900;color:#fff;margin-left:8px;">${s.count}</span>
-                </div>
-            </div>`;
-        });
-        html += `</div>`;
-        funnelEl.innerHTML = html;
+    if (!funnelEl) return;
+
+    // Dimensões SVG (viewBox)
+    const svgW = 320;
+    const stageH = 44;
+    const gap = 22; // espaço entre etapas para badge conversão
+    const n = funnelStages.length;
+    const totalH = n * stageH + (n - 1) * gap;
+    // Larguras em px dentro do viewBox: de 320 até 140
+    const widths = funnelStages.map((s, i) => {
+        if (allCount === 0) return svgW;
+        const maxPx = svgW, minPx = 140;
+        return Math.round(minPx + (maxPx - minPx) * (s.count / allCount));
+    });
+
+    const convBg   = _dark ? '#1e293b' : '#f1f5f9';
+    const convText = _dark ? '#94a3b8' : '#64748b';
+    const convGood = '#10b981';
+    const convWarn = '#f59e0b';
+    const convBad  = '#ef4444';
+
+    function convColor(pct) {
+        const p = Number(pct);
+        return p >= 70 ? convGood : p >= 40 ? convWarn : convBad;
     }
+
+    let svgDefs   = '';
+    let svgShapes = '';
+    let svgLabels = '';
+    let svgBadges = '';
+
+    funnelStages.forEach((s, i) => {
+        const y    = i * (stageH + gap);
+        const cx   = svgW / 2;
+        const hw   = widths[i] / 2;
+        const hwN  = i < n - 1 ? widths[i + 1] / 2 : hw * 0.88;
+        const r    = 6; // corner radius on top edge only
+        const gradId = `fg${i}`;
+
+        // Gradient horizontal
+        svgDefs += `<linearGradient id="${gradId}" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stop-color="${s.colorDark}"/>
+          <stop offset="100%" stop-color="${s.color}"/>
+        </linearGradient>`;
+
+        // Trapézio com cantos arredondados no topo via path
+        const x1 = cx - hw, x2 = cx + hw, x3 = cx + hwN, x4 = cx - hwN;
+        const yb = y + stageH;
+        svgShapes += `<path d="M${x1+r},${y} Q${x1},${y} ${x1},${y+r}
+          L${x4},${yb} L${x3},${yb} L${x2},${y+r} Q${x2},${y} ${x2-r},${y} Z"
+          fill="url(#${gradId})"/>`;
+
+        // Reflexo interno (brilho sutil no topo)
+        svgShapes += `<path d="M${x1+r},${y} Q${x1},${y} ${x1},${y+r}
+          L${x1+4},${y+stageH*0.42} L${x2-4},${y+stageH*0.42}
+          L${x2},${y+r} Q${x2},${y} ${x2-r},${y} Z"
+          fill="rgba(255,255,255,0.10)"/>`;
+
+        // Textos
+        const midY = y + stageH / 2;
+        svgLabels += `
+          <text x="${cx}" y="${midY - 5}" font-size="8.5" font-weight="800"
+                fill="rgba(255,255,255,0.80)" letter-spacing="1.2" text-anchor="middle"
+                font-family="system-ui,sans-serif">${s.label.toUpperCase()}</text>
+          <text x="${cx}" y="${midY + 10}" font-size="17" font-weight="900"
+                fill="#ffffff" text-anchor="middle"
+                font-family="system-ui,sans-serif">${s.count}</text>`;
+
+        // Badge conversão entre etapas (dentro do gap, em SVG)
+        if (i > 0 && s.pct !== null) {
+            const by   = y - gap / 2; // centro do gap
+            const clr  = convColor(s.pct);
+            const bw   = 98, bh = 16, br = 8;
+            svgBadges += `
+              <rect x="${cx - bw/2}" y="${by - bh/2}" width="${bw}" height="${bh}" rx="${br}"
+                    fill="${convBg}" stroke="${clr}" stroke-width="1" stroke-opacity="0.5"/>
+              <line x1="${cx - bw/2 - 18}" y1="${by}" x2="${cx - bw/2 - 2}" y2="${by}"
+                    stroke="${_dark?'#334155':'#cbd5e1'}" stroke-width="1"/>
+              <line x1="${cx + bw/2 + 2}" y1="${by}" x2="${cx + bw/2 + 18}" y2="${by}"
+                    stroke="${_dark?'#334155':'#cbd5e1'}" stroke-width="1"/>
+              <text x="${cx}" y="${by + 5}" font-size="8" font-weight="800" text-anchor="middle"
+                    fill="${clr}" font-family="system-ui,sans-serif" letter-spacing="0.8">
+                ${s.pct}% CONVERSÃO
+              </text>`;
+        }
+    });
+
+    funnelEl.innerHTML = `
+      <svg viewBox="0 0 ${svgW} ${totalH}" width="100%" height="100%" style="display:block;overflow:visible;max-height:260px;">
+        <defs>
+          ${svgDefs}
+          <filter id="funnelShadow">
+            <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="rgba(0,0,0,0.20)"/>
+          </filter>
+        </defs>
+        <g filter="url(#funnelShadow)">${svgShapes}</g>
+        ${svgLabels}
+        ${svgBadges}
+      </svg>`;
 
     // ── Ranking: vacinas mais aplicadas ──
     const vacMap = {};
