@@ -134,58 +134,45 @@ function renderDashAnalitico(apps) {
     document.getElementById('kpi-cancelados').innerText = cancelled;
     document.getElementById('kpi-atrasados').innerText = delayed;
 
-    // ── Donut: status com % ──
-    const ctxStatus = document.getElementById('statusChart').getContext('2d');
-    const statusCounts = {'Em negociação':0, 'Agendado':0, 'Aplicado':0, 'Perdido':0};
-    apps.forEach(a => { if(statusCounts[a.status]!==undefined) statusCounts[a.status]++; });
-    const statusTotal = Object.values(statusCounts).reduce((s,v)=>s+v,0);
-
+    // ── Pipeline Funil ──
     const _dark = document.body.classList.contains('dark-mode');
-    if(chartStatus) chartStatus.destroy();
-    chartStatus = new Chart(ctxStatus, {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(statusCounts),
-            datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#06b6d4','#3b82f6','#10b981','#ef4444'], borderWidth: 2, borderColor: _dark ? 'transparent' : '#fff' }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'right', labels: { font:{size:10}, padding: 12, color: _dark ? '#94a3b8' : '#64748b' } },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => {
-                            const val = ctx.raw;
-                            const pct = statusTotal > 0 ? ((val/statusTotal)*100).toFixed(1) : 0;
-                            return ` ${ctx.label}: ${val} (${pct}%)`;
-                        }
-                    }
-                },
-                datalabels: false
-            }
-        },
-        plugins: [{
-            id: 'pctLabel',
-            afterDraw(chart) {
-                if (statusTotal === 0) return;
-                const { ctx: c, data } = chart;
-                chart.data.datasets[0].data.forEach((val, i) => {
-                    if (!val) return;
-                    const meta = chart.getDatasetMeta(0);
-                    const arc = meta.data[i];
-                    const { x, y } = arc.tooltipPosition();
-                    const pct = ((val/statusTotal)*100).toFixed(0)+'%';
-                    c.save();
-                    c.font = 'bold 10px sans-serif';
-                    c.fillStyle = '#fff';
-                    c.textAlign = 'center';
-                    c.textBaseline = 'middle';
-                    if (val/statusTotal > 0.05) c.fillText(pct, x, y);
-                    c.restore();
-                });
-            }
-        }]
-    });
+    const negCount = apps.filter(a => ['Em negociação','Agendado','Aplicado'].includes(a.status)).length;
+    const agdCount = apps.filter(a => ['Agendado','Aplicado'].includes(a.status)).length;
+    const aplCount = apps.filter(a => a.status === 'Aplicado').length;
+    const allCount = apps.length;
+
+    const funnelStages = [
+        { label: 'Novas Oportunidades', count: allCount,  color: '#6366f1', pct: null },
+        { label: 'Em Negociação',       count: negCount,  color: '#3b82f6', pct: allCount > 0 ? (negCount/allCount*100).toFixed(0) : 0 },
+        { label: 'Agendado',            count: agdCount,  color: '#06b6d4', pct: negCount > 0 ? (agdCount/negCount*100).toFixed(0) : 0 },
+        { label: 'Aplicado',            count: aplCount,  color: '#10b981', pct: agdCount > 0 ? (aplCount/agdCount*100).toFixed(0) : 0 },
+    ];
+
+    const maxW = 100;
+    const minW = 40;
+    const funnelEl = document.getElementById('pipeline-funil');
+    if (funnelEl) {
+        const textColor = _dark ? '#94a3b8' : '#64748b';
+        const convColor = _dark ? '#cbd5e1' : '#475569';
+        let html = `<div style="display:flex;flex-direction:column;align-items:center;gap:0;width:100%;">`;
+        funnelStages.forEach((s, i) => {
+            const w = allCount > 0 ? Math.max(minW, Math.round(minW + (maxW - minW) * (s.count / allCount))) : maxW;
+            html += `
+            <div style="display:flex;flex-direction:column;align-items:center;width:100%;">
+                ${i > 0 && s.pct !== null ? `<div style="display:flex;align-items:center;gap:6px;margin:2px 0;">
+                    <div style="height:1px;width:28px;background:${_dark?'#334155':'#e2e8f0'};"></div>
+                    <span style="font-size:10px;font-weight:900;color:${convColor};white-space:nowrap;">↓ ${s.pct}% conversão</span>
+                    <div style="height:1px;width:28px;background:${_dark?'#334155':'#e2e8f0'};"></div>
+                </div>` : ''}
+                <div style="width:${w}%;background:${s.color};border-radius:8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;transition:width .4s;margin-bottom:0;">
+                    <span style="font-size:10px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">${s.label}</span>
+                    <span style="font-size:14px;font-weight:900;color:#fff;margin-left:8px;">${s.count}</span>
+                </div>
+            </div>`;
+        });
+        html += `</div>`;
+        funnelEl.innerHTML = html;
+    }
 
     // ── Ranking: vacinas mais aplicadas ──
     const vacMap = {};
