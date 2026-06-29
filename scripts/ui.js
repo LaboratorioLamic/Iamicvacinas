@@ -19,6 +19,73 @@ function initLiteMode() {
 }
 
 document.addEventListener('DOMContentLoaded', initLiteMode);
+
+// ── Modo Escuro ───────────────────────────────────────────────────────────────
+function toggleDarkMode() {
+    const isActive = document.body.classList.toggle('dark-mode');
+    const btn = document.getElementById('dark-mode-toggle');
+    if (btn) btn.classList.toggle('active', isActive);
+    try { localStorage.setItem('dark-mode', isActive ? '1' : '0'); } catch(e) {}
+    _applyDarkModeInlineColors(isActive);
+}
+
+function initDarkMode() {
+    try {
+        if (localStorage.getItem('dark-mode') === '1') {
+            document.body.classList.add('dark-mode');
+            const btn = document.getElementById('dark-mode-toggle');
+            if (btn) btn.classList.add('active');
+            _applyDarkModeInlineColors(true);
+        }
+    } catch(e) {}
+}
+
+// Substitui inline bg colors que CSS puro não alcança (Tailwind JIT arbitrary values)
+function _applyDarkModeInlineColors(on) {
+    const lightBgMap = {
+        '#eef2f7': '#0f172a',
+        '#f1f5f9': '#0f172a',
+        'rgb(238, 242, 247)': '#0f172a',
+        'rgb(241, 245, 249)': '#0f172a',
+    };
+    const lightBorderMap = {
+        '#bfdbfe': 'rgba(59,130,246,0.3)',
+        '#a5f3fc': 'rgba(6,182,212,0.3)',
+        '#bbf7d0': 'rgba(16,185,129,0.3)',
+        '#fecdd3': 'rgba(239,68,68,0.3)',
+        '#ddd6fe': 'rgba(139,92,246,0.3)',
+        '#fde68a': 'rgba(245,158,11,0.3)',
+    };
+    // Status badge backgrounds (inline style)
+    const statusBgMap = {
+        '#eff6ff': 'rgba(59,130,246,0.12)',
+        '#ecfeff': 'rgba(6,182,212,0.12)',
+        '#f0fdf4': 'rgba(16,185,129,0.12)',
+        '#fff1f2': 'rgba(239,68,68,0.12)',
+        '#f8fafc': 'rgba(100,116,139,0.12)',
+        '#fffbeb': 'rgba(245,158,11,0.12)',
+        '#faf5ff': 'rgba(139,92,246,0.12)',
+    };
+    if (!on) {
+        // restore: re-render triggered by switchTab / renderDashboard etc will fix inline styles
+        return;
+    }
+    // Apply overrides to elements with inline background styles
+    document.querySelectorAll('[style]').forEach(el => {
+        if (el.closest('#login-screen')) return;
+        const bg = el.style.backgroundColor || el.style.background;
+        if (!bg) return;
+        for (const [light, dark] of Object.entries({...lightBgMap, ...statusBgMap})) {
+            if (bg === light || bg.replace(/\s/g,'') === light.replace(/\s/g,'')) {
+                el.dataset.dmOrigBg = bg;
+                el.style.backgroundColor = dark;
+                return;
+            }
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initDarkMode);
 // ─────────────────────────────────────────────────────────────────────────────
 
 let _dangerCallback = null;

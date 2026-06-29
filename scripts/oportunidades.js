@@ -466,9 +466,14 @@ function _renderPatientCard({ patient, opps }, tab) {
     const applCount = _appliedCount(patient.id);
     const hasVenc  = opps.some(o=>o.urgency==='vencida');
     const hasProx  = opps.some(o=>o.urgency==='proxima');
+    const _isDark  = document.body.classList.contains('dark-mode');
 
-    const borderCls = hasVenc ? 'border-red-300' : hasProx ? 'border-amber-300' : 'border-slate-200';
-    const topBg     = hasVenc ? 'from-red-50 to-white' : hasProx ? 'from-amber-50 to-white' : 'from-slate-50 to-white';
+    const borderCls = _isDark
+        ? (hasVenc ? 'border-red-900' : hasProx ? 'border-amber-900' : 'border-slate-700')
+        : (hasVenc ? 'border-red-300' : hasProx ? 'border-amber-300' : 'border-slate-200');
+    const topBg = _isDark
+        ? (hasVenc ? 'from-red-950 to-slate-800' : hasProx ? 'from-amber-950 to-slate-800' : 'from-slate-800 to-slate-800')
+        : (hasVenc ? 'from-red-50 to-white' : hasProx ? 'from-amber-50 to-white' : 'from-slate-50 to-white');
 
     const age   = patient.dtNasc ? getAgeDisplay(patient.dtNasc) : '';
     const phone = patient.contato ? formatPhone(patient.contato) : '';
@@ -478,40 +483,40 @@ function _renderPatientCard({ patient, opps }, tab) {
     const micro = opps.map(o => tab==='oferta' ? _renderMicroOferta(patient, o) : _renderMicroAprazamento(patient, o)).join('');
 
     return `
-    <div class="bg-white rounded-2xl shadow-sm border ${borderCls} overflow-hidden transition hover:shadow-md">
-        <div class="px-5 py-4 bg-gradient-to-r ${topBg} border-b border-slate-100 flex flex-wrap justify-between items-start gap-3">
+    <div class="${_isDark ? 'bg-slate-800' : 'bg-white'} rounded-2xl shadow-sm border ${borderCls} overflow-hidden transition hover:shadow-md">
+        <div class="px-5 py-4 bg-gradient-to-r ${topBg} border-b ${_isDark ? 'border-slate-700' : 'border-slate-100'} flex flex-wrap justify-between items-start gap-3">
             <div class="flex items-center gap-3 min-w-0">
-                <div class="h-10 w-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 font-black text-sm">
+                <div class="h-10 w-10 rounded-xl ${_isDark ? 'bg-indigo-900 text-indigo-300' : 'bg-indigo-100 text-indigo-600'} flex items-center justify-center shrink-0 font-black text-sm">
                     ${(patient.nome||'?')[0].toUpperCase()}
                 </div>
                 <div class="min-w-0">
                     <div class="flex items-center gap-2">
-                        <p class="font-black text-navy-900 text-sm truncate">${patient.nome||'—'}</p>
+                        <p class="font-black text-sm truncate" style="color:${_isDark?'#f1f5f9':'#172554'}">${patient.nome||'—'}</p>
                         ${waHref ? `<a href="${waHref}" target="_blank" rel="noopener" title="Abrir WhatsApp" class="shrink-0 h-6 w-6 rounded-lg bg-green-100 hover:bg-green-500 text-green-600 hover:text-white flex items-center justify-center transition"><i class="fab fa-whatsapp text-[11px]"></i></a>` : ''}
                     </div>
-                    <p class="text-[11px] text-slate-500 truncate">${patient.cpf||''}${age?` · ${age}`:''}${phone?` · ${phone}`:''}</p>
+                    <p class="text-[11px] truncate" style="color:${_isDark?'#64748b':'#64748b'}">${patient.cpf||''}${age?` · ${age}`:''}${phone?` · ${phone}`:''}</p>
                 </div>
             </div>
             <div class="flex items-center gap-3 shrink-0">
                 <div class="text-right" title="Vacinas já aplicadas com a clínica">
-                    <div class="text-[10px] text-slate-400 uppercase tracking-wide">Fidelidade</div>
-                    <div class="font-black text-indigo-600 text-sm">${applCount} dose${applCount!==1?'s':''}</div>
+                    <div class="text-[10px] uppercase tracking-wide" style="color:${_isDark?'#64748b':'#94a3b8'}">Fidelidade</div>
+                    <div class="font-black text-sm" style="color:${_isDark?'#818cf8':'#4f46e5'}">${applCount} dose${applCount!==1?'s':''}</div>
                 </div>
                 <div class="text-right">
-                    <div class="text-[10px] text-slate-400 uppercase tracking-wide">Potencial</div>
-                    <div class="font-black text-emerald-600 text-sm">${formatCurrency(totalRev)}</div>
+                    <div class="text-[10px] uppercase tracking-wide" style="color:${_isDark?'#64748b':'#94a3b8'}">Potencial</div>
+                    <div class="font-black text-emerald-500 text-sm">${formatCurrency(totalRev)}</div>
                 </div>
                 <div class="text-right">
-                    <div class="text-[10px] text-slate-400 uppercase tracking-wide">Oport.</div>
-                    <div class="font-black text-navy-900 text-sm">${opps.length}</div>
+                    <div class="text-[10px] uppercase tracking-wide" style="color:${_isDark?'#64748b':'#94a3b8'}">Oport.</div>
+                    <div class="font-black text-sm" style="color:${_isDark?'#f1f5f9':'#172554'}">${opps.length}</div>
                 </div>
                 <button onclick="viewPatientHistory(${patient.id})" title="Ver prontuário vacinal"
-                    class="h-8 w-8 rounded-xl bg-indigo-50 hover:bg-indigo-600 text-indigo-500 hover:text-white flex items-center justify-center transition border border-indigo-100 hover:border-indigo-600 shrink-0">
+                    class="${_isDark?'bg-indigo-900 text-indigo-300 border-indigo-800':'bg-indigo-50 text-indigo-500 border-indigo-100'} h-8 w-8 rounded-xl hover:bg-indigo-600 hover:text-white flex items-center justify-center transition border hover:border-indigo-600 shrink-0">
                     <i class="fas fa-clipboard-list text-xs"></i>
                 </button>
             </div>
         </div>
-        <div class="p-4 flex flex-wrap gap-2 max-h-80 overflow-y-auto">${micro}</div>
+        <div class="${_isDark?'bg-slate-900':'bg-white'} p-4 flex flex-wrap gap-2 max-h-80 overflow-y-auto">${micro}</div>
     </div>`;
 }
 
@@ -531,19 +536,20 @@ function _renderMicroAprazamento(patient, opp) {
         return `<span class="text-slate-400">em ${d}d</span>`;
     })() : '';
 
+    const _isDarkM = document.body.classList.contains('dark-mode');
     return `
-    <div class="flex flex-col gap-1.5 bg-slate-50 border ${bCls} rounded-xl px-3 py-2.5 min-w-[155px] max-w-[215px] flex-1">
+    <div class="flex flex-col gap-1.5 border ${bCls} rounded-xl px-3 py-2.5 min-w-[155px] max-w-[215px] flex-1" style="background:${_isDarkM?'#0f172a':'#f8fafc'}">
         <div class="flex items-center gap-1.5">
             <i class="fas ${icon} text-indigo-400 text-[10px]"></i>
-            <span class="text-[11px] font-black text-navy-900 truncate leading-tight">${opp.vaccine.nome}</span>
+            <span class="text-[11px] font-black truncate leading-tight" style="color:${_isDarkM?'#e2e8f0':'#172554'}">${opp.vaccine.nome}</span>
         </div>
         <div class="flex items-center justify-between gap-1">
-            <span class="text-[10px] font-bold text-slate-600">${opp.dose}</span>
+            <span class="text-[10px] font-bold" style="color:${_isDarkM?'#94a3b8':'#475569'}">${opp.dose}</span>
             <span class="text-[10px] px-1.5 py-0.5 rounded-full border font-bold ${urgCls}">${_urgencyLabel(urg)}</span>
         </div>
-        <div class="flex items-center justify-between gap-1 text-[10px] text-slate-500">
+        <div class="flex items-center justify-between gap-1 text-[10px]" style="color:${_isDarkM?'#64748b':'#64748b'}">
             <span>${dateStr} ${daysLabel}</span>
-            <span class="font-bold text-emerald-600">${formatCurrency(opp.revenue)}</span>
+            <span class="font-bold text-emerald-500">${formatCurrency(opp.revenue)}</span>
         </div>
         <div class="mt-0.5 flex gap-1">
             <button onclick="agendarOportunidade(${patient.id},${opp.vaccine.id},'${opp.dose.replace(/'/g,"\\'")}','${isoDate}')"
@@ -565,18 +571,19 @@ function _renderMicroOferta(patient, opp) {
     const doseInfo = numDoses > 1 ? `${numDoses} doses` : 'Dose única';
     const reforco  = opp.vaccine.reforco ? ' + Reforço' : '';
 
+    const _isDarkO = document.body.classList.contains('dark-mode');
     return `
-    <div class="flex flex-col gap-1.5 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5 min-w-[155px] max-w-[215px] flex-1">
+    <div class="flex flex-col gap-1.5 border rounded-xl px-3 py-2.5 min-w-[155px] max-w-[215px] flex-1" style="background:${_isDarkO?'#052e16':'#f0fdf4'};border-color:${_isDarkO?'#166534':'#bbf7d0'}">
         <div class="flex items-center gap-1.5">
             <i class="fas fa-tags text-emerald-500 text-[10px]"></i>
-            <span class="text-[11px] font-black text-navy-900 truncate leading-tight">${opp.vaccine.nome}</span>
+            <span class="text-[11px] font-black truncate leading-tight" style="color:${_isDarkO?'#e2e8f0':'#172554'}">${opp.vaccine.nome}</span>
         </div>
         <div class="flex items-center justify-between gap-1">
-            <span class="text-[10px] font-bold text-slate-600">${doseInfo}${reforco}</span>
-            <span class="text-[10px] px-1.5 py-0.5 rounded-full border bg-emerald-100 text-emerald-700 border-emerald-200 font-bold">Nova</span>
+            <span class="text-[10px] font-bold" style="color:${_isDarkO?'#94a3b8':'#475569'}">${doseInfo}${reforco}</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full border font-bold" style="background:${_isDarkO?'#14532d':'#d1fae5'};color:${_isDarkO?'#34d399':'#065f46'};border-color:${_isDarkO?'#166534':'#6ee7b7'}">Nova</span>
         </div>
         <div class="flex items-center justify-end gap-1 text-[10px]">
-            <span class="font-black text-emerald-700">${formatCurrency(opp.revenue)}</span>
+            <span class="font-black" style="color:${_isDarkO?'#34d399':'#059669'}">${formatCurrency(opp.revenue)}</span>
         </div>
         <div class="mt-0.5 flex gap-1">
             <button onclick="agendarOportunidade(${patient.id},${opp.vaccine.id},'${opp.dose.replace(/'/g,"\\'")}','')"

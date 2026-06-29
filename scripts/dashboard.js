@@ -56,6 +56,7 @@ function renderRankingTable(containerId) {
     const color1 = accentColor || '#10b981';
     const el = document.getElementById(containerId);
     if (!el) return;
+    const _dark = document.body.classList.contains('dark-mode');
 
     if (!items.length) {
         el.innerHTML = '<p class="text-slate-400 text-xs text-center py-8 font-bold">Sem dados no período selecionado</p>';
@@ -85,9 +86,14 @@ function renderRankingTable(containerId) {
         ? `class="text-[10px] font-black text-slate-400 uppercase text-left pb-2 px-2 cursor-pointer select-none hover:text-clinic-600 transition-colors whitespace-nowrap" onclick="sortRankTable('${containerId}','${colKey}')"`
         : `class="text-[10px] font-black text-slate-400 uppercase text-left pb-2 px-2"`;
 
+    const rowBorder = _dark ? '#1e293b' : '#f8fafc';
+    const rowHover  = _dark ? '#1e293b' : '#f8fafc';
+    const cellColor = _dark ? '#f1f5f9' : '#172554';
+    const barBg     = _dark ? '#334155' : '#e2e8f0';
+
     let html = `<table class="w-full">
         <thead>
-            <tr class="border-b-2 border-slate-100">
+            <tr style="border-bottom:2px solid ${_dark?'#334155':'#e2e8f0'}">
                 <th class="text-[10px] font-black text-slate-400 uppercase text-left pb-2 pr-2 w-5">#</th>
                 ${cols.map(c => `<th ${thSort(c.sortKey)}>${c.label}${sortIcon(c.sortKey)}</th>`).join('')}
                 <th ${thSort(propKey)}>PROPORÇÃO${sortIcon(propKey)}</th>
@@ -99,12 +105,12 @@ function renderRankingTable(containerId) {
         const pct    = maxProp > 0 ? (propVal / maxProp * 100) : 0;
         const absPct = totalProp > 0 ? (propVal / totalProp * 100).toFixed(1) : '0.0';
         const barClr = idx === 0 ? color1 : '#93c5fd';
-        html += `<tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+        html += `<tr style="border-bottom:1px solid ${rowBorder}" onmouseover="this.style.background='${rowHover}'" onmouseout="this.style.background=''">
             <td class="py-2.5 pr-2 text-[11px] font-black text-slate-400">${idx + 1}</td>
-            ${cols.map(c => `<td class="py-2.5 px-2 text-[11px] font-black text-navy-900 whitespace-nowrap">${c.get(item)}</td>`).join('')}
+            ${cols.map(c => `<td class="py-2.5 px-2 text-[11px] font-black whitespace-nowrap" style="color:${cellColor}">${c.get(item)}</td>`).join('')}
             <td class="py-2.5 pl-2">
                 <div class="flex items-center gap-2">
-                    <div class="flex-1 bg-slate-100 rounded-full overflow-hidden" style="height:8px;min-width:50px;">
+                    <div class="flex-1 rounded-full overflow-hidden" style="height:8px;min-width:50px;background:${barBg}">
                         <div style="width:${pct}%;height:8px;background:${barClr};border-radius:9999px;transition:width .4s;"></div>
                     </div>
                     <span class="text-[10px] font-black text-slate-500 w-9 text-right shrink-0">${absPct}%</span>
@@ -134,17 +140,18 @@ function renderDashAnalitico(apps) {
     apps.forEach(a => { if(statusCounts[a.status]!==undefined) statusCounts[a.status]++; });
     const statusTotal = Object.values(statusCounts).reduce((s,v)=>s+v,0);
 
+    const _dark = document.body.classList.contains('dark-mode');
     if(chartStatus) chartStatus.destroy();
     chartStatus = new Chart(ctxStatus, {
         type: 'doughnut',
         data: {
             labels: Object.keys(statusCounts),
-            datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#06b6d4','#3b82f6','#10b981','#ef4444'], borderWidth: 2 }]
+            datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#06b6d4','#3b82f6','#10b981','#ef4444'], borderWidth: 2, borderColor: _dark ? 'transparent' : '#fff' }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'right', labels: { font:{size:10}, padding: 12 } },
+                legend: { position: 'right', labels: { font:{size:10}, padding: 12, color: _dark ? '#94a3b8' : '#64748b' } },
                 tooltip: {
                     callbacks: {
                         label: ctx => {
@@ -377,12 +384,12 @@ function renderDashAnalitico(apps) {
         type: 'doughnut',
         data: {
             labels: Object.keys(genderCounts),
-            datasets: [{ data: Object.values(genderCounts), backgroundColor: ['#3b82f6', '#ec4899', '#94a3b8'], borderWidth: 2 }]
+            datasets: [{ data: Object.values(genderCounts), backgroundColor: ['#3b82f6', '#ec4899', '#94a3b8'], borderWidth: 2, borderColor: _dark ? 'transparent' : '#fff' }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'right', labels: { font: { size: 10 }, padding: 12 } },
+                legend: { position: 'right', labels: { font: { size: 10 }, padding: 12, color: _dark ? '#94a3b8' : '#64748b' } },
                 tooltip: {
                     callbacks: {
                         label: ctx => {

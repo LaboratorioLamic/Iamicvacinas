@@ -146,22 +146,14 @@ function switchAlmoxModulo(modulo) {
     document.querySelectorAll('.alm-modulo').forEach(el => el.classList.add('hidden'));
     // reseta estilo de todos os botões da barra lateral
     document.querySelectorAll('.alm-mod-btn').forEach(btn => {
-        btn.style.background = 'transparent';
-        btn.style.color = 'rgba(148,163,184,1)';
-        btn.style.boxShadow = '';
-        const icon = btn.querySelector('.alm-btn-icon');
-        if (icon) icon.style.background = 'rgba(255,255,255,0.08)';
+        btn.classList.remove('active-alm');
     });
     // exibe módulo ativo
     document.getElementById('alm-modulo-' + modulo)?.classList.remove('hidden');
     // destaca botão ativo
     const activeBtn = document.getElementById('alm-btn-' + modulo);
     if (activeBtn) {
-        activeBtn.style.background = 'rgba(37,99,235,0.9)';
-        activeBtn.style.color = 'white';
-        activeBtn.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)';
-        const icon = activeBtn.querySelector('.alm-btn-icon');
-        if (icon) icon.style.background = 'rgba(255,255,255,0.2)';
+        activeBtn.classList.add('active-alm');
     }
     const fab = document.getElementById('fab-novo-lote');
     if (fab) fab.classList.toggle('hidden', modulo !== 'lotes');

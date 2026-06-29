@@ -35,9 +35,17 @@ function renderWeekly() {
     const board = document.getElementById('weekly-board');
     if (!board) return;
     const DAY_NAMES = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-    const _gray = { grad: 'from-slate-100 to-gray-100', light: '#f8fafc', border: '#e2e8f0', text: '#64748b', header: '#475569' };
-    const _blue = { grad: 'from-blue-50 to-slate-100', light: '#f8fafc', border: '#e2e8f0', text: '#2563eb', header: '#1d4ed8' };
-    const DAY_COLORS = [
+    const _isDark = document.body.classList.contains('dark-mode');
+    const _gray = _isDark
+        ? { grad: 'from-slate-800 to-slate-900', light: '#0f172a', border: '#334155', text: '#94a3b8', header: '#94a3b8' }
+        : { grad: 'from-slate-100 to-gray-100', light: '#f8fafc', border: '#e2e8f0', text: '#64748b', header: '#475569' };
+    const _blue = _isDark
+        ? { grad: 'from-slate-800 to-slate-900', light: '#0f172a', border: '#334155', text: '#60a5fa', header: '#93c5fd' }
+        : { grad: 'from-blue-50 to-slate-100', light: '#f8fafc', border: '#e2e8f0', text: '#2563eb', header: '#1d4ed8' };
+    const DAY_COLORS = _isDark ? [
+        { grad: 'from-slate-800 to-slate-900', light: '#0f172a', border: '#4c1d28', text: '#f87171', header: '#fca5a5' }, // domingo
+        _blue, _blue, _blue, _blue, _blue, _blue,
+    ] : [
         { grad: 'from-rose-100 to-red-100', light: '#fff5f5', border: '#fecdd3', text: '#e11d48', header: '#be123c' }, // domingo
         _blue, _blue, _blue, _blue, _blue, _blue, // seg–sáb
     ];
@@ -76,11 +84,11 @@ function renderWeekly() {
                 ondragend="weeklyDragEnd(event)"
                 onclick="event.stopPropagation();editRecord(${a.id})"
                 class="rounded-xl border p-2.5 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all duration-150 hover:-translate-y-0.5 select-none"
-                style="border-left:3px solid ${stColor};${isDelayed ? 'background:#fffbeb;border-color:#fde68a;border-left-color:#f59e0b;' : 'background:#fff;border-color:#e2e8f0;'}">
+                style="border-left:3px solid ${stColor};${isDelayed ? `background:${_isDark?'#1c1500':'#fffbeb'};border-color:${_isDark?'#78350f':'#fde68a'};border-left-color:#f59e0b;` : `background:${_isDark?'#1e293b':'#fff'};border-color:${_isDark?'#334155':'#e2e8f0'};`}">
                 <div class="flex items-start justify-between gap-1">
                     <div class="flex flex-col flex-1 min-w-0">
-                        <p class="font-black text-navy-900 text-xs truncate">${pat.nome}</p>
-                        ${pat.cpf ? `<p class="text-[9px] text-slate-400 truncate">${pat.cpf}</p>` : ''}
+                        <p class="font-black text-xs truncate" style="color:${_isDark?'#f1f5f9':'#172554'}">${pat.nome}</p>
+                        ${pat.cpf ? `<p class="text-[9px] truncate" style="color:${_isDark?'#64748b':'#94a3b8'}">${pat.cpf}</p>` : ''}
                     </div>
                     ${btnAgendar || btnAplicar ? `<div class="flex gap-1 shrink-0">${btnAgendar}${btnAplicar}</div>` : ''}
                 </div>
@@ -775,13 +783,22 @@ function renderKanban() {
     const todayStr = new Date().toISOString().split('T')[0];
     const allFiltered = _getKanbanFiltered();
     const dir = _kanbanSortDir === 'asc' ? 1 : -1;
+    const _dark = document.body.classList.contains('dark-mode');
+
+    // Cores adaptadas ao dark mode
+    const _dl = (light, dark) => _dark ? dark : light;
 
     const columns = [
-        { key: 'Nova oportunidade', label: 'Nova Oportunidade', icon: 'fa-star', color: '#64748b', light: '#f8fafc', border: '#cbd5e1', text: '#475569', gradFrom: '#64748b', gradTo: '#475569' },
-        { key: 'Em negociação', label: 'Em Negociação', icon: 'fa-comments', color: '#0891b2', light: '#ecfeff', border: '#a5f3fc', text: '#0e7490', gradFrom: '#0891b2', gradTo: '#0e7490' },
-        { key: 'Agendado',      label: 'Agendado',      icon: 'fa-calendar-check', color: '#2563eb', light: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', gradFrom: '#2563eb', gradTo: '#1d4ed8' },
-        { key: 'Aplicado',      label: 'Aplicado',      icon: 'fa-syringe', color: '#16a34a', light: '#f0fdf4', border: '#bbf7d0', text: '#15803d', gradFrom: '#16a34a', gradTo: '#15803d' },
-        { key: 'Perdido',     label: 'Perdido',     icon: 'fa-ban', color: '#dc2626', light: '#fff1f2', border: '#fecdd3', text: '#b91c1c', gradFrom: '#dc2626', gradTo: '#b91c1c' },
+        { key: 'Nova oportunidade', label: 'Nova Oportunidade', icon: 'fa-star',
+          color: '#64748b', light: _dl('#f8fafc','#1e293b'), border: _dl('#cbd5e1','#334155'), text: _dl('#475569','#94a3b8'), gradFrom: '#475569', gradTo: '#334155' },
+        { key: 'Em negociação', label: 'Em Negociação', icon: 'fa-comments',
+          color: '#0891b2', light: _dl('#ecfeff','#0c2535'), border: _dl('#a5f3fc','#164e63'), text: _dl('#0e7490','#67e8f9'), gradFrom: '#0891b2', gradTo: '#0e7490' },
+        { key: 'Agendado', label: 'Agendado', icon: 'fa-calendar-check',
+          color: '#2563eb', light: _dl('#eff6ff','#0f1f3d'), border: _dl('#bfdbfe','#1e3a8a'), text: _dl('#1d4ed8','#93c5fd'), gradFrom: '#2563eb', gradTo: '#1d4ed8' },
+        { key: 'Aplicado', label: 'Aplicado', icon: 'fa-syringe',
+          color: '#16a34a', light: _dl('#f0fdf4','#052e16'), border: _dl('#bbf7d0','#166534'), text: _dl('#15803d','#4ade80'), gradFrom: '#16a34a', gradTo: '#15803d' },
+        { key: 'Perdido', label: 'Perdido', icon: 'fa-ban',
+          color: '#dc2626', light: _dl('#fff1f2','#2d0a0a'), border: _dl('#fecdd3','#7f1d1d'), text: _dl('#b91c1c','#fca5a5'), gradFrom: '#dc2626', gradTo: '#b91c1c' },
     ];
 
     board.innerHTML = columns.map(col => {
@@ -806,11 +823,18 @@ function renderKanban() {
 
             // Cores de acento: outro local → roxo, atrasado → âmbar, padrão → cor da coluna
             const accentColor  = isOutroLocal ? '#7c3aed' : isDelayed ? '#f59e0b' : col.color;
-            const accentLight  = isOutroLocal ? '#f5f3ff' : isDelayed ? '#fffbeb' : col.light;
-            const accentBorder = isOutroLocal ? '#ddd6fe' : isDelayed ? '#fde68a' : col.border;
-            const accentText   = isOutroLocal ? '#6d28d9' : isDelayed ? '#92400e'  : col.text;
-            const cardBg       = isDelayed ? '#fffbeb' : '#fff';
+            const accentLight  = isOutroLocal ? _dl('#f5f3ff','#1e1535') : isDelayed ? _dl('#fffbeb','#1c1500') : col.light;
+            const accentBorder = isOutroLocal ? _dl('#ddd6fe','#4c1d95') : isDelayed ? _dl('#fde68a','#78350f') : col.border;
+            const accentText   = isOutroLocal ? _dl('#6d28d9','#c4b5fd') : isDelayed ? _dl('#92400e','#fbbf24') : col.text;
+            const cardBg       = _dark ? '#1e293b' : (isDelayed ? '#fffbeb' : '#fff');
+            const divLine      = _dl('border-slate-50','border-slate-700');
+            const patNameColor = _dl('#172554','#f1f5f9');
+            const vacNameColor = _dl('#334155','#cbd5e1');
+            const dateColor    = _dl('#475569','#94a3b8');
 
+            const waBtnBg  = _dl('bg-green-50','bg-green-900/40');
+            const eyeBtnBg = _dl('bg-blue-50','bg-blue-900/40');
+            const valBg    = _dl('bg-emerald-50 border-emerald-200 text-emerald-700','bg-emerald-900/40 border-emerald-700 text-emerald-400');
             return `<div
                 draggable="true"
                 ondragstart="kanbanDragStart(event,${a.id})"
@@ -820,30 +844,30 @@ function renderKanban() {
                 <!-- Linha 1: paciente + grip -->
                 <div class="px-3 pt-2.5 pb-1 flex items-center justify-between gap-2">
                     <div class="flex-1 min-w-0">
-                        <p class="font-black text-navy-900 text-[12px] leading-tight truncate" title="${pat.nome}">${pat.nome}</p>
-                        <p class="text-[10px] text-slate-400 font-bold truncate">CPF: ${pat.cpf} · ${getAge(pat.dtNasc)} anos</p>
+                        <p class="font-black text-[12px] leading-tight truncate" style="color:${patNameColor}" title="${pat.nome}">${pat.nome}</p>
+                        <p class="text-[10px] font-bold truncate" style="color:${_dl('#94a3b8','#475569')}">CPF: ${pat.cpf} · ${getAge(pat.dtNasc)} anos</p>
                     </div>
-                    <i class="fas fa-grip-vertical text-slate-200 group-hover:text-slate-400 transition text-xs shrink-0"></i>
+                    <i class="fas fa-grip-vertical transition text-xs shrink-0" style="color:${_dl('#e2e8f0','#334155')}"></i>
                 </div>
                 <!-- Linha 2: vacina + dose -->
-                <div class="px-3 py-1.5 flex items-center gap-2 border-t border-slate-50">
+                <div class="px-3 py-1.5 flex items-center gap-2" style="border-top:1px solid ${_dl('#f8fafc','#334155')}">
                     <div class="h-6 w-6 rounded-md flex items-center justify-center shrink-0" style="background:${accentLight};border:1px solid ${accentBorder};">
                         <i class="fas ${isOutroLocal ? 'fa-map-marker-alt' : 'fa-syringe'} text-[9px]" style="color:${accentText};"></i>
                     </div>
-                    <p class="font-black text-slate-700 text-[11px] leading-tight flex-1 min-w-0 truncate" title="${vac.nome}">${vac.nome}</p>
+                    <p class="font-black text-[11px] leading-tight flex-1 min-w-0 truncate" style="color:${vacNameColor}" title="${vac.nome}">${vac.nome}</p>
                     <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md shrink-0" style="background:${accentLight};color:${accentText};border:1px solid ${accentBorder};">${a.doseAtual}</span>
                 </div>
                 <!-- Linha 3: data + valor + ações -->
-                <div class="px-3 pb-2.5 pt-1 flex items-center justify-between gap-2 border-t border-slate-50">
+                <div class="px-3 pb-2.5 pt-1 flex items-center justify-between gap-2" style="border-top:1px solid ${_dl('#f8fafc','#334155')}">
                     <div class="flex items-center gap-1 min-w-0">
-                        <i class="far fa-calendar text-[9px] text-slate-400 shrink-0"></i>
-                        <span class="text-[10px] font-bold text-slate-600 whitespace-nowrap">${dateLabel}${a.hora ? ' · '+a.hora : ''}</span>
-                        ${isDelayed ? '<span class="text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded-full ml-1">!</span>' : ''}
+                        <i class="far fa-calendar text-[9px] shrink-0" style="color:${dateColor}"></i>
+                        <span class="text-[10px] font-bold whitespace-nowrap" style="color:${dateColor}">${dateLabel}${a.hora ? ' · '+a.hora : ''}</span>
+                        ${isDelayed ? `<span class="text-[9px] font-black px-1 py-0.5 rounded-full ml-1" style="color:${_dl('#92400e','#fbbf24')};background:${_dl('#fffbeb','#1c1500')};border:1px solid ${_dl('#fde68a','#78350f')}">!</span>` : ''}
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
-                        ${a.valorAplicado ? `<span class="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md whitespace-nowrap">R$ ${a.valorAplicado}</span>` : ''}
-                        <a href="${waLink}" target="_blank" onclick="event.stopPropagation()" class="h-6 w-6 rounded-md bg-green-50 text-green-600 hover:bg-green-500 hover:text-white flex items-center justify-center transition text-xs" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
-                        ${permBtn('agendar', `<button onclick="editRecord(${a.id})" class="h-6 w-6 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white flex items-center justify-center transition text-xs" title="Abrir"><i class="fas fa-eye text-[10px]"></i></button>`)}
+                        ${a.valorAplicado ? `<span class="text-[10px] font-black px-1.5 py-0.5 rounded-md whitespace-nowrap ${valBg}">R$ ${a.valorAplicado}</span>` : ''}
+                        <a href="${waLink}" target="_blank" onclick="event.stopPropagation()" class="h-6 w-6 rounded-md ${waBtnBg} text-green-600 hover:bg-green-500 hover:text-white flex items-center justify-center transition text-xs" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                        ${permBtn('agendar', `<button onclick="editRecord(${a.id})" class="h-6 w-6 rounded-md ${eyeBtnBg} text-blue-500 hover:bg-blue-500 hover:text-white flex items-center justify-center transition text-xs" title="Abrir"><i class="fas fa-eye text-[10px]"></i></button>`)}
                     </div>
                 </div>
             </div>`;
@@ -858,20 +882,26 @@ function renderKanban() {
 
         const sortIconClass = _kanbanSortDir === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up-alt';
         const colKeyEsc = col.key.replace(/'/g, "\\'");
+        const colBodyBg  = _dark ? '#0f172a' : 'rgba(255,255,255,0.70)';
+        const pagBg      = _dark ? '#1e293b' : '#f8fafc';
+        const pagBorder  = _dark ? '#334155' : '#e2e8f0';
+        const pagTxtClr  = _dark ? '#94a3b8' : '#64748b';
+        const colBorder  = _dark ? '#334155' : 'rgba(203,213,225,0.60)';
+
         const paginationHtml = totalPages > 1 ? `
-            <div class="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-b border-slate-100 shrink-0">
+            <div class="flex items-center justify-between px-3 py-1.5 shrink-0" style="background:${pagBg};border-bottom:1px solid ${pagBorder}">
                 <button onclick="kanbanPageGo('${colKeyEsc}',${page - 1})" ${page === 0 ? 'disabled' : ''}
-                    class="h-6 w-6 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs">
+                    class="h-6 w-6 rounded-md flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition text-xs" style="color:${pagTxtClr}">
                     <i class="fas fa-chevron-left"></i>
                 </button>
-                <span class="text-[11px] font-bold text-slate-500">${page + 1} / ${totalPages} <span class="text-slate-400 font-normal">(${allCards.length} total)</span></span>
+                <span class="text-[11px] font-bold" style="color:${pagTxtClr}">${page + 1} / ${totalPages} <span style="opacity:0.6">(${allCards.length} total)</span></span>
                 <button onclick="kanbanPageGo('${colKeyEsc}',${page + 1})" ${page >= totalPages - 1 ? 'disabled' : ''}
-                    class="h-6 w-6 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs">
+                    class="h-6 w-6 rounded-md flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition text-xs" style="color:${pagTxtClr}">
                     <i class="fas fa-chevron-right"></i>
                 </button>
             </div>` : '';
 
-        return `<div class="kanban-col flex flex-col rounded-2xl overflow-hidden shadow-md border border-slate-200/60 transition-all duration-200" style="height:100%;flex:1 1 0;min-width:220px;"
+        return `<div class="kanban-col flex flex-col rounded-2xl overflow-hidden shadow-md transition-all duration-200" style="height:100%;flex:1 1 0;min-width:220px;border:1px solid ${colBorder};"
             ondragover="kanbanDragOver(event)"
             ondragleave="kanbanDragLeave(event)"
             ondrop="kanbanDrop(event,'${colKeyEsc}')"
@@ -892,7 +922,7 @@ function renderKanban() {
             <!-- Pagination bar -->
             ${paginationHtml}
             <!-- Drop zone body -->
-            <div class="kanban-col-body flex-1 overflow-y-auto p-3 space-y-3 bg-white/70 backdrop-blur-sm">
+            <div class="kanban-col-body flex-1 overflow-y-auto p-3 space-y-3" style="background:${colBodyBg}">
                 ${cards.length ? cardsHtml : emptyHtml}
             </div>
         </div>`;
@@ -1050,13 +1080,20 @@ function renderKanbanGrouped() {
     const todayStr = new Date().toISOString().split('T')[0];
     const allFiltered = _getKanbanFiltered();
     const dir = _kanbanSortDir === 'asc' ? 1 : -1;
+    const _dark = document.body.classList.contains('dark-mode');
+    const _dl = (light, dark) => _dark ? dark : light;
 
     const columns = [
-        { key: 'Nova oportunidade', label: 'Nova Oportunidade', icon: 'fa-star',         color: '#64748b', light: '#f8fafc', border: '#cbd5e1', text: '#475569', gradFrom: '#64748b', gradTo: '#475569' },
-        { key: 'Em negociação',     label: 'Em Negociação',     icon: 'fa-comments',      color: '#0891b2', light: '#ecfeff', border: '#a5f3fc', text: '#0e7490', gradFrom: '#0891b2', gradTo: '#0e7490' },
-        { key: 'Agendado',          label: 'Agendado',          icon: 'fa-calendar-check',color: '#2563eb', light: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', gradFrom: '#2563eb', gradTo: '#1d4ed8' },
-        { key: 'Aplicado',          label: 'Aplicado',          icon: 'fa-syringe',       color: '#16a34a', light: '#f0fdf4', border: '#bbf7d0', text: '#15803d', gradFrom: '#16a34a', gradTo: '#15803d' },
-        { key: 'Perdido',           label: 'Perdido',           icon: 'fa-ban',           color: '#dc2626', light: '#fff1f2', border: '#fecdd3', text: '#b91c1c', gradFrom: '#dc2626', gradTo: '#b91c1c' },
+        { key: 'Nova oportunidade', label: 'Nova Oportunidade', icon: 'fa-star',
+          color: '#64748b', light: _dl('#f8fafc','#1e293b'), border: _dl('#cbd5e1','#334155'), text: _dl('#475569','#94a3b8'), gradFrom: '#475569', gradTo: '#334155' },
+        { key: 'Em negociação', label: 'Em Negociação', icon: 'fa-comments',
+          color: '#0891b2', light: _dl('#ecfeff','#0c2535'), border: _dl('#a5f3fc','#164e63'), text: _dl('#0e7490','#67e8f9'), gradFrom: '#0891b2', gradTo: '#0e7490' },
+        { key: 'Agendado', label: 'Agendado', icon: 'fa-calendar-check',
+          color: '#2563eb', light: _dl('#eff6ff','#0f1f3d'), border: _dl('#bfdbfe','#1e3a8a'), text: _dl('#1d4ed8','#93c5fd'), gradFrom: '#2563eb', gradTo: '#1d4ed8' },
+        { key: 'Aplicado', label: 'Aplicado', icon: 'fa-syringe',
+          color: '#16a34a', light: _dl('#f0fdf4','#052e16'), border: _dl('#bbf7d0','#166534'), text: _dl('#15803d','#4ade80'), gradFrom: '#16a34a', gradTo: '#15803d' },
+        { key: 'Perdido', label: 'Perdido', icon: 'fa-ban',
+          color: '#dc2626', light: _dl('#fff1f2','#2d0a0a'), border: _dl('#fecdd3','#7f1d1d'), text: _dl('#b91c1c','#fca5a5'), gradFrom: '#dc2626', gradTo: '#b91c1c' },
     ];
 
     board.innerHTML = columns.map(col => {
@@ -1082,7 +1119,9 @@ function renderKanbanGrouped() {
 
         const colKeyEsc = col.key.replace(/'/g, "\\'");
 
-        const PURPLE = { color: '#7c3aed', border: '#ddd6fe', light: '#faf5ff', text: '#6d28d9' };
+        const PURPLE = _dark
+            ? { color: '#7c3aed', border: '#4c1d95', light: '#1e1535', text: '#c4b5fd' }
+            : { color: '#7c3aed', border: '#ddd6fe', light: '#faf5ff', text: '#6d28d9' };
 
         const groupsHtml = pageGroups.map(([patId, apps]) => {
             const pat = patients.find(p => p.id == patId);
@@ -1106,15 +1145,15 @@ function renderKanbanGrouped() {
                     ondragstart="kanbanMiniInGroupDragStart(event,${a.id})"
                     ondragend="kanbanDragEnd(event)"
                     onclick="kanbanMiniInGroupClick(event,${a.id})"
-                    class="flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 border cursor-pointer hover:shadow-sm hover:border-indigo-300 transition-all select-none"
-                    style="border-color:${isDelayed ? '#fde68a' : miniCol.border};border-left:3px solid ${isDelayed ? '#f59e0b' : miniCol.color};">
+                    class="flex items-center gap-2 rounded-lg px-2 py-1.5 border cursor-pointer hover:shadow-sm transition-all select-none"
+                    style="background:${_dl('#fff','#1e293b')};border-color:${isDelayed ? _dl('#fde68a','#78350f') : miniCol.border};border-left:3px solid ${isDelayed ? '#f59e0b' : miniCol.color};">
                     <i class="fas fa-syringe text-[9px] shrink-0" style="color:${miniCol.text};"></i>
                     <div class="flex-1 min-w-0">
-                        <p class="text-[10px] font-black text-navy-900 truncate leading-tight">${vac.nome}</p>
-                        <p class="text-[9px] text-slate-400 font-bold">${a.doseAtual} · ${dateLabel}${a.hora ? ' ' + a.hora : ''}</p>
+                        <p class="text-[10px] font-black truncate leading-tight" style="color:${_dl('#172554','#f1f5f9')}">${vac.nome}</p>
+                        <p class="text-[9px] font-bold" style="color:${_dl('#94a3b8','#475569')}">${a.doseAtual} · ${dateLabel}${a.hora ? ' ' + a.hora : ''}</p>
                     </div>
-                    ${a.valorAplicado ? `<span class="text-[9px] font-black text-emerald-600 shrink-0 whitespace-nowrap">R$ ${a.valorAplicado}</span>` : ''}
-                    ${isDelayed ? `<span class="text-[8px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded-full shrink-0">!</span>` : ''}
+                     ${a.valorAplicado ? `<span class="text-[9px] font-black shrink-0 whitespace-nowrap" style="color:${_dl('#059669','#34d399')}">R$ ${a.valorAplicado}</span>` : ''}
+                    ${isDelayed ? `<span class="text-[8px] font-black px-1 py-0.5 rounded-full shrink-0" style="color:${_dl('#92400e','#fbbf24')};background:${_dl('#fffbeb','#1c1500')};border:1px solid ${_dl('#fde68a','#78350f')}">!</span>` : ''}
                 </div>`;
             }).join('');
 
@@ -1123,30 +1162,30 @@ function renderKanbanGrouped() {
                 ondragstart="kanbanGroupDragStart(event,${patId},'${colKeyEsc}')"
                 ondragend="kanbanGroupDragEnd(event)"
                 class="kanban-group-card rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing select-none"
-                style="border:2px solid ${hasDelayed ? '#fde68a' : groupCol.border};background:#fff;">
+                style="border:2px solid ${hasDelayed ? _dl('#fde68a','#78350f') : groupCol.border};background:${_dl('#fff','#1e293b')};">
                 <div class="px-3 py-2 flex items-center justify-between gap-2" style="background:${groupCol.light};border-bottom:1px solid ${groupCol.border};">
                     <div class="flex items-center gap-2 min-w-0">
                         <div class="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 font-black text-xs text-white" style="background:${groupCol.color};">
                             ${(pat.nome || '?')[0].toUpperCase()}
                         </div>
                         <div class="min-w-0">
-                            <p class="font-black text-navy-900 text-[11px] truncate leading-tight">${pat.nome}</p>
-                            <p class="text-[9px] text-slate-400 font-bold">${pat.cpf}${age ? ' · ' + age + 'a' : ''}</p>
+                            <p class="font-black text-[11px] truncate leading-tight" style="color:${_dl('#172554','#f1f5f9')}">${pat.nome}</p>
+                            <p class="text-[9px] font-bold" style="color:${_dl('#94a3b8','#475569')}">${pat.cpf}${age ? ' · ' + age + 'a' : ''}</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
                         <div class="text-right">
-                            <div class="text-[8px] text-slate-400 uppercase tracking-wide">Ticket</div>
-                            <div class="text-[10px] font-black text-emerald-600">${formatCurrency(totalVal)}</div>
+                            <div class="text-[8px] uppercase tracking-wide" style="color:${_dl('#94a3b8','#475569')}">Ticket</div>
+                            <div class="text-[10px] font-black" style="color:${_dl('#059669','#34d399')}">${formatCurrency(totalVal)}</div>
                         </div>
                         <div class="h-5 w-5 rounded-full flex items-center justify-center font-black text-[9px] text-white" style="background:${groupCol.color};" title="${apps.length} vacina(s)">${apps.length}</div>
                         <a href="${waLink}" target="_blank" onclick="event.stopPropagation()"
-                            class="h-6 w-6 rounded-md bg-green-50 text-green-600 hover:bg-green-500 hover:text-white flex items-center justify-center transition text-xs shrink-0"
+                            class="h-6 w-6 rounded-md text-green-600 hover:bg-green-500 hover:text-white flex items-center justify-center transition text-xs shrink-0" style="background:${_dl('#f0fdf4','#052e16')}"
                             title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
-                        <i class="fas fa-grip-vertical text-slate-300 text-xs shrink-0"></i>
+                        <i class="fas fa-grip-vertical text-xs shrink-0" style="color:${_dl('#cbd5e1','#334155')}"></i>
                     </div>
                 </div>
-                <div class="p-2 flex flex-col gap-1.5">${minicardsHtml}</div>
+                <div class="p-2 flex flex-col gap-1.5" style="background:${_dl('#fff','#1e293b')}">${minicardsHtml}</div>
             </div>`;
         }).join('');
 
@@ -1158,20 +1197,26 @@ function renderKanbanGrouped() {
         </div>`;
 
         const sortIconClass = _kanbanSortDir === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up-alt';
+        const gColBodyBg  = _dark ? '#0f172a' : 'rgba(255,255,255,0.70)';
+        const gPagBg      = _dark ? '#1e293b' : '#f8fafc';
+        const gPagBorder  = _dark ? '#334155' : '#e2e8f0';
+        const gPagTxt     = _dark ? '#94a3b8' : '#64748b';
+        const gColBorder  = _dark ? '#334155' : 'rgba(203,213,225,0.60)';
+
         const paginationHtml = totalPages > 1 ? `
-            <div class="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-b border-slate-100 shrink-0">
+            <div class="flex items-center justify-between px-3 py-1.5 shrink-0" style="background:${gPagBg};border-bottom:1px solid ${gPagBorder}">
                 <button onclick="kanbanPageGo('${colKeyEsc}',${page - 1})" ${page === 0 ? 'disabled' : ''}
-                    class="h-6 w-6 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs">
+                    class="h-6 w-6 rounded-md flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition text-xs" style="color:${gPagTxt}">
                     <i class="fas fa-chevron-left"></i>
                 </button>
-                <span class="text-[11px] font-bold text-slate-500">${page + 1}/${totalPages} <span class="text-slate-400 font-normal">(${totalGroups}g · ${totalApps}v)</span></span>
+                <span class="text-[11px] font-bold" style="color:${gPagTxt}">${page + 1}/${totalPages} <span style="opacity:0.6">(${totalGroups}g · ${totalApps}v)</span></span>
                 <button onclick="kanbanPageGo('${colKeyEsc}',${page + 1})" ${page >= totalPages - 1 ? 'disabled' : ''}
-                    class="h-6 w-6 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs">
+                    class="h-6 w-6 rounded-md flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition text-xs" style="color:${gPagTxt}">
                     <i class="fas fa-chevron-right"></i>
                 </button>
             </div>` : '';
 
-        return `<div class="kanban-col flex flex-col rounded-2xl overflow-hidden shadow-md border border-slate-200/60 transition-all duration-200" style="height:100%;flex:1 1 0;min-width:240px;"
+        return `<div class="kanban-col flex flex-col rounded-2xl overflow-hidden shadow-md transition-all duration-200" style="height:100%;flex:1 1 0;min-width:240px;border:1px solid ${gColBorder};"
             ondragover="kanbanDragOver(event)"
             ondragleave="kanbanDragLeave(event)"
             ondrop="kanbanDrop(event,'${colKeyEsc}')"
@@ -1189,7 +1234,7 @@ function renderKanbanGrouped() {
                 </div>
             </div>
             ${paginationHtml}
-            <div class="kanban-col-body flex-1 overflow-y-auto p-3 space-y-3 bg-white/70 backdrop-blur-sm">
+            <div class="kanban-col-body flex-1 overflow-y-auto p-3 space-y-3" style="background:${gColBodyBg}">
                 ${pageGroups.length ? groupsHtml : emptyHtml}
             </div>
         </div>`;
@@ -1525,3 +1570,5 @@ function confirmMoverGrupoPerdido() {
     closeMoverGrupoPerdidoModal();
     showNotification(`${count} vacina${count !== 1 ? 's' : ''} marcada${count !== 1 ? 's' : ''} como perdida${count !== 1 ? 's' : ''}.`, 'info');
 }
+
+

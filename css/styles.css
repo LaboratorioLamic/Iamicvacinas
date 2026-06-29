@@ -38,7 +38,7 @@
 /* ── Tabs ─────────────────────────────────────────────── */
 .tab-content { display: none; }
 .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
-#tab-vacinas.active { display: flex; padding: 0; margin: -1.5rem; height: 100vh; }
+#tab-vacinas.active { display: flex; padding: 0; margin: -1.5rem; height: calc(100vh - 3.5rem); overflow: hidden; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeInScale { from { opacity: 0; transform: scale(.92) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .modal { display: none; }
@@ -274,3 +274,421 @@ body.lite-mode .perm-toggle { transition: none !important; }
 @media (max-width: 900px) {
     .kanban-vac-name { display: none; }
 }
+
+/* ── Botão Modo Escuro ──────────────────────────────────── */
+.dark-mode-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.2s;
+    text-align: left;
+}
+.dark-mode-btn:hover { background: rgba(255,255,255,0.08); }
+
+/* Ícone sol/lua com animação de rotação */
+.dark-mode-icon-wrap {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+.dark-mode-icon-sun,
+.dark-mode-icon-moon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    width: 20px;
+    height: 20px;
+    transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1), color 0.3s;
+}
+.dark-mode-icon-sun  { color: #94a3b8; opacity: 1; transform: rotate(0deg) scale(1); }
+.dark-mode-icon-moon { color: #94a3b8; opacity: 0; transform: rotate(-90deg) scale(0.5); }
+
+.dark-mode-btn.active .dark-mode-icon-sun  { opacity: 0; transform: rotate(90deg) scale(0.5); color: #fbbf24; }
+.dark-mode-btn.active .dark-mode-icon-moon { opacity: 1; transform: rotate(0deg) scale(1);  color: #818cf8; }
+
+/* Labels */
+.dark-mode-label-wrap { flex: 1; overflow: hidden; }
+.dark-mode-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    white-space: nowrap;
+    transition: color 0.3s;
+}
+.dark-mode-btn.active .dark-mode-label { color: #a5b4fc; }
+.dark-mode-sublabel {
+    display: block;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #475569;
+    white-space: nowrap;
+    margin-top: 1px;
+}
+
+/* Track */
+.dark-toggle-track {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.2);
+    transition: background 0.3s, border-color 0.3s;
+    flex-shrink: 0;
+}
+.dark-mode-btn.active .dark-toggle-track {
+    background: #6366f1;
+    border-color: #4f46e5;
+    box-shadow: 0 0 8px rgba(99,102,241,0.55);
+}
+
+/* Thumb com estrelinhas */
+.dark-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1), background 0.3s;
+}
+.dark-mode-btn.active .dark-toggle-thumb {
+    transform: translateX(16px);
+    background: #e0e7ff;
+}
+
+/* Modo lite: mantém thumb animado */
+body.lite-mode .dark-toggle-thumb { transition: transform 0.15s ease !important; }
+body.lite-mode .dark-toggle-track { transition: background 0.15s ease !important; }
+
+/* ══════════════════════════════════════════════════════════
+   MODO ESCURO — todas as cores do app (login excluído)
+   Aplicado via body.dark-mode, mas NÃO afeta #login-screen
+   ══════════════════════════════════════════════════════════ */
+
+/* Variáveis base */
+body.dark-mode {
+    background-color: #0f172a !important;
+    color: #e2e8f0 !important;
+}
+
+/* ── Login: imune ao dark mode ── */
+body.dark-mode #login-screen { background: #0f172a !important; color: inherit !important; }
+body.dark-mode #login-screen input { background: #fff !important; color: #1e293b !important; border-color: #e2e8f0 !important; }
+body.dark-mode #login-screen .bg-white { background: #fff !important; color: #1e293b !important; }
+body.dark-mode #login-screen label { color: #94a3b8 !important; }
+body.dark-mode #login-screen h2 { color: #fff !important; }
+body.dark-mode #login-screen p { color: inherit !important; }
+body.dark-mode #login-screen select { background: #fff !important; color: #1e293b !important; }
+
+/* Scrollbar */
+body.dark-mode ::-webkit-scrollbar-track { background: #1e293b; }
+body.dark-mode ::-webkit-scrollbar-thumb { background: #3b82f6; }
+
+/* ── Topbar ── */
+body.dark-mode .app-topbar {
+    background: rgba(2,6,23,0.97) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+}
+body.dark-mode #topbar-module-label { color: #cbd5e1 !important; }
+
+/* ── Main / área de conteúdo ── */
+body.dark-mode main { background: #0f172a !important; }
+
+/* ── Cards / glass-card ── */
+body.dark-mode .glass-card,
+body.dark-mode [class*="bg-white"],
+body.dark-mode .bg-white {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+}
+
+/* Cards genéricos com bg branco inline */
+body.dark-mode [style*="background: #fff"],
+body.dark-mode [style*="background:#fff"],
+body.dark-mode [style*="background-color: white"],
+body.dark-mode [style*="background-color:#fff"] {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+}
+
+/* ── Textos ── */
+body.dark-mode .text-slate-800,
+body.dark-mode .text-slate-700,
+body.dark-mode .text-slate-600 { color: #cbd5e1 !important; }
+body.dark-mode .text-slate-500,
+body.dark-mode .text-slate-400 { color: #94a3b8 !important; }
+body.dark-mode .text-gray-700,
+body.dark-mode .text-gray-800 { color: #cbd5e1 !important; }
+body.dark-mode h1, body.dark-mode h2, body.dark-mode h3 { color: #f1f5f9 !important; }
+
+/* ── Inputs / Selects / Textareas ── */
+body.dark-mode input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+body.dark-mode select,
+body.dark-mode textarea {
+    background: #0f172a !important;
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+}
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder { color: #64748b !important; }
+body.dark-mode input:focus,
+body.dark-mode select:focus,
+body.dark-mode textarea:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.2) !important;
+}
+body.dark-mode select option { background: #1e293b; color: #e2e8f0; }
+
+/* ── Borders ── */
+body.dark-mode .border-slate-200,
+body.dark-mode .border-slate-300 { border-color: #334155 !important; }
+body.dark-mode .border-slate-100 { border-color: #1e293b !important; }
+body.dark-mode [class*="divide-slate"] > * + * { border-color: #334155 !important; }
+
+/* ── Fundos claros genéricos ── */
+body.dark-mode .bg-slate-50,
+body.dark-mode .bg-slate-100,
+body.dark-mode .bg-gray-50,
+body.dark-mode .bg-gray-100 { background: #1e293b !important; }
+body.dark-mode .bg-slate-200 { background: #273449 !important; }
+
+/* ── Hover states ── */
+body.dark-mode .hover\:bg-slate-100:hover { background: #1e293b !important; }
+body.dark-mode .hover\:bg-slate-50:hover  { background: #273449 !important; }
+body.dark-mode .hover\:bg-white:hover     { background: #273449 !important; }
+
+/* ── Badges / pills de status ── */
+body.dark-mode .bg-blue-50   { background: rgba(59,130,246,0.12)  !important; }
+body.dark-mode .bg-green-50  { background: rgba(16,185,129,0.12)  !important; }
+body.dark-mode .bg-red-50    { background: rgba(239,68,68,0.12)   !important; }
+body.dark-mode .bg-amber-50  { background: rgba(245,158,11,0.12)  !important; }
+body.dark-mode .bg-cyan-50   { background: rgba(6,182,212,0.12)   !important; }
+body.dark-mode .bg-purple-50 { background: rgba(139,92,246,0.12)  !important; }
+body.dark-mode .bg-violet-50 { background: rgba(139,92,246,0.12)  !important; }
+
+/* borders de status */
+body.dark-mode .border-blue-200   { border-color: rgba(59,130,246,0.3)  !important; }
+body.dark-mode .border-green-200  { border-color: rgba(16,185,129,0.3)  !important; }
+body.dark-mode .border-red-200    { border-color: rgba(239,68,68,0.3)   !important; }
+body.dark-mode .border-amber-200  { border-color: rgba(245,158,11,0.3)  !important; }
+body.dark-mode .border-cyan-200   { border-color: rgba(6,182,212,0.3)   !important; }
+body.dark-mode .border-violet-200 { border-color: rgba(139,92,246,0.3)  !important; }
+
+/* ── Modais ── */
+body.dark-mode [id^="modal-"] > div:last-child,
+body.dark-mode [id^="modal-"] .bg-white {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+}
+
+/* ── Tabelas ── */
+body.dark-mode table { color: #e2e8f0 !important; }
+body.dark-mode thead,
+body.dark-mode .bg-slate-50.border-b { background: #0f172a !important; }
+body.dark-mode tbody tr:hover { background: #1e293b !important; }
+body.dark-mode th { color: #94a3b8 !important; border-color: #334155 !important; }
+body.dark-mode td { border-color: #1e293b !important; color: #cbd5e1 !important; }
+
+/* ── Dashboard ── */
+body.dark-mode #tab-dashboard > div,
+body.dark-mode .dash-card { background: #1e293b !important; }
+
+/* ── Agenda / Calendário ── */
+body.dark-mode .calendar-grid > div { color: #cbd5e1 !important; }
+body.dark-mode #filter-month-agenda::-webkit-datetime-edit,
+body.dark-mode #dash-filter-mes::-webkit-datetime-edit,
+body.dark-mode #filter-month-agenda::-webkit-datetime-edit-month-field,
+body.dark-mode #dash-filter-mes::-webkit-datetime-edit-month-field,
+body.dark-mode #filter-month-agenda::-webkit-datetime-edit-year-field,
+body.dark-mode #dash-filter-mes::-webkit-datetime-edit-year-field { color: #93c5fd !important; }
+
+/* ── Kanban ── */
+body.dark-mode #agendaview-tabela { background: #0f172a !important; }
+body.dark-mode #view-kanban { background: #0f172a !important; color: #e2e8f0 !important; }
+body.dark-mode .kanban-col-body { backdrop-filter: none !important; }
+body.dark-mode .kanban-col { border-color: #334155 !important; }
+body.dark-mode .kanban-card { background: #1e293b !important; border-color: #334155 !important; }
+body.dark-mode .kanban-group-card { background: #1e293b !important; border-color: #334155 !important; }
+
+/* ── Almoxarifado: barra de módulos ── */
+.alm-mod-btn {
+    background: transparent;
+    color: rgba(148,163,184,1);
+    box-shadow: none;
+}
+.alm-mod-btn .alm-btn-icon { background: rgba(255,255,255,0.08); }
+.alm-mod-btn.active-alm {
+    background: rgba(37,99,235,0.9);
+    color: white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.alm-mod-btn.active-alm .alm-btn-icon { background: rgba(255,255,255,0.2); }
+
+/* ── Almoxarifado / Vacinas ── */
+body.dark-mode #tab-vacinas { background: #0f172a !important; }
+body.dark-mode #alm-sidebar { background: linear-gradient(180deg,#020617 0%,#0f172a 100%) !important; border-right-color: rgba(255,255,255,0.05) !important; }
+body.dark-mode #alm-sidebar .alm-mod-btn { color: #94a3b8 !important; }
+body.dark-mode #alm-sidebar .alm-mod-btn:hover { background: rgba(255,255,255,0.08) !important; color: #f1f5f9 !important; }
+body.dark-mode #alm-sidebar .alm-mod-btn.active-alm { background: rgba(37,99,235,0.7) !important; color: #fff !important; }
+body.dark-mode #alm-content-area { background: #0f172a !important; }
+
+/* ── Settings / Permissões ── */
+body.dark-mode .perm-label-row:hover p { color: #93c5fd !important; }
+body.dark-mode .perm-toggle { background: #334155 !important; }
+
+/* ── Expiry panel ── */
+body.dark-mode #expiry-panel { background: #1e293b !important; border-color: #334155 !important; }
+
+/* ── Notificações ── */
+body.dark-mode .notification { background: #1e293b !important; border-color: #334155 !important; }
+
+/* Transição suave ao ativar/desativar */
+body:not(.lite-mode) {
+    transition: background-color 0.35s ease, color 0.35s ease;
+}
+
+/* ══════════════════════════════════════════════════════════
+   DARK MODE — correções específicas de contraste
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Sidebar: fundo e textos ── */
+body.dark-mode #app-sidebar {
+    background: linear-gradient(180deg,#020617 0%,#0f172a 100%) !important;
+    box-shadow: 4px 0 32px rgba(0,0,0,0.7) !important;
+}
+body.dark-mode #app-sidebar * { color: inherit; }
+body.dark-mode .sidebar-nav-btn { color: #94a3b8 !important; }
+body.dark-mode .sidebar-nav-btn:hover { color: #f1f5f9 !important; background: rgba(255,255,255,0.08) !important; }
+body.dark-mode .sidebar-nav-btn.active { color: #fff !important; }
+
+/* ── Hamburger lines: cor clara ── */
+body.dark-mode .hamburger-line { background: #e2e8f0 !important; }
+
+/* ── Divisores de tabela: cor escura ── */
+body.dark-mode .divide-slate-100 > * + * { border-color: #1e293b !important; }
+body.dark-mode .divide-slate-200 > * + * { border-color: #273449 !important; }
+body.dark-mode tbody tr { border-color: #1e293b !important; }
+
+/* ── Calendário mensal: bordas e células ── */
+body.dark-mode #calendar-body > div {
+    border-color: #1e293b !important;
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+}
+body.dark-mode #calendar-body > div.bg-white { background: #1e293b !important; }
+body.dark-mode #calendar-body > div span { color: #e2e8f0 !important; }
+/* Número do dia */
+body.dark-mode #calendar-body > div .font-black { color: #f1f5f9 !important; }
+
+/* ── Cabeçalho dos dias semanais do calendário mensal ── */
+body.dark-mode .calendar-grid.mb-2 > div { color: #64748b !important; }
+body.dark-mode .calendar-grid.mb-2 > div.text-red-500 { color: #f87171 !important; }
+
+/* ── Calendário semanal: cabeçalho do dia ── */
+body.dark-mode #weekly-board > div { border-color: #334155 !important; }
+body.dark-mode #weekly-board > div > div:first-child {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+body.dark-mode #weekly-board > div > div:first-child span { color: #94a3b8 !important; }
+body.dark-mode #weekly-board > div > div:first-child span.font-black { color: #e2e8f0 !important; }
+/* corpo do dia semanal */
+body.dark-mode #weekly-board > div > div:last-child { background: #0f172a !important; }
+
+/* ── Cards semanais: nome do paciente legível ── */
+body.dark-mode #weekly-board .rounded-xl.border.p-2\.5 {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+body.dark-mode #weekly-board .rounded-xl.border.p-2\.5 .font-black { color: #f1f5f9 !important; }
+body.dark-mode #weekly-board .rounded-xl.border.p-2\.5 .text-slate-400 { color: #94a3b8 !important; }
+body.dark-mode #weekly-board .rounded-xl.border.p-2\.5 .text-slate-500 { color: #94a3b8 !important; }
+
+/* ── CRM / Oportunidades: fundo, colunas, cards, agrupados ── */
+body.dark-mode #agendaview-oportunidades { background: #0f172a !important; }
+body.dark-mode #oport-cards-container { background: transparent !important; }
+
+/* card do paciente */
+body.dark-mode #oport-cards-container > div {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+/* cabeçalho do card (gradiente claro → escuro) */
+body.dark-mode #oport-cards-container > div > div:first-child {
+    background: #273449 !important;
+    border-color: #334155 !important;
+}
+/* nome do paciente no card de oportunidade */
+body.dark-mode #oport-cards-container .text-navy-900 { color: #f1f5f9 !important; }
+body.dark-mode #oport-cards-container .text-slate-500 { color: #94a3b8 !important; }
+body.dark-mode #oport-cards-container .text-slate-400 { color: #94a3b8 !important; }
+body.dark-mode #oport-cards-container .text-slate-600 { color: #cbd5e1 !important; }
+body.dark-mode #oport-cards-container .text-indigo-600 { color: #818cf8 !important; }
+
+/* mini-cards de vacina */
+body.dark-mode #oport-cards-container .bg-slate-50 {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+}
+body.dark-mode #oport-cards-container .bg-emerald-50 {
+    background: #052e16 !important;
+    border-color: #166534 !important;
+}
+/* nome da vacina nos mini-cards */
+body.dark-mode #oport-cards-container .bg-slate-50 .text-navy-900,
+body.dark-mode #oport-cards-container .bg-emerald-50 .text-navy-900 { color: #e2e8f0 !important; }
+body.dark-mode #oport-cards-container .bg-slate-50 .text-slate-600,
+body.dark-mode #oport-cards-container .bg-emerald-50 .text-slate-600 { color: #94a3b8 !important; }
+body.dark-mode #oport-cards-container .bg-slate-50 .bg-slate-200 { background: #1e293b !important; }
+
+/* stats / badge oport */
+body.dark-mode #oport-stats { color: #cbd5e1 !important; }
+body.dark-mode #oport-stats .bg-white { background: #1e293b !important; }
+
+/* ── Planilha: contraste no nome do paciente ── */
+body.dark-mode #table-body tr { background: #0f172a !important; }
+body.dark-mode #table-body tr:hover { background: #1e293b !important; }
+body.dark-mode #table-body td { color: #e2e8f0 !important; border-color: #1e293b !important; }
+body.dark-mode #table-body .text-navy-900 { color: #f1f5f9 !important; }
+body.dark-mode #table-body .text-slate-500 { color: #94a3b8 !important; }
+body.dark-mode #table-body .text-slate-400 { color: #94a3b8 !important; }
+body.dark-mode #table-body .font-black { color: #f1f5f9 !important; }
+
+/* ── Ranking tables do dashboard ── */
+body.dark-mode .border-b-2.border-slate-100 { border-color: #334155 !important; }
+body.dark-mode tr.border-b.border-slate-50 { border-color: #1e293b !important; }
+body.dark-mode tr.border-b.border-slate-50:hover { background: #1e293b !important; }
+body.dark-mode .bg-slate-100.rounded-full { background: #334155 !important; }
+
+/* ── Textos com fundo escuro: garantir cor clara em todo app ── */
+body.dark-mode .text-navy-900  { color: #f1f5f9 !important; }
+body.dark-mode .text-navy-800  { color: #e2e8f0 !important; }
+body.dark-mode .text-slate-800 { color: #e2e8f0 !important; }
+body.dark-mode .text-slate-700 { color: #cbd5e1 !important; }
+body.dark-mode .text-slate-600 { color: #94a3b8 !important; }
+body.dark-mode .text-gray-900  { color: #f1f5f9 !important; }
+body.dark-mode .text-gray-800  { color: #e2e8f0 !important; }
+body.dark-mode .text-gray-700  { color: #cbd5e1 !important; }
+
+/* Excluir login dessas regras globais de texto */
+body.dark-mode #login-screen .text-navy-900,
+body.dark-mode #login-screen .text-slate-800,
+body.dark-mode #login-screen .text-slate-700 { color: inherit !important; }
