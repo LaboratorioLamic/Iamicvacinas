@@ -503,8 +503,8 @@ function renderDashFinanceiro(apps) {
 
     // KPIs de desconto — baseados em todos os agendamentos com desconto aplicado
     const comDesconto      = apps.filter(a => a.valorCheio && a.descontoPct > 0);
-    const receitaEsperada  = apps.reduce((s,a) => s + toCheio(a), 0);
-    const descontoTotal    = receitaEsperada - apps.reduce((s,a) => s + toVal(a), 0);
+    const receitaEsperada  = aplicados.reduce((s,a) => s + toCheio(a), 0);
+    const descontoTotal    = receitaEsperada - receitaReal;
     const mediaDesconto    = comDesconto.length
         ? comDesconto.reduce((s,a) => s + (a.descontoPct || 0), 0) / comDesconto.length
         : 0;
