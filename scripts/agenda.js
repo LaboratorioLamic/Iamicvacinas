@@ -31,6 +31,49 @@ function _getSundayOf(date) {
     return d;
 }
 
+function getFilterWeekStart() {
+    const weekInput = document.getElementById('filter-week-start');
+    if (weekInput && weekInput.value) {
+        const date = new Date(weekInput.value + 'T00:00:00');
+        return _getSundayOf(date);
+    }
+    return _getSundayOf(new Date());
+}
+
+function setFilterWeekStart(date) {
+    const weekInput = document.getElementById('filter-week-start');
+    if (!weekInput) return;
+    const sunday = _getSundayOf(date);
+    weekInput.value = sunday.toISOString().split('T')[0];
+}
+
+function formatFilterWeekLabel() {
+    const start = getFilterWeekStart();
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    const fmt = d => {
+        const parts = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }).split(' de ');
+        return parts.length === 2 ? `${parts[0]}/${parts[1]}` : parts.join('/');
+    };
+    return `${fmt(start)} – ${fmt(end)}`;
+}
+
+function adjustFilterWeek(delta) {
+    const start = getFilterWeekStart();
+    start.setDate(start.getDate() + delta * 7);
+    setFilterWeekStart(start);
+    if (typeof _syncDateFilterUI === 'function') _syncDateFilterUI();
+    if (typeof renderTable === 'function') renderTable();
+    if (typeof renderKanban === 'function') renderKanban();
+}
+
+function goToCurrentFilterWeek() {
+    setFilterWeekStart(new Date());
+    if (typeof _syncDateFilterUI === 'function') _syncDateFilterUI();
+    if (typeof renderTable === 'function') renderTable();
+    if (typeof renderKanban === 'function') renderKanban();
+}
+
 function renderWeekly() {
     const board = document.getElementById('weekly-board');
     if (!board) return;
@@ -54,7 +97,10 @@ function renderWeekly() {
     // Atualiza label do cabeçalho
     const sunday = new Date(_weekStart);
     const saturday = new Date(_weekStart); saturday.setDate(saturday.getDate() + 6);
-    const fmt = d => d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+    const fmt = d => {
+        const parts = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }).split(' de ');
+        return parts.length === 2 ? `${parts[0]}/${parts[1]}` : parts.join('/');
+    };
     const lbl = document.getElementById('current-month-label');
     if (lbl) lbl.textContent = `${fmt(sunday)} – ${fmt(saturday)}`;
 
@@ -777,7 +823,8 @@ function _getKanbanFiltered() {
     const filterAplicador = document.getElementById('filter-aplicador-agenda').value;
     const todayObj = new Date();
     const todayStr = todayObj.toISOString().split('T')[0];
-    const startOfWeek = getStartOfWeek(todayObj).toISOString().split('T')[0];
+    const weekStart = getFilterWeekStart();
+    const startOfWeek = weekStart.toISOString().split('T')[0];
     const endOfWeek = new Date(new Date(startOfWeek).setDate(new Date(startOfWeek).getDate()+6)).toISOString().split('T')[0];
 
     return appointments.filter(a => {

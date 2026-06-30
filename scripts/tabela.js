@@ -43,7 +43,7 @@ function _populateTableColabDropdowns() {
     const dateFilter = document.getElementById('filter-date-agenda').value;
     const monthFilter = document.getElementById('filter-month-agenda').value;
     const todayStr = new Date().toISOString().split('T')[0];
-    const startOfWeek = getStartOfWeek(new Date()).toISOString().split('T')[0];
+    const startOfWeek = (typeof getFilterWeekStart === 'function' ? getFilterWeekStart() : getStartOfWeek(new Date())).toISOString().split('T')[0];
     const endOfWeek = new Date(new Date(startOfWeek).setDate(new Date(startOfWeek).getDate()+6)).toISOString().split('T')[0];
 
     const byDate = appointments.filter(a => {
@@ -91,7 +91,7 @@ function renderTable() {
 
     const todayObj = new Date();
     const todayStr = todayObj.toISOString().split('T')[0];
-    const startOfWeek = getStartOfWeek(todayObj).toISOString().split('T')[0];
+    const startOfWeek = (typeof getFilterWeekStart === 'function' ? getFilterWeekStart() : getStartOfWeek(todayObj)).toISOString().split('T')[0];
     const endOfWeek = new Date(new Date(startOfWeek).setDate(new Date(startOfWeek).getDate()+6)).toISOString().split('T')[0];
 
     const tbody = document.getElementById('table-body');
@@ -166,7 +166,7 @@ function renderTable() {
 const _DATE_FILTER_META = {
     todos:  { label: 'Todas as Datas' },
     hoje:   { label: 'Hoje' },
-    semana: { label: 'Esta Semana' },
+    semana: { label: 'Semanal' },
     mes:    { label: 'Selecionar Mês' },
 };
 
@@ -240,6 +240,9 @@ function _syncDateFilterUI() {
             } else {
                 lbl.textContent = 'Selecionar Mês';
             }
+        } else if (val === 'semana') {
+            const range = typeof formatFilterWeekLabel === 'function' ? formatFilterWeekLabel() : '';
+            lbl.textContent = range ? `Semanal ${range}` : 'Semanal';
         } else {
             lbl.textContent = (_DATE_FILTER_META[val] || _DATE_FILTER_META.todos).label;
         }
@@ -252,7 +255,13 @@ function _syncDateFilterUI() {
         if (check) check.classList.toggle('opacity-0', !active);
     });
     const mWrap = document.getElementById('date-filter-month-wrap');
+    const wWrap = document.getElementById('date-filter-week-wrap');
     if (mWrap) mWrap.classList.toggle('hidden', val !== 'mes');
+    if (wWrap) wWrap.classList.toggle('hidden', val !== 'semana');
+    if (wWrap && val === 'semana') {
+        const label = document.getElementById('date-filter-week-label');
+        if (label) label.textContent = typeof formatFilterWeekLabel === 'function' ? formatFilterWeekLabel() : 'Semanal';
+    }
     // Realça o botão quando há filtro ativo
     const btn = document.getElementById('date-filter-btn');
     if (btn) {
@@ -273,6 +282,18 @@ function selectDateFilter(val) {
         }
         _syncDateFilterUI();
         // Mantém o popover aberto para escolher o mês
+        const pop = document.getElementById('date-filter-pop');
+        const btn = document.getElementById('date-filter-btn');
+        if (pop && btn) _positionFilterPop(btn, pop);
+        renderTable();
+        return;
+    }
+    if (val === 'semana') {
+        if (typeof setFilterWeekStart === 'function') {
+            const weekInput = document.getElementById('filter-week-start');
+            if (weekInput && !weekInput.value) setFilterWeekStart(new Date());
+        }
+        _syncDateFilterUI();
         const pop = document.getElementById('date-filter-pop');
         const btn = document.getElementById('date-filter-btn');
         if (pop && btn) _positionFilterPop(btn, pop);

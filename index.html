@@ -693,6 +693,7 @@
                             <!-- Filtro de Período (popover) -->
                             <div class="relative" id="date-filter-wrap">
                                 <input type="hidden" id="filter-date-agenda" value="todos">
+                                <input type="hidden" id="filter-week-start" value="">
                                 <button type="button" id="date-filter-btn" onclick="toggleDateFilterPop(event)"
                                     class="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 transition shadow-sm">
                                     <i class="fas fa-calendar-day text-clinic-500 text-xs"></i>
@@ -714,7 +715,7 @@
                                         </button>
                                         <button type="button" onclick="selectDateFilter('semana')" data-dval="semana" class="date-opt w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition text-left">
                                             <span class="date-opt-ic h-8 w-8 rounded-lg bg-violet-50 text-violet-500 flex items-center justify-center shrink-0"><i class="fas fa-calendar-week text-xs"></i></span>
-                                            <span class="flex-1">Esta Semana</span>
+                                            <span class="flex-1">Semanal</span>
                                             <i class="date-opt-check fas fa-check text-clinic-500 text-xs opacity-0"></i>
                                         </button>
                                         <button type="button" onclick="selectDateFilter('mes')" data-dval="mes" class="date-opt w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition text-left">
@@ -728,6 +729,22 @@
                                             <label class="block px-1.5 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">Mês / Ano</label>
                                             <input type="month" id="filter-month-agenda" onchange="onDateMonthChange()" oninput="onDateMonthChange()" onclick="try{this.showPicker()}catch(e){}"
                                                 class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-clinic-500 outline-none cursor-pointer" style="color-scheme: light;">
+                                        </div>
+                                    </div>
+                                    <div id="date-filter-week-wrap" class="hidden mt-1 px-1 pb-1">
+                                        <div class="border-t border-slate-100 pt-2">
+                                            <label class="block px-1.5 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">Semana</label>
+                                            <div class="flex items-center gap-2">
+                                                <button type="button" onclick="adjustFilterWeek(-1)"
+                                                    class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">‹</button>
+                                                <div id="date-filter-week-label" class="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600">Semanal</div>
+                                                <button type="button" onclick="adjustFilterWeek(1)"
+                                                    class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">›</button>
+                                            </div>
+                                            <button type="button" onclick="goToCurrentFilterWeek()"
+                                                class="mt-2 w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-bold text-sm transition">
+                                                Semana Atual
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
