@@ -12,14 +12,40 @@ function filterPatientDropdown() {
     const val = normalizeStr(input.value);
     const dd = document.getElementById('patient-dropdown');
 
-    // Ao digitar qualquer coisa, invalida a seleção anterior até selecionar novamente
+    // Se o campo está vazio, invalida a seleção
+    if(!val) { 
+        document.getElementById('hidden-patient-id').value = '';
+        _toggleBtnProntuario(false);
+        input.setCustomValidity('Selecione um paciente válido da lista.');
+        input.classList.add('border-red-400');
+        input.classList.remove('border-slate-200');
+        dd.classList.add('hidden'); 
+        _resetAndDisableVaccineFields(); 
+        return; 
+    }
+
+    // Se há um paciente válido selecionado e o valor não foi alterado, não invalida
+    const currentPatientId = document.getElementById('hidden-patient-id').value;
+    if (currentPatientId) {
+        const currentPatient = patients.find(x => x.id == currentPatientId);
+        if (currentPatient) {
+            const currentValue = normalizeStr(`${currentPatient.cpf} - ${currentPatient.nome}`);
+            if (currentValue === val) {
+                // Paciente já está selecionado corretamente, apenas mostra dropdown com opções
+                dd.classList.add('hidden'); 
+                return;
+            }
+        }
+    }
+
+    // Ao digitar qualquer coisa diferente, invalida a seleção até selecionar novamente
     document.getElementById('hidden-patient-id').value = '';
     _toggleBtnProntuario(false);
     input.setCustomValidity('Selecione um paciente válido da lista.');
     input.classList.add('border-red-400');
     input.classList.remove('border-slate-200');
 
-    if(!val) { dd.classList.add('hidden'); _resetAndDisableVaccineFields(); return; }
+    // Busca por CPF ou Nome
     const matches = patients.filter(p =>
         normalizeStr(p.nome).includes(val) || normalizeStr(p.cpf).includes(val)
     ).slice(0, 12);
@@ -889,6 +915,10 @@ function duplicarAgendamento() {
     const vacinaId  = document.getElementById('reg-vacina').value;
     const valor     = document.getElementById('reg-valor').value;
     const vendedor  = document.getElementById('reg-vendedor').value;
+    const data      = document.getElementById('reg-data').value;
+    const hora      = document.getElementById('reg-hora').value;
+    const pedido    = document.getElementById('reg-pedido').value;
+    const status    = document.getElementById('reg-status').value;
 
     openRecordModal();
 
@@ -920,6 +950,16 @@ function duplicarAgendamento() {
         document.getElementById('reg-vacina-search').value = _vacDup ? _vacDup.nome : '';
         document.getElementById('reg-valor').value    = valor;
         document.getElementById('reg-vendedor').value = vendedor;
+
+        // Data, hora, número do pedido e status
+        document.getElementById('reg-data').value   = data;
+        document.getElementById('reg-hora').value   = hora;
+        if (pedido) {
+            document.getElementById('reg-pedido').value = pedido;
+        }
+        if (status) {
+            document.getElementById('reg-status').value = status;
+        }
 
         // autoFillVaccine preenche dose/lote e aciona updateSuggestedDate
         if (typeof autoFillVaccine === 'function') autoFillVaccine();
