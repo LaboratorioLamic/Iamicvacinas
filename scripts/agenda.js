@@ -835,11 +835,18 @@ function _getKanbanFiltered() {
         const matchVendedor = !filterVendedor || a.vendedor === filterVendedor;
         const matchAplicador = !filterAplicador || a.aplicador === filterAplicador;
         let matchDate = true;
-        if (dateFilter === 'hoje') matchDate = a.data === todayStr;
-        else if (dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= endOfWeek;
+        if (dateFilter === 'diario' || dateFilter === 'hoje') {
+            const dayValue = document.getElementById('filter-day-agenda')?.value || todayStr;
+            matchDate = a.data === dayValue;
+        } else if (dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= endOfWeek;
         else if (dateFilter === 'mes' && monthFilter) matchDate = a.data.startsWith(monthFilter);
         return matchSearch && matchDate && matchVendedor && matchAplicador;
     });
+}
+
+function _kanbanApptDateTime(app) {
+    const time = app.hora ? app.hora.trim() : '00:00';
+    return new Date(`${app.data}T${time}`);
 }
 
 function renderKanban() {
@@ -849,7 +856,6 @@ function renderKanban() {
     _populateTableColabDropdowns();
     const todayStr = new Date().toISOString().split('T')[0];
     const allFiltered = _getKanbanFiltered();
-    const dir = _kanbanSortDir === 'asc' ? 1 : -1;
     const _dark = document.body.classList.contains('dark-mode');
 
     // Cores adaptadas ao dark mode
@@ -872,7 +878,7 @@ function renderKanban() {
         const PAGE_SIZE = 10;
         const allCards = allFiltered
             .filter(a => a.status === col.key)
-            .sort((a, b) => (new Date(a.data) - new Date(b.data)) * dir);
+            .sort((a, b) => _kanbanApptDateTime(a) - _kanbanApptDateTime(b));
         const totalPages = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE));
         if (_kanbanPage[col.key] === undefined) _kanbanPage[col.key] = 0;
         if (_kanbanPage[col.key] >= totalPages) _kanbanPage[col.key] = totalPages - 1;
@@ -947,7 +953,7 @@ function renderKanban() {
             <p class="text-[11px] font-black uppercase tracking-wider" style="color:${col.text};">Sem registros</p>
         </div>`;
 
-        const sortIconClass = _kanbanSortDir === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up-alt';
+        const sortIconClass = 'fa-sort-amount-down-alt';
         const colKeyEsc = col.key.replace(/'/g, "\\'");
         const colBodyBg  = _dark ? '#0f172a' : 'rgba(255,255,255,0.70)';
         const pagBg      = _dark ? '#1e293b' : '#f8fafc';
@@ -997,7 +1003,6 @@ function renderKanban() {
 }
 
 function kanbanToggleSort() {
-    _kanbanSortDir = _kanbanSortDir === 'asc' ? 'desc' : 'asc';
     renderKanban();
 }
 
@@ -1164,7 +1169,6 @@ function renderKanbanGrouped() {
     _populateTableColabDropdowns();
     const todayStr = new Date().toISOString().split('T')[0];
     const allFiltered = _getKanbanFiltered();
-    const dir = _kanbanSortDir === 'asc' ? 1 : -1;
     const _dark = document.body.classList.contains('dark-mode');
     const _dl = (light, dark) => _dark ? dark : light;
 
@@ -1184,7 +1188,7 @@ function renderKanbanGrouped() {
     board.innerHTML = columns.map(col => {
         const colApps = allFiltered
             .filter(a => a.status === col.key)
-            .sort((a, b) => (new Date(a.data) - new Date(b.data)) * dir);
+            .sort((a, b) => _kanbanApptDateTime(a) - _kanbanApptDateTime(b));
 
         const byPat = {};
         colApps.forEach(a => {
@@ -1192,6 +1196,17 @@ function renderKanbanGrouped() {
             byPat[a.patientId].push(a);
         });
         const groups = Object.entries(byPat);
+        groups.sort(([, appsA], [, appsB]) => {
+            const firstA = appsA.reduce((minApp, app) => _kanbanApptDateTime(app) < _kanbanApptDateTime(minApp) ? app : minApp, appsA[0]);
+            const firstB = appsB.reduce((minApp, app) => _kanbanApptDateTime(app) < _kanbanApptDateTime(minApp) ? app : minApp, appsB[0]);
+            const diff = _kanbanApptDateTime(firstA) - _kanbanApptDateTime(firstB);
+            if (diff !== 0) return diff;
+            const patA = patients.find(p => p.id == appsA[0].patientId);
+            const patB = patients.find(p => p.id == appsB[0].patientId);
+            const nameA = patA ? String(patA.nome || '') : '';
+            const nameB = patB ? String(patB.nome || '') : '';
+            return nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
+        });
         const totalApps = colApps.length;
         const totalGroups = groups.length;
 
@@ -1281,7 +1296,7 @@ function renderKanbanGrouped() {
             <p class="text-[11px] font-black uppercase tracking-wider" style="color:${col.text};">Sem registros</p>
         </div>`;
 
-        const sortIconClass = _kanbanSortDir === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up-alt';
+        const sortIconClass = 'fa-sort-amount-down-alt';
         const gColBodyBg  = _dark ? '#0f172a' : 'rgba(255,255,255,0.70)';
         const gPagBg      = _dark ? '#1e293b' : '#f8fafc';
         const gPagBorder  = _dark ? '#334155' : '#e2e8f0';

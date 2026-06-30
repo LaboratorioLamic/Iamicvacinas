@@ -48,8 +48,10 @@ function _populateTableColabDropdowns() {
 
     const byDate = appointments.filter(a => {
         let matchDate = true;
-        if (dateFilter === 'hoje') matchDate = a.data === todayStr;
-        else if (dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= endOfWeek;
+        if (dateFilter === 'diario' || dateFilter === 'hoje') {
+            const dayValue = document.getElementById('filter-day-agenda')?.value || todayStr;
+            matchDate = a.data === dayValue;
+        } else if (dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= endOfWeek;
         else if (dateFilter === 'mes' && monthFilter) matchDate = a.data.startsWith(monthFilter);
         return matchDate;
     });
@@ -108,8 +110,10 @@ function renderTable() {
         const matchVendedor = !filterVendedor || a.vendedor === filterVendedor;
         const matchAplicador = !filterAplicador || a.aplicador === filterAplicador;
         let matchDate = true;
-        if(dateFilter === 'hoje') matchDate = a.data === todayStr;
-        else if(dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= endOfWeek;
+        if(dateFilter === 'diario' || dateFilter === 'hoje') {
+            const dayValue = document.getElementById('filter-day-agenda')?.value || todayStr;
+            matchDate = a.data === dayValue;
+        } else if(dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= endOfWeek;
         else if(dateFilter === 'mes' && monthFilter) matchDate = a.data.startsWith(monthFilter);
         return matchSearch && matchStatus && matchDate && matchVendedor && matchAplicador;
     }).sort((a, b) => {
@@ -165,7 +169,7 @@ function renderTable() {
 // ─── FILTROS POPOVER (Período / Status) ───────────────────────────────────────
 const _DATE_FILTER_META = {
     todos:  { label: 'Todas as Datas' },
-    hoje:   { label: 'Hoje' },
+    diario: { label: 'Diário' },
     semana: { label: 'Semanal' },
     mes:    { label: 'Selecionar Mês' },
 };
@@ -228,7 +232,7 @@ function toggleDateFilterPop(e) {
 }
 
 function _syncDateFilterUI() {
-    const val = document.getElementById('filter-date-agenda').value || 'todos';
+    let val = document.getElementById('filter-date-agenda').value || 'todos';
     const lbl = document.getElementById('date-filter-label');
     if (lbl) {
         if (val === 'mes') {
@@ -243,6 +247,19 @@ function _syncDateFilterUI() {
         } else if (val === 'semana') {
             const range = typeof formatFilterWeekLabel === 'function' ? formatFilterWeekLabel() : '';
             lbl.textContent = range ? `Semanal ${range}` : 'Semanal';
+        } else if (val === 'diario' || val === 'hoje') {
+            const dayInput = document.getElementById('filter-day-agenda');
+            if (dayInput && !dayInput.value) {
+                const now = new Date();
+                dayInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            }
+            const dayValue = document.getElementById('filter-day-agenda')?.value;
+            const dateLabel = dayValue ? dayValue.split('-').reverse().join('/') : 'Diário';
+            lbl.textContent = dayValue ? `Diário ${dateLabel}` : 'Diário';
+            if (val === 'hoje') {
+                document.getElementById('filter-date-agenda').value = 'diario';
+                val = 'diario';
+            }
         } else {
             lbl.textContent = (_DATE_FILTER_META[val] || _DATE_FILTER_META.todos).label;
         }
@@ -254,8 +271,10 @@ function _syncDateFilterUI() {
         const check = opt.querySelector('.date-opt-check');
         if (check) check.classList.toggle('opacity-0', !active);
     });
+    const dWrap = document.getElementById('date-filter-day-wrap');
     const mWrap = document.getElementById('date-filter-month-wrap');
     const wWrap = document.getElementById('date-filter-week-wrap');
+    if (dWrap) dWrap.classList.toggle('hidden', val !== 'diario' && val !== 'hoje');
     if (mWrap) mWrap.classList.toggle('hidden', val !== 'mes');
     if (wWrap) wWrap.classList.toggle('hidden', val !== 'semana');
     if (wWrap && val === 'semana') {
@@ -288,6 +307,19 @@ function selectDateFilter(val) {
         renderTable();
         return;
     }
+    if (val === 'diario' || val === 'hoje') {
+        const dayInput = document.getElementById('filter-day-agenda');
+        if (dayInput && !dayInput.value) {
+            const now = new Date();
+            dayInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        }
+        _syncDateFilterUI();
+        const pop = document.getElementById('date-filter-pop');
+        const btn = document.getElementById('date-filter-btn');
+        if (pop && btn) _positionFilterPop(btn, pop);
+        renderTable();
+        return;
+    }
     if (val === 'semana') {
         if (typeof setFilterWeekStart === 'function') {
             const weekInput = document.getElementById('filter-week-start');
@@ -302,6 +334,87 @@ function selectDateFilter(val) {
     }
     _syncDateFilterUI();
     _closeAllFilterPops();
+    renderTable();
+}
+
+function onDateDayChange() {
+    const dayInput = document.getElementById('filter-day-agenda');
+    if (dayInput && dayInput.value) {
+        document.getElementById('filter-date-agenda').value = 'diario';
+        _syncDateFilterUI();
+        renderTable();
+    }
+}
+
+function _getTodayDateValue() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function _parseDateInputValue(value) {
+    if (!value) return null;
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+}
+
+function _formatDateValue(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function changeFilterDay(delta) {
+    const dayInput = document.getElementById('filter-day-agenda');
+    if (!dayInput) return;
+    const current = dayInput.value ? _parseDateInputValue(dayInput.value) : new Date();
+    if (!current) return;
+    current.setDate(current.getDate() + delta);
+    dayInput.value = _formatDateValue(current);
+    document.getElementById('filter-date-agenda').value = 'diario';
+    _syncDateFilterUI();
+    renderTable();
+}
+
+function setFilterDayToday() {
+    const dayInput = document.getElementById('filter-day-agenda');
+    if (!dayInput) return;
+    dayInput.value = _getTodayDateValue();
+    document.getElementById('filter-date-agenda').value = 'diario';
+    _syncDateFilterUI();
+    renderTable();
+}
+
+function _getCurrentMonthValue() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function _parseMonthInputValue(value) {
+    if (!value) return null;
+    const [year, month] = value.split('-').map(Number);
+    return new Date(year, month - 1, 1);
+}
+
+function _formatMonthValue(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function changeFilterMonth(delta) {
+    const monthInput = document.getElementById('filter-month-agenda');
+    if (!monthInput) return;
+    const current = monthInput.value ? _parseMonthInputValue(monthInput.value) : new Date();
+    if (!current) return;
+    current.setMonth(current.getMonth() + delta);
+    monthInput.value = _formatMonthValue(current);
+    document.getElementById('filter-date-agenda').value = 'mes';
+    _syncDateFilterUI();
+    renderTable();
+}
+
+function setFilterMonthCurrent() {
+    const monthInput = document.getElementById('filter-month-agenda');
+    if (!monthInput) return;
+    monthInput.value = _getCurrentMonthValue();
+    document.getElementById('filter-date-agenda').value = 'mes';
+    _syncDateFilterUI();
     renderTable();
 }
 

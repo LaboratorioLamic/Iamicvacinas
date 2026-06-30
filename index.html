@@ -708,9 +708,9 @@
                                             <span class="flex-1">Todas as Datas</span>
                                             <i class="date-opt-check fas fa-check text-clinic-500 text-xs opacity-0"></i>
                                         </button>
-                                        <button type="button" onclick="selectDateFilter('hoje')" data-dval="hoje" class="date-opt w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition text-left">
+                                        <button type="button" onclick="selectDateFilter('diario')" data-dval="diario" class="date-opt w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition text-left">
                                             <span class="date-opt-ic h-8 w-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center shrink-0"><i class="fas fa-calendar-day text-xs"></i></span>
-                                            <span class="flex-1">Hoje</span>
+                                            <span class="flex-1">Diário</span>
                                             <i class="date-opt-check fas fa-check text-clinic-500 text-xs opacity-0"></i>
                                         </button>
                                         <button type="button" onclick="selectDateFilter('semana')" data-dval="semana" class="date-opt w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition text-left">
@@ -724,11 +724,39 @@
                                             <i class="date-opt-check fas fa-check text-clinic-500 text-xs opacity-0"></i>
                                         </button>
                                     </div>
+                                    <div id="date-filter-day-wrap" class="hidden mt-1 px-1 pb-1">
+                                        <div class="border-t border-slate-100 pt-2">
+                                            <label class="block px-1.5 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">Dia</label>
+                                            <input type="date" id="filter-day-agenda" onchange="onDateDayChange()" class="w-full rounded-xl border border-slate-200 text-sm text-slate-700 py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none">
+                                        </div>
+                                        <div class="flex items-center gap-2 mt-2">
+                                            <button type="button" onclick="changeFilterDay(-1)" class="h-10 w-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-clinic-50 transition shadow-sm">
+                                                <i class="fas fa-chevron-left"></i>
+                                            </button>
+                                            <button type="button" onclick="setFilterDayToday()" class="flex-1 h-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-clinic-50 font-black uppercase text-[11px] tracking-wider transition shadow-sm">
+                                                Data atual
+                                            </button>
+                                            <button type="button" onclick="changeFilterDay(1)" class="h-10 w-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-clinic-50 transition shadow-sm">
+                                                <i class="fas fa-chevron-right"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div id="date-filter-month-wrap" class="hidden mt-1 px-1 pb-1">
                                         <div class="border-t border-slate-100 pt-2">
                                             <label class="block px-1.5 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">Mês / Ano</label>
                                             <input type="month" id="filter-month-agenda" onchange="onDateMonthChange()" oninput="onDateMonthChange()" onclick="try{this.showPicker()}catch(e){}"
                                                 class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-clinic-500 outline-none cursor-pointer" style="color-scheme: light;">
+                                        </div>
+                                        <div class="flex items-center gap-2 mt-2">
+                                            <button type="button" onclick="changeFilterMonth(-1)" class="h-10 w-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-clinic-50 transition shadow-sm">
+                                                <i class="fas fa-chevron-left"></i>
+                                            </button>
+                                            <button type="button" onclick="setFilterMonthCurrent()" class="flex-1 h-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-clinic-50 font-black uppercase text-[11px] tracking-wider transition shadow-sm">
+                                                Mês atual
+                                            </button>
+                                            <button type="button" onclick="changeFilterMonth(1)" class="h-10 w-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-clinic-50 transition shadow-sm">
+                                                <i class="fas fa-chevron-right"></i>
+                                            </button>
                                         </div>
                                     </div>
                                     <div id="date-filter-week-wrap" class="hidden mt-1 px-1 pb-1">
