@@ -1093,11 +1093,11 @@ function saveRecord(e) {
             const conflito = appointments.find(a => a.id != id && a.data === dateVal && a.hora && Math.abs(
                 (parseInt(horaVal.split(':')[0])*60 + parseInt(horaVal.split(':')[1])) -
                 (parseInt(a.hora.split(':')[0])*60 + parseInt(a.hora.split(':')[1]))
-            ) < 60);
-            if (conflito) {
+            ) < 30);
+            if (conflito && conflito.patientId != patId) { // Allow same patient multiple appointments at same time
                 const p2 = patients.find(x => x.id == conflito.patientId);
                 const v2 = vaccines.find(x => x.id == conflito.vaccineId);
-                showNotification(`Conflito de horário: já existe agendamento às ${conflito.hora} para ${p2 ? p2.nome : 'outro paciente'} (${v2 ? v2.nome : ''}). O intervalo mínimo entre agendamentos é de 1 hora.`, 'error');
+                showNotification(`Conflito de horário: já existe agendamento às ${conflito.hora} para ${p2 ? p2.nome : 'outro paciente'} (${v2 ? v2.nome : ''}). O intervalo mínimo entre agendamentos é de 30 minutos.`, 'error');
                 return;
             }
         }
