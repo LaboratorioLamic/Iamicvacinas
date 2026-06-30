@@ -553,13 +553,13 @@
         <section id="tab-agenda" class="tab-content active container mx-auto">
             <!-- Sub-navegação interna -->
             <div class="flex items-center gap-2 mb-4">
-                <button onclick="switchAgendaView('agenda')" id="btn-agendaview-agenda"
-                    class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-navy-800 bg-navy-900 text-white">
-                    <i class="fas fa-calendar-alt text-sm"></i> Agenda
-                </button>
                 <button onclick="switchAgendaView('kanban')" id="btn-agendaview-kanban"
-                    class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50">
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-navy-800 bg-navy-900 text-white">
                     <i class="fas fa-columns text-sm"></i> CRM
+                </button>
+                <button onclick="switchAgendaView('agenda')" id="btn-agendaview-agenda"
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50">
+                    <i class="fas fa-calendar-alt text-sm"></i> Agenda
                 </button>
                 <button onclick="switchAgendaView('planilha')" id="btn-agendaview-planilha"
                     class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-slate-300 bg-white text-slate-500 hover:bg-slate-50">
@@ -572,7 +572,7 @@
             </div>
 
             <!-- View: Agenda (Calendário) -->
-            <div id="agendaview-agenda">
+            <div id="agendaview-agenda" class="hidden">
                 <div class="glass-card px-5 py-4 rounded-2xl shadow-sm border border-slate-200 mb-4 flex justify-between items-center gap-4 flex-wrap">
                     <h2 class="text-navy-900 font-black text-xl uppercase tracking-tighter"><i class="fas fa-calendar-day text-clinic-500 mr-2"></i> Calendário Vacinal</h2>
                     <div class="flex items-center gap-3 flex-wrap">
@@ -643,7 +643,7 @@
             </div>
 
             <!-- View: Planilha + Kanban (ex tab-dados) -->
-            <div id="agendaview-tabela" class="hidden">
+            <div id="agendaview-tabela">
                 <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
                     <!-- Shared Filters Header -->
                     <div class="p-5 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center">
@@ -758,7 +758,7 @@
                         </div>
                     </div>
                     <!-- Planilhas View -->
-                    <div id="view-planilhas" class="overflow-x-auto">
+                    <div id="view-planilhas" class="overflow-x-auto hidden">
                         <table class="w-full text-left border-collapse">
                             <thead class="bg-navy-900 text-white text-[10px] uppercase font-black">
                                 <tr id="table-header-row">
@@ -773,7 +773,7 @@
                         </table>
                     </div>
                     <!-- Kanban View -->
-                    <div id="view-kanban" class="hidden p-4 bg-[#f1f5f9]" style="height:calc(100vh - 220px);display:none;overflow:hidden;">
+                    <div id="view-kanban" class="p-4 bg-[#f1f5f9]" style="height:calc(100vh - 220px);overflow:hidden;">
                         <div id="kanban-board" class="flex gap-4 h-full overflow-x-auto pb-2"></div>
                     </div>
                 </div>

@@ -104,7 +104,7 @@ function closeDangerConfirm() {
     _dangerCallback = null;
 }
 
-let agendaView = 'agenda'; // 'agenda' | 'planilha' | 'kanban' | 'oportunidades'
+let agendaView = 'kanban'; // 'agenda' | 'planilha' | 'kanban' | 'oportunidades'
 
 function switchAgendaView(view) {
     agendaView = view;
@@ -171,7 +171,7 @@ function switchTab(tab) {
     if (fabAgendar) fabAgendar.classList.toggle('hidden', tab !== 'agenda');
 
     if(tab === 'dashboard') renderDashboard();
-    if(tab === 'agenda') { renderCalendar(); renderTable(); }
+    if(tab === 'agenda') { switchAgendaView(agendaView); renderCalendar(); renderTable(); }
     if(tab === 'pacientes') renderPatients();
     if(tab === 'vacinas') {
         if (typeof switchAlmoxModulo === 'function') switchAlmoxModulo(almoxModulo || 'estoque');

@@ -84,9 +84,24 @@ function updateIdadeField() {
 
 function openRecordModal() {
     if (!checkPerm('criar_agendamento')) return;
+    // Reseta estados globais
+    window._doseAnteriorConfirmado = false;
+    window._pendingDoseAnteriorEvent = null;
     document.getElementById('record-form').reset(); document.getElementById('reg-id').value = '';
+    // Limpa inputs hidden que não são resetados automaticamente
+    document.getElementById('reg-vacina').value = '';
+    document.getElementById('hidden-patient-id').value = '';
     resetDescontoUI();
     document.getElementById('hidden-patient-id').value = '';
+    // Limpa o dropdown de vacina para evitar sobreposição visual
+    const _vacinaDropdown = document.getElementById('vacina-dropdown');
+    if (_vacinaDropdown) { _vacinaDropdown.innerHTML = ''; _vacinaDropdown.classList.add('hidden'); }
+    // Limpa todos os modais de aviso anteriores
+    document.getElementById('modal-age-warning')?.classList.remove('active');
+    document.getElementById('modal-aprazamento-aviso')?.classList.remove('active');
+    document.getElementById('modal-dose-anterior-aviso')?.classList.remove('active');
+    document.getElementById('modal-lote-expired-block')?.classList.remove('active');
+    document.getElementById('modal-lote-expiry-warning')?.classList.remove('active');
     _toggleBtnProntuario(false);
     document.getElementById('div-responsavel').style.display = 'none';
     document.getElementById('div-responsavel-placeholder').style.display = 'block';
@@ -127,8 +142,10 @@ function openRecordModalWithPatient(patId) {
     openRecordModal();
     const p = patients.find(x=>x.id==patId);
     if(p) {
-        document.getElementById('reg-patient-search').value = `${p.cpf} - ${p.nome}`;
-        autoFillPatient();
+        setTimeout(() => {
+            document.getElementById('reg-patient-search').value = `${p.cpf} - ${p.nome}`;
+            autoFillPatient();
+        }, 50);
     }
 }
 
@@ -754,8 +771,23 @@ function editRecord(id) {
     }
     const canEdit = isCurrentUserAdmin() || hasPerm('criar_agendamento');
     closeModals();
+    // Reseta estados globais
+    window._doseAnteriorConfirmado = false;
+    window._pendingDoseAnteriorEvent = null;
     // Setup modal sem checar permissão de criação
     document.getElementById('record-form').reset();
+    // Limpa inputs hidden que não são resetados automaticamente
+    document.getElementById('reg-vacina').value = '';
+    document.getElementById('hidden-patient-id').value = '';
+    // Limpa o dropdown de vacina para evitar sobreposição visual
+    const _vacinaDropdownEdit = document.getElementById('vacina-dropdown');
+    if (_vacinaDropdownEdit) { _vacinaDropdownEdit.innerHTML = ''; _vacinaDropdownEdit.classList.add('hidden'); }
+    // Limpa todos os modais de aviso anteriores
+    document.getElementById('modal-age-warning')?.classList.remove('active');
+    document.getElementById('modal-aprazamento-aviso')?.classList.remove('active');
+    document.getElementById('modal-dose-anterior-aviso')?.classList.remove('active');
+    document.getElementById('modal-lote-expired-block')?.classList.remove('active');
+    document.getElementById('modal-lote-expiry-warning')?.classList.remove('active');
     const _chkOutroLocalEdit = document.getElementById('reg-aplicada-outro-local');
     if (_chkOutroLocalEdit) { _chkOutroLocalEdit.checked = false; toggleAplicadaOutroLocal(_chkOutroLocalEdit); }
     document.getElementById('reg-id').value = '';
@@ -786,12 +818,17 @@ function editRecord(id) {
     document.getElementById('reg-patient-search').value = p ? `${p.cpf} - ${p.nome}` : '';
     autoFillPatient();
 
-    const _vac = vaccines.find(x => x.id == a.vaccineId);
-    document.getElementById('reg-vacina').value = a.vaccineId;
-    document.getElementById('reg-vacina-search').value = _vac ? _vac.nome : '';
-    autoFillVaccine();
-
     setTimeout(() => {
+        // Limpa completamente os campos de vacina ANTES de preencher com novos dados
+        document.getElementById('reg-vacina').value = '';
+        document.getElementById('reg-vacina-search').value = '';
+        
+        // Preenche com a nova vacina
+        const _vac = vaccines.find(x => x.id == a.vaccineId);
+        document.getElementById('reg-vacina').value = a.vaccineId;
+        document.getElementById('reg-vacina-search').value = _vac ? _vac.nome : '';
+        autoFillVaccine();
+
         document.getElementById('reg-dose').value = a.doseAtual;
         updateSuggestedDate();
         document.getElementById('reg-data').value = a.data;
