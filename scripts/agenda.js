@@ -1076,19 +1076,37 @@ function confirmKanbanCancel() {
 
 // ─── KANBAN GRUPO ─────────────────────────────────────────────────────────────
 
-function kanbanToggleGroup() {
-    _kanbanGrouped = !_kanbanGrouped;
+function _applyKanbanGroupedButtonState() {
     const btn = document.getElementById('btn-kanban-group');
-    if (btn) {
-        btn.classList.toggle('bg-indigo-600', _kanbanGrouped);
-        btn.classList.toggle('text-white', _kanbanGrouped);
-        btn.classList.toggle('border-indigo-600', _kanbanGrouped);
-        btn.classList.toggle('bg-white', !_kanbanGrouped);
-        btn.classList.toggle('text-slate-600', !_kanbanGrouped);
-        btn.classList.toggle('border-slate-200', !_kanbanGrouped);
-        const lbl = btn.querySelector('.group-btn-lbl');
-        if (lbl) lbl.textContent = _kanbanGrouped ? 'Agrupado' : 'Agrupar';
-    }
+    if (!btn) return;
+    btn.classList.toggle('bg-indigo-600', _kanbanGrouped);
+    btn.classList.toggle('text-white', _kanbanGrouped);
+    btn.classList.toggle('border-indigo-600', _kanbanGrouped);
+    btn.classList.toggle('bg-white', !_kanbanGrouped);
+    btn.classList.toggle('text-slate-600', !_kanbanGrouped);
+    btn.classList.toggle('border-slate-200', !_kanbanGrouped);
+    const lbl = btn.querySelector('.group-btn-lbl');
+    if (lbl) lbl.textContent = _kanbanGrouped ? 'Agrupado' : 'Agrupar';
+}
+
+function setKanbanGrouped(value) {
+    _kanbanGrouped = !!value;
+    try { localStorage.setItem('ig_kanban_grouped', _kanbanGrouped ? '1' : '0'); } catch (e) {}
+    _applyKanbanGroupedButtonState();
+}
+
+function initKanbanGroupedState() {
+    try {
+        const stored = localStorage.getItem('ig_kanban_grouped');
+        if (stored === '1' || stored === '0') {
+            _kanbanGrouped = stored === '1';
+            _applyKanbanGroupedButtonState();
+        }
+    } catch (e) {}
+}
+
+function kanbanToggleGroup() {
+    setKanbanGrouped(!_kanbanGrouped);
     _kanbanPage = {};
     renderKanban();
 }

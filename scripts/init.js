@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setupRealtimeSync();
         document.getElementById('dash-ano-base').value = new Date().getFullYear();
         populatePatientDatalist(); populateVaccineSelects(); renderVaccines(); renderPatients();
+        if (typeof initKanbanGroupedState === 'function') initKanbanGroupedState();
         const initTab = getFirstAllowedTab() || 'agenda';
         switchTab(initTab);
         updateExpiryBadge();
