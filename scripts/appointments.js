@@ -959,6 +959,8 @@ function duplicarAgendamento() {
         }
         if (status) {
             document.getElementById('reg-status').value = status;
+            // Atualiza os campos obrigatórios baseado no status
+            if (typeof toggleCancelReason === 'function') toggleCancelReason();
         }
 
         // autoFillVaccine preenche dose/lote e aciona updateSuggestedDate
