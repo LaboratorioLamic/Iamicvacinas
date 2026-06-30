@@ -614,6 +614,10 @@ function openConcluirModal(id) {
     // Pré-preenche com o nome do usuário logado se ele tem permissão de aplicador
     const nomeAplicador = a.aplicador || (currentUser ? currentUser.nome : '');
     document.getElementById('concluir-aplicador').value = nomeAplicador;
+    const dateEl = document.getElementById('concluir-data');
+    if (dateEl) {
+        dateEl.value = a.data ? a.data : new Date().toISOString().slice(0,10);
+    }
 
     // Populate lote select with open lots for this vaccine
     const loteSel = document.getElementById('concluir-lote');
@@ -653,7 +657,8 @@ function checkConcluirLote() {
         const lot = vaccineLots.find(l => l.id == loteVal);
         if (lot && lot.validade) {
             const apmt = appointments.find(a => a.id == pendingConcluirId);
-            const refDate = apmt && apmt.data ? new Date(apmt.data + 'T00:00:00') : new Date();
+            const dateEl = document.getElementById('concluir-data');
+            const refDate = (dateEl && dateEl.value) ? new Date(dateEl.value + 'T00:00:00') : (apmt && apmt.data ? new Date(apmt.data + 'T00:00:00') : new Date());
             refDate.setHours(0,0,0,0);
             const twoMonthsRef = new Date(refDate); twoMonthsRef.setMonth(twoMonthsRef.getMonth() + 2);
             const exp = new Date(lot.validade + 'T00:00:00');
@@ -690,6 +695,20 @@ function confirmConcluir() {
     }
     const loteId = document.getElementById('concluir-lote').value;
     const aplicador = document.getElementById('concluir-aplicador').value.trim();
+    const data = document.getElementById('concluir-data') ? document.getElementById('concluir-data').value : '';
+    if (!data) {
+        showNotification('Informe a data da aplicação.', 'error');
+        return;
+    }
+    if (typeof holidays !== 'undefined' && holidays.includes(data)) {
+        showNotification('Bloqueio: A data selecionada é feriado.', 'error');
+        return;
+    }
+    const dObj = new Date(data + 'T00:00:00');
+    if (dObj.getDay() === 0) {
+        showNotification('Bloqueio: Aplicações aos domingos não são permitidas.', 'error');
+        return;
+    }
     if (!loteId || !aplicador) {
         document.getElementById('concluir-lote-erro').classList.remove('hidden');
         document.getElementById('concluir-lote-spacer').style.display = 'none';
@@ -712,6 +731,7 @@ function confirmConcluir() {
         appointments[idx].loteId = Number(loteId);
         appointments[idx].lote = lot ? lot.numero.toUpperCase() : '';
         appointments[idx].aplicador = aplicador.toUpperCase();
+        appointments[idx].data = data;
         pendingConcluirId = null;
         document.getElementById('modal-concluir').classList.remove('active');
         if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
@@ -1288,7 +1308,8 @@ function _handleGroupDrop(patId, fromStatus, targetStatus) {
     if (!groupApps.length) return;
 
     if (targetStatus === 'Aplicado') {
-        showNotification('Não é possível mover um grupo para Aplicado. Mova cada vacina individualmente.', 'error');
+        if (!checkPerm('aplicar')) return;
+        openAplicarGrupoModal(patId, fromStatus, groupApps);
         return;
     }
     if (targetStatus === 'Agendado') {
@@ -1499,6 +1520,261 @@ function closeAgendarGrupoModal() {
     _agendarGrupoPending = null;
     _agendarGrupoRemovedIds = new Set();
     _agendarGrupoRemovePending = null;
+}
+
+function openAplicarGrupoModal(patId, fromStatus, groupApps) {
+    if (!checkPerm('aplicar')) return;
+    if (!isCurrentUserAdmin() && !hasPerm('aplicar')) {
+        showNotification('Apenas usuários com permissão de aplicador podem registrar aplicações.', 'error');
+        return;
+    }
+
+    _aplicarGrupoPending = {
+        patId: String(patId),
+        fromStatus,
+        apps: groupApps.map(a => ({
+            id: a.id,
+            vaccineId: a.vaccineId,
+            dose: a.doseAtual,
+            data: a.data || new Date().toISOString().split('T')[0],
+            loteId: a.loteId || '',
+            aplicador: a.aplicador || (currentUser ? currentUser.nome : '')
+        }))
+    };
+    _aplicarGrupoRemovedIds = new Set();
+    _aplicarGrupoRemovePending = null;
+
+    const pat = patients.find(p => p.id == patId);
+    const titleEl = document.getElementById('aplicar-grupo-paciente');
+    if (titleEl) titleEl.textContent = pat ? pat.nome : '—';
+
+    const fromEl = document.getElementById('aplicar-grupo-from-status');
+    if (fromEl) fromEl.textContent = fromStatus;
+
+    const countEl = document.getElementById('aplicar-grupo-count');
+    if (countEl) countEl.textContent = groupApps.length + ' vacina' + (groupApps.length !== 1 ? 's' : '');
+
+    _renderAplicarGrupoLines();
+    document.getElementById('modal-aplicar-grupo').classList.add('active');
+}
+
+function _renderAplicarGrupoLines() {
+    if (!_aplicarGrupoPending) return;
+    const container = document.getElementById('aplicar-grupo-lines');
+    if (!container) return;
+
+    const lines = _aplicarGrupoPending.apps;
+    const removedIds = _aplicarGrupoRemovedIds;
+    const fromStatus = _aplicarGrupoPending.fromStatus;
+
+    container.innerHTML = lines.map(app => {
+        const vac = vaccines.find(v => v.id == app.vaccineId);
+        const isRemoved = removedIds.has(app.id);
+        const isConfirming = _aplicarGrupoRemovePending === app.id;
+        const nomVac = vac ? vac.nome : '—';
+        const aplicadorVal = app.aplicador ? app.aplicador.replace(/"/g, '&quot;') : '';
+        const dateVal = app.data || new Date().toISOString().split('T')[0];
+
+        if (isRemoved) {
+            return `<div class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 border border-dashed border-slate-200">
+                <i class="fas fa-syringe text-slate-300 text-xs shrink-0"></i>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[11px] font-black text-slate-400 line-through truncate">${nomVac}</p>
+                    <p class="text-[10px] text-slate-400">${app.dose}</p>
+                </div>
+                <span class="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full whitespace-nowrap">Mantido em ${fromStatus}</span>
+                <button onclick="undoRemoveAplicarGrupoLine(${app.id})" class="h-7 w-7 rounded-lg bg-slate-100 hover:bg-indigo-100 text-slate-400 hover:text-indigo-600 flex items-center justify-center transition shrink-0" title="Restaurar">
+                    <i class="fas fa-undo text-[9px]"></i>
+                </button>
+            </div>`;
+        }
+
+        if (isConfirming) {
+            return `<div class="flex flex-col gap-2 px-3 py-2.5 rounded-xl bg-red-50 border-2 border-red-300 transition">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-xs shrink-0"></i>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[11px] font-black text-red-700 truncate">${nomVac} — ${app.dose}</p>
+                        <p class="text-[10px] text-red-600">Esta vacina ficará em <strong>${fromStatus}</strong></p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="cancelRemoveAplicarGrupoLine()" class="flex-1 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[10px] font-black uppercase tracking-wider hover:bg-slate-50 transition">Cancelar</button>
+                    <button onclick="executeRemoveAplicarGrupoLine(${app.id})" class="flex-1 py-1.5 rounded-lg bg-red-600 text-white text-[10px] font-black uppercase tracking-wider hover:bg-red-700 transition shadow-sm">Remover</button>
+                </div>
+            </div>`;
+        }
+
+        const openLots = vaccineLots.filter(l => l.vaccineId == app.vaccineId && (l.status === 'aberto' || l.id == app.loteId))
+            .sort((a, b) => new Date(a.validade) - new Date(b.validade));
+        const loteOptions = openLots.length
+            ? openLots.map(l => {
+                const disp = (typeof getLoteDisponivelParaAgendamento === 'function') ? getLoteDisponivelParaAgendamento(l.id, app.id) : null;
+                const disabled = disp != null && disp <= 0 && l.id != app.loteId;
+                const dispStr = disp != null ? ` (disp: ${Math.max(0, disp)})` : '';
+                const label = `Lote ${l.numero} — Val: ${l.validade.split('-').reverse().join('/')}${dispStr}${disabled ? ' — sem estoque' : ''}`;
+                return `<option value="${l.id}" ${l.id == app.loteId ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${label}</option>`;
+            }).join('')
+            : '<option value="">Sem lotes disponíveis</option>';
+
+        return `<div class="flex flex-col gap-3 px-3 py-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-syringe text-indigo-400 text-xs shrink-0"></i>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[11px] font-black text-navy-900 truncate leading-tight">${nomVac}</p>
+                        <p class="text-[10px] text-slate-500">${app.dose}</p>
+                    </div>
+                    <button onclick="removeAplicarGrupoLine(${app.id})"
+                        class="h-7 w-7 rounded-lg bg-red-50 hover:bg-red-500 text-red-400 hover:text-white flex items-center justify-center transition shrink-0" title="Remover desta lista">
+                        <i class="fas fa-times text-[9px]"></i>
+                    </button>
+                </div>
+                <div class="grid gap-2 md:grid-cols-3">
+                    <div class="flex flex-col">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Data da Aplicação</label>
+                        <input type="date" id="aplicar-grupo-date-${app.id}" value="${dateVal}"
+                            class="border border-slate-200 rounded-lg py-2 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50">
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Lote</label>
+                        <select id="aplicar-grupo-lote-${app.id}"
+                            class="border border-slate-200 rounded-lg py-2 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50">
+                            <option value="">Selecione o lote...</option>
+                            ${loteOptions}
+                        </select>
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Aplicador</label>
+                        <input type="text" id="aplicar-grupo-aplicador-${app.id}" value="${aplicadorVal}"
+                            class="border border-slate-200 rounded-lg py-2 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50" placeholder="Nome do aplicador">
+                    </div>
+                </div>
+        </div>`;
+    }).join('');
+
+    const activeApps = lines.filter(a => !removedIds.has(a.id));
+    const totalEl = document.getElementById('aplicar-grupo-total');
+    if (totalEl) totalEl.textContent = `${activeApps.length} vacina${activeApps.length !== 1 ? 's' : ''}`;
+
+    const btn = document.getElementById('btn-confirm-aplicar-grupo');
+    if (btn) {
+        const canConfirm = activeApps.length > 0;
+        btn.disabled = !canConfirm;
+        btn.className = canConfirm
+            ? 'flex-1 bg-green-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-green-700 cursor-pointer shadow-md'
+            : 'flex-1 bg-green-200 text-emerald-400 font-black py-3 rounded-xl uppercase text-xs cursor-not-allowed';
+    }
+}
+
+function removeAplicarGrupoLine(appId) {
+    _aplicarGrupoRemovePending = appId;
+    _renderAplicarGrupoLines();
+}
+
+function cancelRemoveAplicarGrupoLine() {
+    _aplicarGrupoRemovePending = null;
+    _renderAplicarGrupoLines();
+}
+
+function executeRemoveAplicarGrupoLine(appId) {
+    _aplicarGrupoRemovedIds.add(appId);
+    _aplicarGrupoRemovePending = null;
+    _renderAplicarGrupoLines();
+}
+
+function undoRemoveAplicarGrupoLine(appId) {
+    _aplicarGrupoRemovedIds.delete(appId);
+    _renderAplicarGrupoLines();
+}
+
+function confirmAplicarGrupo() {
+    if (!_aplicarGrupoPending) return;
+
+    const activeApps = _aplicarGrupoPending.apps.filter(a => !_aplicarGrupoRemovedIds.has(a.id));
+    if (!activeApps.length) {
+        showNotification('Nenhuma vacina ativa para aplicar.', 'error');
+        return;
+    }
+
+    const dateMap = {};
+    const loteMap = {};
+    const aplicadorMap = {};
+
+    for (const app of activeApps) {
+        const dateInput = document.getElementById(`aplicar-grupo-date-${app.id}`);
+        const loteSel = document.getElementById(`aplicar-grupo-lote-${app.id}`);
+        const aplicadorInput = document.getElementById(`aplicar-grupo-aplicador-${app.id}`);
+        const data = dateInput ? dateInput.value : '';
+        const loteId = loteSel ? loteSel.value : '';
+        const aplicador = aplicadorInput ? aplicadorInput.value.trim() : '';
+        const nomVac = vaccines.find(v => v.id == app.vaccineId)?.nome || 'vacina';
+
+        if (!data) {
+            showNotification(`Informe a data de aplicação de "${nomVac}".`, 'error');
+            if (dateInput) { dateInput.focus(); dateInput.classList.add('border-red-400', 'ring-2', 'ring-red-200'); }
+            return;
+        }
+        if (typeof holidays !== 'undefined' && holidays.includes(data)) {
+            showNotification('Bloqueio: Uma das datas está marcada como feriado.', 'error');
+            return;
+        }
+        if (new Date(data + 'T00:00:00').getDay() === 0) {
+            showNotification('Bloqueio: aplicações aos domingos não são permitidas.', 'error');
+            return;
+        }
+        if (!loteId) {
+            showNotification(`Selecione o lote para "${nomVac}".`, 'error');
+            if (loteSel) loteSel.focus();
+            return;
+        }
+        if (!aplicador) {
+            showNotification(`Informe o aplicador para "${nomVac}".`, 'error');
+            if (aplicadorInput) aplicadorInput.focus();
+            return;
+        }
+        if (typeof getLoteDisponivelParaAgendamento === 'function') {
+            const disp = getLoteDisponivelParaAgendamento(Number(loteId), app.id);
+            if (disp <= 0 && Number(loteId) !== app.loteId) {
+                showNotification(`Lote sem estoque para "${nomVac}".`, 'error');
+                if (loteSel) loteSel.focus();
+                return;
+            }
+        }
+
+        dateMap[app.id] = data;
+        loteMap[app.id] = loteId;
+        aplicadorMap[app.id] = aplicador;
+    }
+
+    activeApps.forEach(app => {
+        const idx = appointments.findIndex(a => a.id == app.id);
+        if (idx > -1) {
+            const loteId = Number(loteMap[app.id]);
+            const lote = vaccineLots.find(l => l.id == loteId);
+            appointments[idx].status = 'Aplicado';
+            appointments[idx].data = dateMap[app.id];
+            appointments[idx].loteId = loteId;
+            appointments[idx].lote = lote ? lote.numero.toUpperCase() : '';
+            appointments[idx].aplicador = aplicadorMap[app.id].toUpperCase();
+            if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
+        }
+    });
+
+    if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
+    saveAll(); renderCalendar(); renderTable(); renderDashboard(); renderKanban();
+    if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+    if (typeof refreshOpenModals === 'function') refreshOpenModals();
+
+    const count = activeApps.length;
+    closeAplicarGrupoModal();
+    showNotification(`${count} vacina${count !== 1 ? 's' : ''} aplicada${count !== 1 ? 's' : ''} com sucesso!`, 'success');
+}
+
+function closeAplicarGrupoModal() {
+    document.getElementById('modal-aplicar-grupo').classList.remove('active');
+    _aplicarGrupoPending = null;
+    _aplicarGrupoRemovedIds = new Set();
+    _aplicarGrupoRemovePending = null;
 }
 
 // ─── MODAL: MOVER GRUPO PARA PERDIDO ─────────────────────────────────────────
