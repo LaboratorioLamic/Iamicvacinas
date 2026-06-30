@@ -117,6 +117,8 @@ function openRecordModal() {
     document.getElementById('reg-lote').classList.remove('border-clinic-300', 'ring-2', 'ring-clinic-100');
     document.getElementById('lbl-aplicador').innerText = 'Aplicador';
     document.getElementById('reg-aplicador').required = false;
+    const regPedido = document.getElementById('reg-pedido');
+    if (regPedido) { regPedido.value = ''; regPedido.required = false; }
     populatePatientDatalist(); populateVaccineSelects(); populateCancelReasons(); populateLoteSelect(null);
     // Bloqueia vacina até paciente ser selecionado
     const _vacinaSelNew = document.getElementById('reg-vacina');
@@ -849,6 +851,7 @@ function editRecord(id) {
         populateLoteSelect(a.vaccineId, a.loteId);
         toggleCancelReason();
         if(a.status === 'Perdido') document.getElementById('reg-motivo-cancelamento').value = a.motivoCancelamento || '';
+        document.getElementById('reg-pedido').value = a.pedido || a.pedidoNumero || '';
         document.getElementById('reg-vendedor').value = a.vendedor || '';
         document.getElementById('reg-aplicador').value = a.aplicador || '';
         const chkOutroLocal = document.getElementById('reg-aplicada-outro-local');
@@ -959,6 +962,16 @@ function toggleCancelReason() {
     const loteLabel = document.getElementById('lbl-lote');
     const aplicadorInput = document.getElementById('reg-aplicador');
     const aplicadorLabel = document.getElementById('lbl-aplicador');
+    const pedidoInput = document.getElementById('reg-pedido');
+    const pedidoLabel = document.getElementById('lbl-pedido');
+
+    if (s === 'Agendado' || s === 'Aplicado') {
+        if (pedidoInput) pedidoInput.required = true;
+        if (pedidoLabel) pedidoLabel.innerHTML = 'Nº Pedido <span class="text-red-500">*</span>';
+    } else {
+        if (pedidoInput) pedidoInput.required = false;
+        if (pedidoLabel) pedidoLabel.innerText = 'Nº Pedido';
+    }
 
     if(s === 'Aplicado') {
         loteSel.required = true;
@@ -1197,6 +1210,12 @@ function saveRecord(e) {
     }
 
     const statusVal = document.getElementById('reg-status').value;
+    const pedidoVal = document.getElementById('reg-pedido').value.trim();
+
+    if ((statusVal === 'Agendado' || statusVal === 'Aplicado') && !pedidoVal) {
+        showNotification('Nº Pedido é obrigatório para status Agendado e Aplicado.', 'error');
+        return;
+    }
 
     // Bloqueio: salvar como Aplicado exige permissão de aplicador
     if (statusVal === 'Aplicado' && !isCurrentUserAdmin() && !hasPerm('aplicar')) {
@@ -1252,6 +1271,7 @@ function saveRecord(e) {
         lote: loteNumero,
         motivoCancelamento: statusVal === 'Perdido' ? document.getElementById('reg-motivo-cancelamento').value : '',
         aplicadaOutroLocal: document.getElementById('reg-aplicada-outro-local')?.checked || false,
+        pedido: pedidoVal,
         vendedor: vendedorVal,
         aplicador: aplicadorVal
     };

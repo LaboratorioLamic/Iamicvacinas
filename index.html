@@ -1764,26 +1764,36 @@
                     </div>
                 </div>
 
-                <!-- Linha 3: 2 campos largos -->
-                <div class="col-span-1 md:col-span-2 relative">
-                    <label class="block text-[10px] font-black text-red-500 uppercase mb-1">Vendedor *</label>
-                    <input type="text" id="reg-vendedor" required placeholder="Nome do vendedor..."
-                        oninput="filterUserDropdown('reg-vendedor','vendedor-dropdown','isVendedor')"
-                        onfocus="filterUserDropdown('reg-vendedor','vendedor-dropdown','isVendedor')"
-                        onblur="hideUserDropdown('vendedor-dropdown')"
-                        autocomplete="off"
-                        class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
-                    <div id="vendedor-dropdown" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
-                </div>
-                <div class="col-span-1 md:col-span-2 relative" id="div-aplicador">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1" id="lbl-aplicador">Aplicador</label>
-                    <input type="text" id="reg-aplicador" placeholder="Nome do aplicador..."
-                        oninput="filterUserDropdown('reg-aplicador','aplicador-dropdown','isAplicador')"
-                        onfocus="filterUserDropdown('reg-aplicador','aplicador-dropdown','isAplicador')"
-                        onblur="hideUserDropdown('aplicador-dropdown')"
-                        autocomplete="off"
-                        class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
-                    <div id="aplicador-dropdown" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
+                <!-- Linha 3: vendedor + aplicador à esquerda e nº pedido à direita -->
+                <div class="col-span-1 md:col-span-4 flex flex-col gap-4 md:flex-row md:items-end">
+                    <div class="flex flex-col gap-4 md:flex-row md:flex-1">
+                        <div class="flex-1 relative">
+                            <label class="block text-[10px] font-black text-red-500 uppercase mb-1">Vendedor *</label>
+                            <input type="text" id="reg-vendedor" required placeholder="Nome do vendedor..."
+                                oninput="filterUserDropdown('reg-vendedor','vendedor-dropdown','isVendedor')"
+                                onfocus="filterUserDropdown('reg-vendedor','vendedor-dropdown','isVendedor')"
+                                onblur="hideUserDropdown('vendedor-dropdown')"
+                                autocomplete="off"
+                                class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
+                            <div id="vendedor-dropdown" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
+                        </div>
+                        <div class="flex-1 relative" id="div-aplicador">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1" id="lbl-aplicador">Aplicador</label>
+                            <input type="text" id="reg-aplicador" placeholder="Nome do aplicador..."
+                                oninput="filterUserDropdown('reg-aplicador','aplicador-dropdown','isAplicador')"
+                                onfocus="filterUserDropdown('reg-aplicador','aplicador-dropdown','isAplicador')"
+                                onblur="hideUserDropdown('aplicador-dropdown')"
+                                autocomplete="off"
+                                class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
+                            <div id="aplicador-dropdown" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
+                        </div>
+                    </div>
+                    <div class="w-full md:w-1/4 relative">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1" id="lbl-pedido">Nº Pedido</label>
+                        <input type="text" id="reg-pedido" placeholder="Nº do pedido..."
+                            autocomplete="off"
+                            class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
+                    </div>
                 </div>
 
                 <div class="col-span-1 md:col-span-4 flex items-center gap-2" id="div-motivo-cancelamento" style="display:none;">
