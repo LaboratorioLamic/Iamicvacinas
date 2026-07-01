@@ -1029,9 +1029,17 @@ function renderKanban() {
 
     board.innerHTML = columns.map(col => {
         const PAGE_SIZE = 10;
+        const sortDir = _kanbanColSort[col.key] || null;
         const allCards = allFiltered
             .filter(a => a.status === col.key)
-            .sort((a, b) => _kanbanApptDateTime(a) - _kanbanApptDateTime(b));
+            .sort((a, b) => {
+                if (sortDir) {
+                    const valA = parseFloat(String(a.valorAplicado || 0).replace(',', '.')) || 0;
+                    const valB = parseFloat(String(b.valorAplicado || 0).replace(',', '.')) || 0;
+                    return sortDir === 'asc' ? valA - valB : valB - valA;
+                }
+                return _kanbanApptDateTime(a) - _kanbanApptDateTime(b);
+            });
         const totalPages = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE));
         if (_kanbanPage[col.key] === undefined) _kanbanPage[col.key] = 0;
         if (_kanbanPage[col.key] >= totalPages) _kanbanPage[col.key] = totalPages - 1;
@@ -1106,13 +1114,16 @@ function renderKanban() {
             <p class="text-[11px] font-black uppercase tracking-wider" style="color:${col.text};">Sem registros</p>
         </div>`;
 
-        const sortIconClass = 'fa-sort-amount-down-alt';
         const colKeyEsc = col.key.replace(/'/g, "\\'");
         const colBodyBg  = _dark ? '#0f172a' : 'rgba(255,255,255,0.70)';
         const pagBg      = _dark ? '#1e293b' : '#f8fafc';
         const pagBorder  = _dark ? '#334155' : '#e2e8f0';
         const pagTxtClr  = _dark ? '#94a3b8' : '#64748b';
         const colBorder  = _dark ? '#334155' : 'rgba(203,213,225,0.60)';
+
+        const sortIconClass = sortDir === 'asc' ? 'fa-sort-amount-up-alt' : sortDir === 'desc' ? 'fa-sort-amount-down-alt' : 'fa-sort';
+        const sortTitle = sortDir === 'asc' ? 'Ordenado: menor ticket primeiro (clique para inverter)' : sortDir === 'desc' ? 'Ordenado: maior ticket primeiro (clique para resetar)' : 'Ordenar por ticket (menor→maior)';
+        const sortBtnStyle = sortDir ? 'background:rgba(255,255,255,0.35);border:1px solid rgba(255,255,255,0.5);' : 'background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);';
 
         const paginationHtml = totalPages > 1 ? `
             <div class="flex items-center justify-between px-3 py-1.5 shrink-0" style="background:${pagBg};border-bottom:1px solid ${pagBorder}">
@@ -1133,7 +1144,7 @@ function renderKanban() {
             ondrop="kanbanDrop(event,'${colKeyEsc}')"
             data-col="${col.key}">
             <!-- Column Header -->
-            <div class="px-4 py-3 flex items-center justify-between shrink-0 cursor-pointer select-none" style="background:linear-gradient(135deg,${col.gradFrom},${col.gradTo});" onclick="kanbanToggleSort()">
+            <div class="px-4 py-3 flex items-center justify-between shrink-0 select-none" style="background:linear-gradient(135deg,${col.gradFrom},${col.gradTo});">
                 <div class="flex items-center gap-2">
                     <div class="h-7 w-7 bg-white/20 rounded-lg flex items-center justify-center border border-white/30">
                         <i class="fas ${col.icon} text-white text-xs"></i>
@@ -1142,7 +1153,11 @@ function renderKanban() {
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="h-6 min-w-6 px-1.5 bg-white/25 text-white font-black text-xs rounded-full flex items-center justify-center border border-white/30">${allCards.length}</span>
-                    <i class="fas ${sortIconClass} text-white/70 text-xs"></i>
+                    <button onclick="kanbanColSortToggle('${colKeyEsc}')" title="${sortTitle}"
+                        class="h-6 w-6 rounded-md flex items-center justify-center transition text-white hover:scale-110 active:scale-95"
+                        style="${sortBtnStyle}">
+                        <i class="fas ${sortIconClass} text-[10px]"></i>
+                    </button>
                 </div>
             </div>
             <!-- Pagination bar -->
@@ -1157,6 +1172,36 @@ function renderKanban() {
 
 function kanbanToggleSort() {
     renderKanban();
+}
+
+function kanbanColSortToggle(colKey) {
+    const cur = _kanbanColSort[colKey] || null;
+    _kanbanColSort[colKey] = cur === null ? 'asc' : cur === 'asc' ? 'desc' : null;
+    _kanbanPage[colKey] = 0;
+    renderKanban();
+}
+
+function kanbanColGroupSortToggle(colKey) {
+    const cur = _kanbanColGroupSort[colKey] || 'asc';
+    _kanbanColGroupSort[colKey] = cur === 'asc' ? 'desc' : 'asc';
+    _kanbanPage[colKey] = 0;
+    renderKanban();
+}
+
+function kanbanColToggleAllVaccines(colKey) {
+    const col = document.querySelector(`.kanban-col[data-col="${colKey}"]`);
+    if (!col) return;
+    const bodies = [...col.querySelectorAll('.kanban-group-card .p-2.flex.flex-col')];
+    const anyVisible = bodies.some(b => b.style.display !== 'none');
+    bodies.forEach(body => {
+        const hidden = !anyVisible;
+        body.style.display = hidden ? '' : 'none';
+        const btn = body.closest('.kanban-group-card').querySelector('button[onclick*="kanbanGroupToggleVaccines"] i');
+        if (btn) {
+            btn.classList.toggle('fa-chevron-up', hidden);
+            btn.classList.toggle('fa-chevron-down', !hidden);
+        }
+    });
 }
 
 function kanbanPageGo(colKey, newPage) {
@@ -1351,16 +1396,24 @@ function renderKanbanGrouped() {
             byPat[a.patientId].push(a);
         });
         const groups = Object.entries(byPat);
+        const _gSortDir = _kanbanColGroupSort[col.key] || 'asc';
         groups.sort(([, appsA], [, appsB]) => {
-            const firstA = appsA.reduce((minApp, app) => _kanbanApptDateTime(app) < _kanbanApptDateTime(minApp) ? app : minApp, appsA[0]);
-            const firstB = appsB.reduce((minApp, app) => _kanbanApptDateTime(app) < _kanbanApptDateTime(minApp) ? app : minApp, appsB[0]);
-            const diff = _kanbanApptDateTime(firstA) - _kanbanApptDateTime(firstB);
-            if (diff !== 0) return diff;
-            const patA = patients.find(p => p.id == appsA[0].patientId);
-            const patB = patients.find(p => p.id == appsB[0].patientId);
-            const nameA = patA ? String(patA.nome || '') : '';
-            const nameB = patB ? String(patB.nome || '') : '';
-            return nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
+            let dtA, dtB;
+            if (_gSortDir === 'desc') {
+                dtA = appsA.reduce((max, app) => Math.max(max, _kanbanApptDateTime(app)), -Infinity);
+                dtB = appsB.reduce((max, app) => Math.max(max, _kanbanApptDateTime(app)), -Infinity);
+                return dtB - dtA;
+            } else {
+                const firstA = appsA.reduce((minApp, app) => _kanbanApptDateTime(app) < _kanbanApptDateTime(minApp) ? app : minApp, appsA[0]);
+                const firstB = appsB.reduce((minApp, app) => _kanbanApptDateTime(app) < _kanbanApptDateTime(minApp) ? app : minApp, appsB[0]);
+                const diff = _kanbanApptDateTime(firstA) - _kanbanApptDateTime(firstB);
+                if (diff !== 0) return diff;
+                const patA = patients.find(p => p.id == appsA[0].patientId);
+                const patB = patients.find(p => p.id == appsB[0].patientId);
+                const nameA = patA ? String(patA.nome || '') : '';
+                const nameB = patB ? String(patB.nome || '') : '';
+                return nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
+            }
         });
         const totalApps = colApps.length;
         const totalGroups = groups.length;
@@ -1460,14 +1513,17 @@ function renderKanbanGrouped() {
             <p class="text-[11px] font-black uppercase tracking-wider" style="color:${col.text};">Sem registros</p>
         </div>`;
 
-        const sortIconClass = 'fa-sort-amount-down-alt';
+        const collapseBtnStyle = 'background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);';
+        const gSortIcon = _gSortDir === 'desc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up-alt';
+        const gSortTitle = _gSortDir === 'desc' ? 'Maior→menor (última vacina) — clique para inverter' : 'Menor→maior (1ª vacina) — clique para inverter';
+        const gSortBtnStyle = _gSortDir === 'desc' ? 'background:rgba(255,255,255,0.35);border:1px solid rgba(255,255,255,0.5);' : collapseBtnStyle;
         const gColBodyBg  = _dark ? '#0f172a' : 'rgba(255,255,255,0.70)';
         const gPagBg      = _dark ? '#1e293b' : '#f8fafc';
         const gPagBorder  = _dark ? '#334155' : '#e2e8f0';
         const gPagTxt     = _dark ? '#94a3b8' : '#64748b';
         const gColBorder  = _dark ? '#334155' : 'rgba(203,213,225,0.60)';
 
-        const paginationHtml = totalPages > 1 ? `
+        const paginationHtml = (totalPages > 1) ? `
             <div class="flex items-center justify-between px-3 py-1.5 shrink-0" style="background:${gPagBg};border-bottom:1px solid ${gPagBorder}">
                 <button onclick="kanbanPageGo('${colKeyEsc}',${page - 1})" ${page === 0 ? 'disabled' : ''}
                     class="h-6 w-6 rounded-md flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition text-xs" style="color:${gPagTxt}">
@@ -1485,7 +1541,7 @@ function renderKanbanGrouped() {
             ondragleave="kanbanDragLeave(event)"
             ondrop="kanbanDrop(event,'${colKeyEsc}')"
             data-col="${col.key}">
-            <div class="px-4 py-3 flex items-center justify-between shrink-0 cursor-pointer select-none" style="background:linear-gradient(135deg,${col.gradFrom},${col.gradTo});" onclick="kanbanToggleSort()">
+            <div class="px-4 py-3 flex items-center justify-between shrink-0 select-none" style="background:linear-gradient(135deg,${col.gradFrom},${col.gradTo});">
                 <div class="flex items-center gap-2">
                     <div class="h-7 w-7 bg-white/20 rounded-lg flex items-center justify-center border border-white/30">
                         <i class="fas ${col.icon} text-white text-xs"></i>
@@ -1494,7 +1550,16 @@ function renderKanbanGrouped() {
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="h-6 min-w-6 px-1.5 bg-white/25 text-white font-black text-xs rounded-full flex items-center justify-center border border-white/30">${totalGroups}</span>
-                    <i class="fas ${sortIconClass} text-white/70 text-xs"></i>
+                    <button onclick="kanbanColToggleAllVaccines('${colKeyEsc}')" title="Mostrar/ocultar vacinas de todos os grupos"
+                        class="h-6 w-6 rounded-md flex items-center justify-center transition text-white hover:scale-110 active:scale-95"
+                        style="${collapseBtnStyle}">
+                        <i class="fas fa-list text-[10px]"></i>
+                    </button>
+                    <button onclick="kanbanColGroupSortToggle('${colKeyEsc}')" title="${gSortTitle}"
+                        class="h-6 w-6 rounded-md flex items-center justify-center transition text-white hover:scale-110 active:scale-95"
+                        style="${gSortBtnStyle}">
+                        <i class="fas ${gSortIcon} text-[10px]"></i>
+                    </button>
                 </div>
             </div>
             ${paginationHtml}
