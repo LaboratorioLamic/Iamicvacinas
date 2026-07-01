@@ -67,7 +67,7 @@ function filterUserDropdown(inputId, ddId, flag) {
     if (!input || !dd) return;
     const val = normalizeStr(input.value);
     // Mostra usuários com a flag (vendedor/aplicador), incluindo admins com a flag
-    const matches = appUsers.filter(u => u[flag] && (!val || normalizeStr(u.nome).includes(val))).slice(0, 10);
+    const matches = appUsers.filter(u => u[flag] && u.ativo !== false && (!val || normalizeStr(u.nome).includes(val))).slice(0, 10);
     if (!matches.length) { dd.classList.add('hidden'); return; }
     dd.innerHTML = matches.map(u =>
         `<div class="px-3 py-2 hover:bg-clinic-50 hover:text-clinic-700 cursor-pointer text-sm font-bold text-navy-900 border-b border-slate-100 last:border-0 transition"
@@ -1485,7 +1485,7 @@ function saveRecord(e) {
     const vendedorVal = document.getElementById('reg-vendedor').value.trim().toUpperCase();
     const aplicadorVal = document.getElementById('reg-aplicador').value.trim().toUpperCase();
 
-    const vendedores = appUsers.filter(u => u.isVendedor);
+    const vendedores = appUsers.filter(u => u.isVendedor && u.ativo !== false);
     const vendedorValido = vendedores.some(u => u.nome.toUpperCase() === vendedorVal);
     if (!vendedorValido) {
         showNotification('Vendedor inválido. Selecione um nome da lista de usuários cadastrados como vendedor.', 'error');
@@ -1493,7 +1493,7 @@ function saveRecord(e) {
     }
 
     if (aplicadorVal) {
-        const aplicadores = appUsers.filter(u => u.isAplicador);
+        const aplicadores = appUsers.filter(u => u.isAplicador && u.ativo !== false);
         const aplicadorValido = aplicadores.some(u => u.nome.toUpperCase() === aplicadorVal);
         if (!aplicadorValido) {
             showNotification('Aplicador inválido. Selecione um nome da lista de usuários cadastrados como aplicador.', 'error');

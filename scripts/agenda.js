@@ -1445,6 +1445,8 @@ function renderKanbanGrouped() {
                             class="h-6 w-6 rounded-md flex items-center justify-center transition text-xs shrink-0" style="background:${_dl('#e0e7ff','#1e1b4b')};color:${_dl('#4f46e5','#818cf8')}"><i class="fas fa-clipboard-list"></i></button>
                         ${col.key === 'Agendado' ? permBtn('agendar', `<button onclick="event.stopPropagation();openAgendarGrupoModal(${patId},'Agendado',appointments.filter(a=>String(a.patientId)==='${patId}'&&a.status==='Agendado'))" title="Editar agendamentos do grupo"
                             class="h-6 w-6 rounded-md flex items-center justify-center transition text-xs shrink-0" style="background:${_dl('#dbeafe','#1e3a5f')};color:${_dl('#1e3a8a','#93c5fd')}"><i class="fas fa-pencil-alt"></i></button>`) : ''}
+                        ${col.key === 'Aplicado' ? permBtn('aplicar', `<button onclick="event.stopPropagation();openAplicarGrupoModal(${patId},'Aplicado',appointments.filter(a=>String(a.patientId)==='${patId}'&&a.status==='Aplicado'))" title="Editar aplicações do grupo"
+                            class="h-6 w-6 rounded-md flex items-center justify-center transition text-xs shrink-0" style="background:${_dl('#dcfce7','#052e16')};color:${_dl('#15803d','#4ade80')}"><i class="fas fa-pencil-alt"></i></button>`) : ''}
                     </div>
                 </div>
                 <div class="p-2 flex flex-col gap-1.5" style="background:${_dl('#fff','#1e293b')}">${minicardsHtml}</div>
@@ -1602,6 +1604,7 @@ function openAgendarGrupoModal(patId, fromStatus, groupApps) {
             vaccineId: a.vaccineId,
             dose: a.doseAtual,
             data: a.data,
+            hora: a.hora || '',
             valorAplicado: a.valorAplicado
         }))
     };
@@ -1692,6 +1695,8 @@ function _renderAgendarGrupoLines() {
                 </select>` : ''}
                 <input type="date" id="agendar-grupo-date-${app.id}" value="${app.data || ''}"
                     class="border border-slate-200 rounded-lg py-1.5 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0">
+                <input type="time" id="agendar-grupo-hora-${app.id}" value="${app.hora || ''}"
+                    class="border border-slate-200 rounded-lg py-1.5 px-2 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0 w-[90px]">
                 <button onclick="removeAgendarGrupoLine(${app.id})"
                     class="h-7 w-7 rounded-lg bg-red-50 hover:bg-red-500 text-red-400 hover:text-white flex items-center justify-center transition shrink-0" title="Remover desta lista">
                     <i class="fas fa-times text-[9px]"></i>
@@ -1765,6 +1770,9 @@ function confirmAgendarGrupo() {
         }
         dateMap[app.id] = data;
 
+        const horaInput = document.getElementById(`agendar-grupo-hora-${app.id}`);
+        if (horaInput && horaInput.value) dateMap[`hora_${app.id}`] = horaInput.value;
+
         const loteSel = document.getElementById(`agendar-grupo-lote-${app.id}`);
         const loteId = loteSel ? loteSel.value : '';
         if (loteId) {
@@ -1795,6 +1803,7 @@ function confirmAgendarGrupo() {
         if (idx > -1) {
             appointments[idx].status = 'Agendado';
             appointments[idx].data = dateMap[app.id];
+            appointments[idx].hora = dateMap[`hora_${app.id}`] || appointments[idx].hora || '';
             if (loteMap[app.id]) {
                 appointments[idx].loteId = loteMap[app.id];
                 const lote = vaccineLots.find(l => l.id == loteMap[app.id]);
@@ -1872,7 +1881,15 @@ function _renderAplicarGrupoLines() {
         const isRemoved = removedIds.has(app.id);
         const isConfirming = _aplicarGrupoRemovePending === app.id;
         const nomVac = vac ? vac.nome : '—';
-        const aplicadorVal = app.aplicador ? app.aplicador.replace(/"/g, '&quot;') : '';
+        const aplicadorVal = app.aplicador ? app.aplicador.toUpperCase() : '';
+        const aplicadoresValidos = (() => {
+            const lista = (appUsers || []).filter(u => u.isAplicador && u.ativo !== false)
+                .map(u => u.nome ? u.nome.toUpperCase() : '').filter(Boolean);
+            return [...new Set(lista)].sort();
+        })();
+        const aplicadorItemsHtml = aplicadoresValidos.map(n =>
+            `<div class="px-3 py-1.5 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer rounded aplicar-grupo-aplic-item" data-nome="${n.replace(/"/g,'&quot;')}" onmousedown="_selectAplicador(this)">${n}</div>`
+        ).join('') || '<div class="px-3 py-1.5 text-xs text-slate-400 italic">Nenhum aplicador habilitado</div>';
         const dateVal = app.data || new Date().toISOString().split('T')[0];
 
         if (isRemoved) {
@@ -1945,8 +1962,18 @@ function _renderAplicarGrupoLines() {
                     </div>
                     <div class="flex flex-col">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Aplicador</label>
-                        <input type="text" id="aplicar-grupo-aplicador-${app.id}" value="${aplicadorVal}"
-                            class="border border-slate-200 rounded-lg py-2 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50" placeholder="Nome do aplicador">
+                        <div class="relative aplicar-grupo-aplic-wrap">
+                            <input type="text" id="aplicar-grupo-aplicador-${app.id}" value="${aplicadorVal}" autocomplete="off"
+                                class="w-full border border-slate-200 rounded-lg py-2 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50"
+                                placeholder="Digite ou selecione..."
+                                oninput="_filterAplicadorDropdown(this)"
+                                onfocus="_openAplicadorDropdown(this)"
+                                onblur="_closeAplicadorDropdown(this)">
+                            <div id="aplicar-grupo-aplic-drop-${app.id}"
+                                class="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg hidden max-h-40 overflow-y-auto aplicar-grupo-aplic-drop py-1">
+                                ${aplicadorItemsHtml}
+                            </div>
+                        </div>
                     </div>
                 </div>
         </div>`;
@@ -1964,6 +1991,34 @@ function _renderAplicarGrupoLines() {
             ? 'flex-1 bg-green-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-green-700 cursor-pointer shadow-md'
             : 'flex-1 bg-green-200 text-emerald-400 font-black py-3 rounded-xl uppercase text-xs cursor-not-allowed';
     }
+}
+
+function _openAplicadorDropdown(input) {
+    const drop = input.parentElement.querySelector('.aplicar-grupo-aplic-drop');
+    if (drop) { drop.classList.remove('hidden'); _filterAplicadorDropdown(input); }
+}
+
+function _closeAplicadorDropdown(input) {
+    const drop = input.parentElement.querySelector('.aplicar-grupo-aplic-drop');
+    if (drop) setTimeout(() => drop.classList.add('hidden'), 150);
+}
+
+function _filterAplicadorDropdown(input) {
+    const drop = input.parentElement.querySelector('.aplicar-grupo-aplic-drop');
+    if (!drop) return;
+    drop.classList.remove('hidden');
+    const q = input.value.trim().toUpperCase();
+    drop.querySelectorAll('.aplicar-grupo-aplic-item').forEach(el => {
+        el.classList.toggle('hidden', q.length > 0 && !el.dataset.nome.includes(q));
+    });
+}
+
+function _selectAplicador(item) {
+    const drop = item.closest('.aplicar-grupo-aplic-drop');
+    const wrap = item.closest('.aplicar-grupo-aplic-wrap');
+    const input = wrap ? wrap.querySelector('input') : null;
+    if (input) { input.value = item.dataset.nome; input.classList.remove('border-red-400','ring-red-200'); }
+    if (drop) drop.classList.add('hidden');
 }
 
 function removeAplicarGrupoLine(appId) {
@@ -2029,7 +2084,14 @@ function confirmAplicarGrupo() {
         }
         if (!aplicador) {
             showNotification(`Informe o aplicador para "${nomVac}".`, 'error');
-            if (aplicadorInput) aplicadorInput.focus();
+            if (aplicadorInput) { aplicadorInput.focus(); aplicadorInput.classList.add('border-red-400','ring-2','ring-red-200'); }
+            return;
+        }
+        const aplicadoresPermitidos = (appUsers || []).filter(u => u.isAplicador && u.ativo !== false)
+            .map(u => u.nome ? u.nome.toUpperCase() : '').filter(Boolean);
+        if (!aplicadoresPermitidos.includes(aplicador.toUpperCase())) {
+            showNotification(`Aplicador inválido para "${nomVac}". Selecione um aplicador habilitado.`, 'error');
+            if (aplicadorInput) { aplicadorInput.focus(); aplicadorInput.classList.add('border-red-400','ring-2','ring-red-200'); }
             return;
         }
         if (typeof getLoteDisponivelParaAgendamento === 'function') {
