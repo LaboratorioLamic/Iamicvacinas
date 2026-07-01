@@ -662,20 +662,6 @@
                                 </div>
                             </div>
 
-                            <!-- Vendedor -->
-                            <div class="relative flex items-center">
-                                <button onclick="toggleTableFilter('wrap-vendedor-agenda', null, true)" title="Filtrar vendedor" id="btn-icon-vendedor-agenda"
-                                    class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 flex items-center justify-center transition shadow-sm">
-                                    <i class="fas fa-handshake text-sm"></i>
-                                </button>
-                                <div id="wrap-vendedor-agenda" class="overflow-hidden transition-all duration-300 ease-in-out" style="max-width:0;opacity:0;">
-                                    <select id="filter-vendedor-agenda" onchange="renderTable()"
-                                        class="ml-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
-                                        <option value="">Todos os Vendedores</option>
-                                    </select>
-                                </div>
-                            </div>
-
                             <!-- Aplicador -->
                             <div class="relative flex items-center">
                                 <button onclick="toggleTableFilter('wrap-aplicador-agenda', null, true)" title="Filtrar aplicador" id="btn-icon-aplicador-agenda"
@@ -687,6 +673,53 @@
                                         class="ml-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
                                         <option value="">Todos os Aplicadores</option>
                                     </select>
+                                </div>
+                            </div>
+
+                            <!-- Vendedor Popover -->
+                            <div class="relative" id="vendedor-popover-wrap">
+                                <input type="hidden" id="filter-vendedor-agenda" value="">
+                                <button type="button" id="btn-vendedor-popover" onclick="toggleVendedorPopover(event)"
+                                    class="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-semibold text-sm hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 transition shadow-sm">
+                                    <i class="fas fa-handshake text-clinic-500 text-xs"></i>
+                                    <span id="btn-vendedor-label">Vendedores</span>
+                                    <i class="fas fa-chevron-down text-xs text-slate-400" id="btn-vendedor-chevron"></i>
+                                </button>
+                                <!-- Popover -->
+                                <div id="vendedor-popover"
+                                    class="hidden fixed z-50 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+                                    <!-- Header -->
+                                    <div class="px-4 pt-4 pb-3 border-b border-slate-100">
+                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Filtrar por Vendedor</p>
+                                        <div class="relative">
+                                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+                                            <input type="text" id="vendedor-popover-search" placeholder="Buscar vendedor..."
+                                                oninput="filterVendedorPopoverList()"
+                                                class="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-400 bg-slate-50 transition">
+                                        </div>
+                                    </div>
+                                    <!-- Minhas vendas -->
+                                    <div class="px-3 pt-2 pb-1">
+                                        <button type="button" onclick="selectVendedorFilter('__mine__')"
+                                            id="btn-vendedor-mine"
+                                            class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition text-left">
+                                            <span class="flex items-center justify-center h-7 w-7 rounded-lg bg-indigo-100 text-indigo-500">
+                                                <i class="fas fa-user text-xs"></i>
+                                            </span>
+                                            Minhas Vendas
+                                        </button>
+                                    </div>
+                                    <!-- Lista -->
+                                    <div id="vendedor-popover-list" class="overflow-y-auto px-3 pb-2" style="max-height:200px;"></div>
+                                    <!-- Footer -->
+                                    <div class="px-3 pb-3 pt-1 border-t border-slate-100 mt-1">
+                                        <button type="button" onclick="selectVendedorFilter('')"
+                                            id="btn-vendedor-todos"
+                                            class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-bold text-clinic-600 bg-clinic-50 hover:bg-clinic-100 transition">
+                                            <i class="fas fa-users text-xs"></i>
+                                            Visualizar Todos
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 

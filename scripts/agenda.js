@@ -969,7 +969,10 @@ function _getKanbanFiltered() {
     const search = _searchOpen ? normalizeStr(document.getElementById('filter-search-agenda').value) : '';
     const dateFilter = document.getElementById('filter-date-agenda').value;
     const monthFilter = document.getElementById('filter-month-agenda').value;
-    const filterVendedor = document.getElementById('filter-vendedor-agenda').value;
+    const _rawVendAgenda = document.getElementById('filter-vendedor-agenda').value;
+    const filterVendedor = _rawVendAgenda === '__mine__'
+        ? (typeof currentUser !== 'undefined' && currentUser ? currentUser.nome : '')
+        : _rawVendAgenda;
     const filterAplicador = document.getElementById('filter-aplicador-agenda').value;
     const todayObj = new Date();
     const todayStr = todayObj.toISOString().split('T')[0];

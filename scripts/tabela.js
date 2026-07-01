@@ -56,17 +56,13 @@ function _populateTableColabDropdowns() {
         return matchDate;
     });
 
-    const vendedorSel = document.getElementById('filter-vendedor-agenda');
-    const curVend = vendedorSel.value;
-    vendedorSel.innerHTML = '<option value="">Todos os Vendedores</option>';
+    const curVend = document.getElementById('filter-vendedor-agenda').value;
     const vendedoresNoPeriodo = [...new Set(byDate.filter(a => a.vendedor).map(a => a.vendedor))].sort();
-    vendedoresNoPeriodo.forEach(nome => {
-        const opt = document.createElement('option');
-        opt.value = nome; opt.textContent = nome;
-        if (nome === curVend) opt.selected = true;
-        vendedorSel.appendChild(opt);
-    });
-    if (curVend && !vendedoresNoPeriodo.includes(curVend)) vendedorSel.value = '';
+    _renderVendedorPopoverList(vendedoresNoPeriodo);
+    if (curVend && curVend !== '__mine__' && !vendedoresNoPeriodo.includes(curVend)) {
+        document.getElementById('filter-vendedor-agenda').value = '';
+        _updateVendedorBtn('');
+    }
 
     const aplicadorSel = document.getElementById('filter-aplicador-agenda');
     const curApl = aplicadorSel.value;
@@ -90,7 +86,10 @@ function renderTable() {
     const status = document.getElementById('filter-status-agenda').value;
     const dateFilter = document.getElementById('filter-date-agenda').value;
     const monthFilter = document.getElementById('filter-month-agenda').value;
-    const filterVendedor = document.getElementById('filter-vendedor-agenda').value;
+    const _rawVend = document.getElementById('filter-vendedor-agenda').value;
+    const filterVendedor = _rawVend === '__mine__'
+        ? (typeof currentUser !== 'undefined' && currentUser ? currentUser.nome : '')
+        : _rawVend;
     const filterAplicador = document.getElementById('filter-aplicador-agenda').value;
 
     const todayObj = new Date();
@@ -223,6 +222,7 @@ function _closeAllFilterPops() {
     if (dc) dc.style.transform = '';
     if (sc) sc.style.transform = '';
     document.removeEventListener('click', _filterPopOutside);
+    _closeVendedorPopover();
 }
 
 function _filterPopOutside(e) {
@@ -502,4 +502,120 @@ function selectStatusFilter(val) {
     _syncStatusFilterUI();
     _closeAllFilterPops();
     renderTable();
+}
+
+// ── Vendedor Popover ──
+let _vendedorPopoverNames = [];
+
+function _renderVendedorPopoverList(names) {
+    _vendedorPopoverNames = names || [];
+    _applyVendedorPopoverSearch();
+}
+
+function _applyVendedorPopoverSearch() {
+    const searchInput = document.getElementById('vendedor-popover-search');
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const list = document.getElementById('vendedor-popover-list');
+    if (!list) return;
+    const curVend = document.getElementById('filter-vendedor-agenda').value;
+    const filtered = _vendedorPopoverNames.filter(n => !query || n.toLowerCase().includes(query));
+    if (!filtered.length) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">Nenhum vendedor encontrado</p>';
+        return;
+    }
+    list.innerHTML = filtered.map(nome => {
+        const active = curVend === nome;
+        const initials = nome.trim().split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+        return `<button type="button" onclick="selectVendedorFilter('${nome.replace(/'/g, "\\'")}')"
+            class="vendedor-pop-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition text-left ${active ? 'bg-clinic-50 text-clinic-700 font-semibold' : ''}">
+            <span class="h-7 w-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white" style="background: linear-gradient(135deg,#6366f1,#8b5cf6);">${initials}</span>
+            <span class="flex-1 truncate">${nome}</span>
+            ${active ? '<i class="fas fa-check text-clinic-500 text-xs shrink-0"></i>' : ''}
+        </button>`;
+    }).join('');
+}
+
+function filterVendedorPopoverList() {
+    _applyVendedorPopoverSearch();
+}
+
+function _updateVendedorBtn(val) {
+    const btn = document.getElementById('btn-vendedor-popover');
+    const lbl = document.getElementById('btn-vendedor-label');
+    const mineBtn = document.getElementById('btn-vendedor-mine');
+    const todosBtn = document.getElementById('btn-vendedor-todos');
+    if (!lbl) return;
+    const isActive = val !== '';
+    if (val === '__mine__') {
+        lbl.textContent = 'Minhas Vendas';
+    } else if (val) {
+        const short = val.split(' ')[0];
+        lbl.textContent = short.length > 12 ? short.slice(0, 12) + '…' : short;
+    } else {
+        lbl.textContent = 'Vendedores';
+    }
+    if (btn) {
+        btn.classList.toggle('border-clinic-300', isActive);
+        btn.classList.toggle('bg-clinic-50', isActive);
+        btn.classList.toggle('text-clinic-600', isActive);
+    }
+    if (mineBtn) {
+        mineBtn.classList.toggle('bg-indigo-50', val === '__mine__');
+    }
+    if (todosBtn) {
+        todosBtn.classList.toggle('bg-clinic-100', val === '');
+        todosBtn.classList.toggle('bg-clinic-50', val !== '');
+    }
+}
+
+function selectVendedorFilter(val) {
+    document.getElementById('filter-vendedor-agenda').value = val;
+    _updateVendedorBtn(val);
+    _applyVendedorPopoverSearch();
+    _closeVendedorPopover();
+    renderTable();
+}
+
+function _closeVendedorPopover() {
+    const pop = document.getElementById('vendedor-popover');
+    const chev = document.getElementById('btn-vendedor-chevron');
+    if (pop) pop.classList.add('hidden');
+    if (chev) chev.style.transform = '';
+    document.removeEventListener('click', _vendedorPopOutside);
+}
+
+function _vendedorPopOutside(e) {
+    if (e.target.closest('#vendedor-popover') || e.target.closest('#btn-vendedor-popover')) return;
+    _closeVendedorPopover();
+}
+
+function toggleVendedorPopover(e) {
+    if (e) e.stopPropagation();
+    const pop = document.getElementById('vendedor-popover');
+    const chev = document.getElementById('btn-vendedor-chevron');
+    const btn = document.getElementById('btn-vendedor-popover');
+    if (!pop) return;
+    const isHidden = pop.classList.contains('hidden');
+    _closeAllFilterPops();
+    _closeVendedorPopover();
+    if (isHidden) {
+        _applyVendedorPopoverSearch();
+        const searchInput = document.getElementById('vendedor-popover-search');
+        if (searchInput) searchInput.value = '';
+        _applyVendedorPopoverSearch();
+        pop.classList.remove('hidden');
+        // Anchor to the aplicador button if present, otherwise to the vendor button
+        const aplBtn = document.getElementById('btn-icon-aplicador-agenda');
+        const anchor = aplBtn || btn;
+        const r = anchor.getBoundingClientRect();
+        pop.style.top = (r.bottom + 8) + 'px';
+        const popW = pop.offsetWidth || 288;
+        // Align left edge of popover with left edge of anchor
+        let left = r.left;
+        if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+        if (left < 8) left = 8;
+        pop.style.left = left + 'px';
+        if (chev) chev.style.transform = 'rotate(180deg)';
+        setTimeout(() => document.addEventListener('click', _vendedorPopOutside), 10);
+    }
 }
