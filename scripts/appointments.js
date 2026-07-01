@@ -1198,6 +1198,15 @@ function saveRecord(e) {
     const vId = document.getElementById('reg-vacina').value;
     const doseAtualStr = document.getElementById('reg-dose').value;
 
+    if (!vId || !vaccines.find(x => String(x.id) === String(vId))) {
+        showNotification('Selecione uma vacina válida.', 'error');
+        return;
+    }
+    if (!doseAtualStr) {
+        showNotification('Selecione a dose da vacina.', 'error');
+        return;
+    }
+
     // Bloqueio de duplicidade: mesma vacina + mesma dose já registrada (não cancelada) para o paciente
     // Dose Única com recorrência habilitada é permitida repetir
     {
