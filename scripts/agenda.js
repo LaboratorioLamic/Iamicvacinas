@@ -944,21 +944,18 @@ function switchTableView(view) {
     const vPlan = document.getElementById('view-planilhas');
     const vKan  = document.getElementById('view-kanban');
     const statusSel = document.getElementById('status-filter-wrap');
-    const groupWrap = document.getElementById('btn-kanban-group-wrap');
     if (typeof _closeAllFilterPops === 'function') _closeAllFilterPops();
 
     if (view === 'kanban') {
         if (vPlan) vPlan.classList.add('hidden');
         if (vKan)  { vKan.style.display = 'flex'; vKan.style.flexDirection = 'column'; }
         if (statusSel) statusSel.style.display = 'none';
-        if (groupWrap) groupWrap.style.display = '';
         _kanbanPage = {};
         renderKanban();
     } else {
         if (vPlan) vPlan.classList.remove('hidden');
         if (vKan)  vKan.style.display = 'none';
         if (statusSel) statusSel.style.display = '';
-        if (groupWrap) groupWrap.style.display = 'none';
         renderTable();
     }
 }
@@ -1003,182 +1000,7 @@ function _kanbanApptDateTime(app) {
 }
 
 function renderKanban() {
-    if (_kanbanGrouped) { renderKanbanGrouped(); return; }
-    const board = document.getElementById('kanban-board');
-    if (!board) return;
-    _populateTableColabDropdowns();
-    const todayStr = new Date().toISOString().split('T')[0];
-    const allFiltered = _getKanbanFiltered();
-    const _dark = document.body.classList.contains('dark-mode');
-
-    // Cores adaptadas ao dark mode
-    const _dl = (light, dark) => _dark ? dark : light;
-
-    const columns = [
-        { key: 'Nova oportunidade', label: 'Nova Oportunidade', icon: 'fa-star',
-          color: '#64748b', light: _dl('#f8fafc','#1e293b'), border: _dl('#cbd5e1','#334155'), text: _dl('#475569','#94a3b8'), gradFrom: '#475569', gradTo: '#334155' },
-        { key: 'Em negociação', label: 'Em Negociação', icon: 'fa-comments',
-          color: '#0891b2', light: _dl('#ecfeff','#0c2535'), border: _dl('#a5f3fc','#164e63'), text: _dl('#0e7490','#67e8f9'), gradFrom: '#0891b2', gradTo: '#0e7490' },
-        { key: 'Agendado', label: 'Agendado', icon: 'fa-calendar-check',
-          color: '#2563eb', light: _dl('#eff6ff','#0f1f3d'), border: _dl('#bfdbfe','#1e3a8a'), text: _dl('#1d4ed8','#93c5fd'), gradFrom: '#2563eb', gradTo: '#1d4ed8' },
-        { key: 'Aplicado', label: 'Aplicado', icon: 'fa-syringe',
-          color: '#16a34a', light: _dl('#f0fdf4','#052e16'), border: _dl('#bbf7d0','#166534'), text: _dl('#15803d','#4ade80'), gradFrom: '#16a34a', gradTo: '#15803d' },
-        { key: 'Perdido', label: 'Perdido', icon: 'fa-ban',
-          color: '#dc2626', light: _dl('#fff1f2','#2d0a0a'), border: _dl('#fecdd3','#7f1d1d'), text: _dl('#b91c1c','#fca5a5'), gradFrom: '#dc2626', gradTo: '#b91c1c' },
-    ];
-
-    board.innerHTML = columns.map(col => {
-        const PAGE_SIZE = 10;
-        const sortDir = _kanbanColSort[col.key] || null;
-        const allCards = allFiltered
-            .filter(a => a.status === col.key)
-            .sort((a, b) => {
-                if (sortDir) {
-                    const valA = parseFloat(String(a.valorAplicado || 0).replace(',', '.')) || 0;
-                    const valB = parseFloat(String(b.valorAplicado || 0).replace(',', '.')) || 0;
-                    return sortDir === 'asc' ? valA - valB : valB - valA;
-                }
-                return _kanbanApptDateTime(a) - _kanbanApptDateTime(b);
-            });
-        const totalPages = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE));
-        if (_kanbanPage[col.key] === undefined) _kanbanPage[col.key] = 0;
-        if (_kanbanPage[col.key] >= totalPages) _kanbanPage[col.key] = totalPages - 1;
-        const page = _kanbanPage[col.key];
-        const cards = allCards.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-
-        const cardsHtml = cards.map(a => {
-            const pat = patients.find(p=>p.id==a.patientId);
-            const vac = vaccines.find(v=>v.id==a.vaccineId);
-            if (!pat || !vac) return '';
-            const isDelayed    = a.data < todayStr && a.status === 'Agendado';
-            const isOutroLocal = a.status === 'Perdido' && a.aplicadaOutroLocal;
-            const dateLabel    = a.data ? a.data.split('-').reverse().join('/') : '—';
-            const waLink       = `https://wa.me/55${formatWa(pat.contato)}`;
-
-            // Cores de acento: outro local → roxo, atrasado → âmbar, padrão → cor da coluna
-            const accentColor  = isOutroLocal ? '#7c3aed' : isDelayed ? '#f59e0b' : col.color;
-            const accentLight  = isOutroLocal ? _dl('#f5f3ff','#1e1535') : isDelayed ? _dl('#fffbeb','#1c1500') : col.light;
-            const accentBorder = isOutroLocal ? _dl('#ddd6fe','#4c1d95') : isDelayed ? _dl('#fde68a','#78350f') : col.border;
-            const accentText   = isOutroLocal ? _dl('#6d28d9','#c4b5fd') : isDelayed ? _dl('#92400e','#fbbf24') : col.text;
-            const cardBg       = _dark ? '#1e293b' : (isDelayed ? '#fffbeb' : '#fff');
-            const divLine      = _dl('border-slate-50','border-slate-700');
-            const patNameColor = _dl('#172554','#f1f5f9');
-            const vacNameColor = _dl('#334155','#cbd5e1');
-            const dateColor    = _dl('#475569','#94a3b8');
-
-            const waBtnBg  = _dl('bg-green-50','bg-green-900/40');
-            const eyeBtnBg = _dl('bg-blue-50','bg-blue-900/40');
-            const valBg    = _dl('bg-emerald-50 border-emerald-200 text-emerald-700','bg-emerald-900/40 border-emerald-700 text-emerald-400');
-            return `<div
-                draggable="true"
-                ondragstart="kanbanDragStart(event,${a.id})"
-                ondragend="kanbanDragEnd(event)"
-                class="kanban-card group rounded-xl shadow-sm overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-lg transition-all duration-200 select-none"
-                style="border:1px solid ${accentBorder};border-left:4px solid ${accentColor};background:${cardBg};">
-                <!-- Linha 1: paciente + grip -->
-                <div class="px-3 pt-2.5 pb-1 flex items-center justify-between gap-2">
-                    <div class="flex-1 min-w-0">
-                        <p class="font-black text-[12px] leading-tight truncate" style="color:${patNameColor}" title="${pat.nome}">${pat.nome}</p>
-                        <p class="text-[10px] font-bold truncate" style="color:${_dl('#94a3b8','#475569')}">CPF: ${pat.cpf} · ${getAgeDisplay(pat.dtNasc)}</p>
-                    </div>
-                    <i class="fas fa-grip-vertical transition text-xs shrink-0" style="color:${_dl('#e2e8f0','#334155')}"></i>
-                </div>
-                <!-- Linha 2: vacina + dose -->
-                <div class="px-3 py-1.5 flex items-center gap-2" style="border-top:1px solid ${_dl('#f8fafc','#334155')}">
-                    <div class="h-6 w-6 rounded-md flex items-center justify-center shrink-0" style="background:${accentLight};border:1px solid ${accentBorder};">
-                        <i class="fas ${isOutroLocal ? 'fa-map-marker-alt' : 'fa-syringe'} text-[9px]" style="color:${accentText};"></i>
-                    </div>
-                    <p class="font-black text-[11px] leading-tight flex-1 min-w-0 truncate" style="color:${vacNameColor}" title="${vac.nome}">${vac.nome}</p>
-                    <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md shrink-0" style="background:${accentLight};color:${accentText};border:1px solid ${accentBorder};">${a.doseAtual}</span>
-                </div>
-                <!-- Linha 3: data + valor + ações -->
-                <div class="px-3 pb-2.5 pt-1 flex items-center justify-between gap-2" style="border-top:1px solid ${_dl('#f8fafc','#334155')}">
-                    <div class="flex items-center gap-1 min-w-0">
-                        <i class="far fa-calendar text-[9px] shrink-0" style="color:${dateColor}"></i>
-                        <span class="text-[10px] font-bold whitespace-nowrap" style="color:${dateColor}">${dateLabel}${a.hora ? ' · '+a.hora : ''}</span>
-                        ${isDelayed ? `<span class="text-[9px] font-black px-1 py-0.5 rounded-full ml-1" style="color:${_dl('#92400e','#fbbf24')};background:${_dl('#fffbeb','#1c1500')};border:1px solid ${_dl('#fde68a','#78350f')}">!</span>` : ''}
-                    </div>
-                    <div class="flex items-center gap-1.5 shrink-0">
-                        ${a.valorAplicado ? `<span class="text-[10px] font-black px-1.5 py-0.5 rounded-md whitespace-nowrap ${valBg}">R$ ${a.valorAplicado}</span>` : ''}
-                        <a href="${waLink}" target="_blank" onclick="event.stopPropagation()" class="h-6 w-6 rounded-md ${waBtnBg} text-green-600 hover:bg-green-500 hover:text-white flex items-center justify-center transition text-xs" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
-                        ${permBtn('agendar', `<button onclick="viewRecord(${a.id})" class="h-6 w-6 rounded-md ${eyeBtnBg} text-blue-500 hover:bg-blue-500 hover:text-white flex items-center justify-center transition text-xs" title="Visualizar"><i class="fas fa-eye text-[10px]"></i></button>`)}
-                    </div>
-                </div>
-            </div>`;
-        }).join('');
-
-        const emptyHtml = `<div class="flex flex-col items-center justify-center py-10 text-center opacity-60">
-            <div class="h-12 w-12 rounded-full flex items-center justify-center mb-2" style="background:${col.light};">
-                <i class="fas ${col.icon} text-lg" style="color:${col.color};"></i>
-            </div>
-            <p class="text-[11px] font-black uppercase tracking-wider" style="color:${col.text};">Sem registros</p>
-        </div>`;
-
-        const colKeyEsc = col.key.replace(/'/g, "\\'");
-        const colBodyBg  = _dark ? '#0f172a' : 'rgba(255,255,255,0.70)';
-        const pagBg      = _dark ? '#1e293b' : '#f8fafc';
-        const pagBorder  = _dark ? '#334155' : '#e2e8f0';
-        const pagTxtClr  = _dark ? '#94a3b8' : '#64748b';
-        const colBorder  = _dark ? '#334155' : 'rgba(203,213,225,0.60)';
-
-        const sortIconClass = sortDir === 'asc' ? 'fa-sort-amount-up-alt' : sortDir === 'desc' ? 'fa-sort-amount-down-alt' : 'fa-sort';
-        const sortTitle = sortDir === 'asc' ? 'Ordenado: menor ticket primeiro (clique para inverter)' : sortDir === 'desc' ? 'Ordenado: maior ticket primeiro (clique para resetar)' : 'Ordenar por ticket (menor→maior)';
-        const sortBtnStyle = sortDir ? 'background:rgba(255,255,255,0.35);border:1px solid rgba(255,255,255,0.5);' : 'background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);';
-
-        const paginationHtml = totalPages > 1 ? `
-            <div class="flex items-center justify-between px-3 py-1.5 shrink-0" style="background:${pagBg};border-bottom:1px solid ${pagBorder}">
-                <button onclick="kanbanPageGo('${colKeyEsc}',${page - 1})" ${page === 0 ? 'disabled' : ''}
-                    class="h-6 w-6 rounded-md flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition text-xs" style="color:${pagTxtClr}">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-                <span class="text-[11px] font-bold" style="color:${pagTxtClr}">${page + 1} / ${totalPages} <span style="opacity:0.6">(${allCards.length} total)</span></span>
-                <button onclick="kanbanPageGo('${colKeyEsc}',${page + 1})" ${page >= totalPages - 1 ? 'disabled' : ''}
-                    class="h-6 w-6 rounded-md flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition text-xs" style="color:${pagTxtClr}">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-            </div>` : '';
-
-        return `<div class="kanban-col flex flex-col rounded-2xl overflow-hidden shadow-md transition-all duration-200" style="height:100%;flex:1 1 0;min-width:220px;border:1px solid ${colBorder};"
-            ondragover="kanbanDragOver(event)"
-            ondragleave="kanbanDragLeave(event)"
-            ondrop="kanbanDrop(event,'${colKeyEsc}')"
-            data-col="${col.key}">
-            <!-- Column Header -->
-            <div class="px-4 py-3 flex items-center justify-between shrink-0 select-none" style="background:linear-gradient(135deg,${col.gradFrom},${col.gradTo});">
-                <div class="flex items-center gap-2">
-                    <div class="h-7 w-7 bg-white/20 rounded-lg flex items-center justify-center border border-white/30">
-                        <i class="fas ${col.icon} text-white text-xs"></i>
-                    </div>
-                    <span class="font-black text-white text-xs uppercase tracking-wider">${col.label}</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="h-6 min-w-6 px-1.5 bg-white/25 text-white font-black text-xs rounded-full flex items-center justify-center border border-white/30">${allCards.length}</span>
-                    <button onclick="kanbanColSortToggle('${colKeyEsc}')" title="${sortTitle}"
-                        class="h-6 w-6 rounded-md flex items-center justify-center transition text-white hover:scale-110 active:scale-95"
-                        style="${sortBtnStyle}">
-                        <i class="fas ${sortIconClass} text-[10px]"></i>
-                    </button>
-                </div>
-            </div>
-            <!-- Pagination bar -->
-            ${paginationHtml}
-            <!-- Drop zone body -->
-            <div class="kanban-col-body flex-1 overflow-y-auto p-3 space-y-3" style="background:${colBodyBg}">
-                ${cards.length ? cardsHtml : emptyHtml}
-            </div>
-        </div>`;
-    }).join('');
-}
-
-function kanbanToggleSort() {
-    renderKanban();
-}
-
-function kanbanColSortToggle(colKey) {
-    const cur = _kanbanColSort[colKey] || null;
-    _kanbanColSort[colKey] = cur === null ? 'asc' : cur === 'asc' ? 'desc' : null;
-    _kanbanPage[colKey] = 0;
-    renderKanban();
+    renderKanbanGrouped();
 }
 
 function kanbanColGroupSortToggle(colKey) {
@@ -1322,45 +1144,6 @@ function confirmKanbanCancel() {
         if (typeof refreshOpenModals === 'function') refreshOpenModals();
         showNotification('Registro marcado como perdido.', 'info');
     }
-}
-
-// ─── KANBAN GRUPO ─────────────────────────────────────────────────────────────
-
-function _applyKanbanGroupedButtonState() {
-    const btn = document.getElementById('btn-kanban-group');
-    if (!btn) return;
-    btn.classList.toggle('bg-indigo-600', _kanbanGrouped);
-    btn.classList.toggle('text-white', _kanbanGrouped);
-    btn.classList.toggle('border-indigo-600', _kanbanGrouped);
-    btn.classList.toggle('bg-white', !_kanbanGrouped);
-    btn.classList.toggle('text-slate-600', !_kanbanGrouped);
-    btn.classList.toggle('border-slate-200', !_kanbanGrouped);
-    const lbl = btn.querySelector('.group-btn-lbl');
-    if (lbl) lbl.textContent = _kanbanGrouped ? 'Agrupado' : 'Agrupar';
-}
-
-function setKanbanGrouped(value) {
-    _kanbanGrouped = !!value;
-    try { localStorage.setItem('ig_kanban_grouped', _kanbanGrouped ? '1' : '0'); } catch (e) {}
-    _applyKanbanGroupedButtonState();
-}
-
-function initKanbanGroupedState() {
-    try {
-        const stored = localStorage.getItem('ig_kanban_grouped');
-        if (stored === '0') {
-            _kanbanGrouped = false;
-        } else {
-            _kanbanGrouped = true; // padrão: agrupado
-        }
-        _applyKanbanGroupedButtonState();
-    } catch (e) {}
-}
-
-function kanbanToggleGroup() {
-    setKanbanGrouped(!_kanbanGrouped);
-    _kanbanPage = {};
-    renderKanban();
 }
 
 function renderKanbanGrouped() {
