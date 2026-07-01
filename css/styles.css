@@ -43,9 +43,12 @@
 @keyframes fadeInScale { from { opacity: 0; transform: scale(.92) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .modal { display: none; }
 .modal.active { display: flex; animation: fadeIn 0.2s ease-in-out; }
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #f1f1f1; }
-::-webkit-scrollbar-thumb { background: #1e3a8a; border-radius: 10px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.dark ::-webkit-scrollbar-thumb { background: #334155; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
 .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
 .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.5rem; }
 .notification { pointer-events: auto; transition: all 0.3s; animation: slideIn 0.4s forwards, slideOut 0.3s 4.7s forwards; }
