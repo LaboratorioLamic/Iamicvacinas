@@ -185,12 +185,21 @@ function filterVacinaDropdown() {
     document.getElementById('reg-vacina').value = '';
     const ativos = vaccines.filter(v => v.ativo !== false);
     const matches = val
-        ? ativos.filter(v => normalizeStr(v.nome).includes(val))
+        ? ativos.filter(v => {
+            if (normalizeStr(v.nome).includes(val)) return true;
+            if (v.mnemonico && normalizeStr(v.mnemonico).includes(val)) return true;
+            return vaccineLots.some(l =>
+                l.vaccineId == v.id && l.fabricante && normalizeStr(l.fabricante).includes(val)
+            );
+        })
         : ativos;
     if (!matches.length) { dd.classList.add('hidden'); return; }
     dd.innerHTML = matches.map(v =>
         `<div class="px-3 py-2 hover:bg-clinic-50 hover:text-clinic-700 cursor-pointer text-sm font-bold text-navy-900 border-b border-slate-100 last:border-0 transition uppercase"
-              onmousedown="selectVacinaFromDropdown(${v.id},'${v.nome.replace(/'/g,"\\'")}')">${v.nome}</div>`
+              onmousedown="selectVacinaFromDropdown(${v.id},'${v.nome.replace(/'/g,"\\'")}')">
+            <span>${v.nome}</span>
+            ${v.mnemonico ? `<br><span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case mt-0.5">${v.mnemonico}</span>` : ''}
+        </div>`
     ).join('');
     dd.classList.remove('hidden');
 }
@@ -856,7 +865,7 @@ function viewRecord(id) {
     prontuarioBtn.onclick = (e) => { e.stopPropagation(); closeViewRecord(); if (typeof viewPatientHistory === 'function') viewPatientHistory(a.patientId); };
 
     // Vacina
-    document.getElementById('vr-vaccine-name').textContent = vac ? vac.nome : '—';
+    document.getElementById('vr-vaccine-name').innerHTML = vac ? `${vac.nome}${vac.mnemonico ? ` <span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case">${vac.mnemonico}</span>` : ''}` : '—';
     document.getElementById('vr-dose').textContent = a.doseAtual || '—';
 
     // Infos

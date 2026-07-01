@@ -234,7 +234,9 @@ function renderEstoqueDashboard() {
     const grid = document.getElementById('estoque-body');
     if (!grid) return;
     const rows = ativos
-        .filter(v => !estoqueSearch || normalizeStr(v.nome).includes(estoqueSearch))
+        .filter(v => !estoqueSearch || normalizeStr(v.nome).includes(estoqueSearch) ||
+            (v.mnemonico && normalizeStr(v.mnemonico).includes(estoqueSearch)) ||
+            vaccineLots.some(l => l.vaccineId == v.id && l.fabricante && normalizeStr(l.fabricante).includes(estoqueSearch)))
         .map(v => ({ v, e: getVaccineEstoque(v.id) }))
         .filter(({ v, e }) => {
             if (estoqueFilter === 'sem')   return e.disponivel <= 0;
@@ -346,7 +348,7 @@ function renderEstoqueDashboard() {
                         </div>
                         <div class="min-w-0">
                             <h3 class="font-black ${tema.nameColor} text-xs leading-tight truncate" title="${v.nome}">${v.nome}</h3>
-                            <p class="${tema.label} text-[9px] font-bold">${v.numDoses || 1} dose${(v.numDoses || 1) > 1 ? 's' : ''}${v.reforco ? ' + reforço' : ''}${v.doseUnica ? ' · única' : ''}</p>
+                            <p class="${tema.label} text-[9px] font-bold">${v.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case mr-1">${v.mnemonico}</span>` : ''}${v.numDoses || 1} dose${(v.numDoses || 1) > 1 ? 's' : ''}${v.reforco ? ' + reforço' : ''}${v.doseUnica ? ' · única' : ''}</p>
                         </div>
                     </div>
                     <span class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 ${tema.statusBg} border rounded-lg text-[8px] font-black uppercase whitespace-nowrap">
@@ -419,7 +421,9 @@ function toggleLoteVaccineSearch(e) {
 function filterLoteVaccineDropdown(q) {
     const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
     const list = vaccines
-        .filter(v => v.ativo !== false && (!q || norm(v.nome).includes(norm(q))))
+        .filter(v => v.ativo !== false && (!q || norm(v.nome).includes(norm(q)) ||
+            (v.mnemonico && norm(v.mnemonico).includes(norm(q))) ||
+            vaccineLots.some(l => l.vaccineId == v.id && l.fabricante && norm(l.fabricante).includes(norm(q)))))
         .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     const el = document.getElementById('lote-vaccine-dropdown-list');
     if (!list.length) {
@@ -433,7 +437,8 @@ function filterLoteVaccineDropdown(q) {
             <span class="h-5 w-5 ${isActive ? 'bg-white/20' : 'bg-slate-100'} rounded-lg flex items-center justify-center shrink-0">
                 <i class="fas fa-syringe text-[9px] ${isActive ? 'text-white' : 'text-slate-400'}"></i>
             </span>
-            ${v.nome}
+            <span class="flex-1 min-w-0">${v.nome}</span>
+            ${v.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case shrink-0">${v.mnemonico}</span>` : ''}
         </button>`;
     }).join('');
 }
@@ -516,7 +521,7 @@ function renderAlmoxLotes() {
         const totalDisp = estoque.total - saidaTotal;
         return `<tr class="hover:bg-slate-50 transition cursor-pointer ${!ativo ? 'opacity-60' : ''}" onclick="editLote(${lote.id})">
             <td class="p-3">
-                <p class="font-bold text-slate-700">${vaccineName}</p>
+                <p class="font-bold text-slate-700">${vaccineName}${vaccine && vaccine.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case ml-1.5">${vaccine.mnemonico}</span>` : ''}</p>
                 ${(lote.fabricante || lote.fornecedor) ? `<p class="text-[10px] text-slate-400 font-bold mt-0.5">${[lote.fabricante, lote.fornecedor].filter(Boolean).join(' · ')}</p>` : ''}
             </td>
             <td class="p-3 text-xs font-mono font-bold">${lote.numero || '—'}</td>
@@ -697,7 +702,7 @@ function renderMovimentacao() {
                     </div>
                 </div>
                </td>`
-            : `<td class="p-3 font-bold text-slate-700 text-xs">${v ? v.nome : '—'}<span class="block text-[10px] text-slate-400 font-mono">Lote ${lote ? lote.numero : '—'}</span></td>`;
+            : `<td class="p-3 font-bold text-slate-700 text-xs">${v ? v.nome : '—'}${v && v.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case ml-1.5">${v.mnemonico}</span>` : ''}<span class="block text-[10px] text-slate-400 font-mono">Lote ${lote ? lote.numero : '—'}</span></td>`;
 
         const rowClass = isInvalid
             ? 'bg-red-50 border-l-4 border-red-500 hover:bg-red-100 transition'
@@ -779,7 +784,9 @@ function _renderMovVaccineDropdown(list) {
         dd.innerHTML = list.map(v => `
             <button type="button" onmousedown="selectMovVaccine(${v.id},'${v.nome.replace(/'/g,"\\'")}')"
                 class="w-full text-left px-3 py-2 text-sm font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2">
-                <i class="fas fa-syringe text-[10px] text-slate-300"></i>${v.nome}
+                <i class="fas fa-syringe text-[10px] text-slate-300"></i>
+                <span class="flex-1 min-w-0">${v.nome}</span>
+                ${v.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case shrink-0">${v.mnemonico}</span>` : ''}
             </button>`).join('');
     }
     dd.classList.remove('hidden');
@@ -797,7 +804,9 @@ function hideMovVaccineDropdown() {
 function filterMovVaccineSearch(q) {
     const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
     _movVaccineList = vaccines.filter(v => v.ativo !== false).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
-    const filtered = q ? _movVaccineList.filter(v => norm(v.nome).includes(norm(q))) : _movVaccineList;
+    const filtered = q ? _movVaccineList.filter(v => norm(v.nome).includes(norm(q)) ||
+        (v.mnemonico && norm(v.mnemonico).includes(norm(q))) ||
+        vaccineLots.some(l => l.vaccineId == v.id && l.fabricante && norm(l.fabricante).includes(norm(q)))) : _movVaccineList;
     document.getElementById('mov-vacina').value = '';
     _renderMovVaccineDropdown(filtered);
 }
@@ -1106,7 +1115,7 @@ function openVaccineViewModal(vaccineId) {
     const e = getVaccineEstoque(vaccineId);
 
     // Header
-    document.getElementById('vv-nome').textContent = v.nome;
+    document.getElementById('vv-nome').innerHTML = v.nome + (v.mnemonico ? ` <span class="inline-flex items-center bg-white/15 text-white/80 border border-white/20 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case">${v.mnemonico}</span>` : '');
     const statusTxt = v.ativo !== false ? '● Ativa' : '● Inativa';
     const statusEl = document.getElementById('vv-status-badge');
     statusEl.textContent = statusTxt;
@@ -1369,7 +1378,9 @@ function toggleMovVaccineSearch(e) {
 function filterMovVaccineDropdown(q) {
     const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
     const list = vaccines
-        .filter(v => v.ativo !== false && (!q || norm(v.nome).includes(norm(q))))
+        .filter(v => v.ativo !== false && (!q || norm(v.nome).includes(norm(q)) ||
+            (v.mnemonico && norm(v.mnemonico).includes(norm(q))) ||
+            vaccineLots.some(l => l.vaccineId == v.id && l.fabricante && norm(l.fabricante).includes(norm(q)))))
         .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     const el = document.getElementById('mov-vaccine-dropdown-list');
     if (!list.length) {
@@ -1383,7 +1394,8 @@ function filterMovVaccineDropdown(q) {
             <span class="h-5 w-5 ${isActive ? 'bg-white/20' : 'bg-slate-100'} rounded-lg flex items-center justify-center shrink-0">
                 <i class="fas fa-syringe text-[9px] ${isActive ? 'text-white' : 'text-slate-400'}"></i>
             </span>
-            ${v.nome}
+            <span class="flex-1 min-w-0">${v.nome}</span>
+            ${v.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case shrink-0">${v.mnemonico}</span>` : ''}
         </button>`;
     }).join('');
 }

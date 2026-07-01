@@ -21,7 +21,10 @@ function renderVaccines() {
     const tbody = document.getElementById('vaccines-body'); tbody.innerHTML = '';
     const sorted = [...vaccines]
         .filter(v => {
-            if (!search || normalizeStr(v.nome).includes(search)) {
+            const matchNome = !search || normalizeStr(v.nome).includes(search) ||
+                (v.mnemonico && normalizeStr(v.mnemonico).includes(search)) ||
+                vaccineLots.some(l => l.vaccineId == v.id && l.fabricante && normalizeStr(l.fabricante).includes(search));
+            if (matchNome) {
                 const ativo = v.ativo !== false;
                 if (vaccineFilter === 'ativos') return ativo;
                 if (vaccineFilter === 'inativos') return !ativo;
@@ -73,7 +76,7 @@ const est = (typeof getVaccineEstoque === 'function') ? getVaccineEstoque(v.id) 
         const avencerCls = lotesVencidos > 0 ? 'bg-red-100 text-red-700' : lotesVencendo > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500';
         const avencerVal = lotesVencidos > 0 ? `${lotesVencidos} vencido${lotesVencidos > 1 ? 's' : ''}` : lotesVencendo > 0 ? `${lotesVencendo} lote${lotesVencendo > 1 ? 's' : ''}` : '—';
         tbody.innerHTML += `<tr class="hover:bg-slate-50 transition ${!ativo ? 'opacity-50' : ''}">
-            <td class="p-3 font-bold text-slate-700">${v.nome}</td>
+            <td class="p-3 font-bold text-slate-700">${v.nome}${v.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case ml-1.5">${v.mnemonico}</span>` : ''}</td>
             <td class="p-3 text-xs">${idadeMinStr}</td>
             <td class="p-3 text-xs font-bold text-green-600">${formatCurrency(v.valor)}</td>
             <td class="p-3 text-center">
@@ -275,6 +278,7 @@ function editVaccine(id) {
     const v = vaccines.find(x=>x.id==id); if(!v) return;
     document.getElementById('vac-id').value = v.id;
     document.getElementById('vac-nome').value = v.nome;
+    document.getElementById('vac-mnemonico').value = v.mnemonico || '';
     _setReforco(v.reforco);
     document.getElementById('vac-reforco-meses').value = v.reforcoMeses != null ? v.reforcoMeses : '';
     document.getElementById('vac-valor').value = String(v.valor || '').replace('R$', '').trim();
@@ -330,6 +334,7 @@ function saveVaccine(e) {
     const idadeMinimaMeses = primeiroEsquema ? (primeiroEsquema.minMeses || 0) : 0;
     const v = {
         id: id ? Number(id) : Date.now(), nome: document.getElementById('vac-nome').value.toUpperCase(),
+        mnemonico: document.getElementById('vac-mnemonico').value.toUpperCase().trim() || null,
         numDoses: n, intervalos: intervalosBase, intervaloDias: intervalosBase[0] || 0,
         reforco: document.getElementById('vac-reforco').value === '1',
         reforcoMeses: document.getElementById('vac-reforco').value === '1'
@@ -565,7 +570,7 @@ function editLote(loteId) {
             : validadeStr;
 
     document.getElementById('view-lote-numero').textContent = l.numero || '—';
-    document.getElementById('view-lote-vacina').textContent = v ? v.nome : '—';
+    document.getElementById('view-lote-vacina').innerHTML = v ? `${v.nome}${v.mnemonico ? ` <span class="inline-flex items-center bg-white/15 text-white/80 border border-white/20 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case">${v.mnemonico}</span>` : ''}` : '—';
 
     const fabRow  = document.getElementById('view-lote-fabricante-row');
     const fornRow = document.getElementById('view-lote-fornecedor-row');

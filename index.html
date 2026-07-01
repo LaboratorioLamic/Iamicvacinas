@@ -2419,9 +2419,15 @@
             </div>
             <form id="vacina-form" onsubmit="saveVaccine(event)" class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input type="hidden" id="vac-id">
-                <div class="col-span-1 md:col-span-2">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Nome da Vacina *</label>
-                    <input type="text" id="vac-nome" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
+                <div class="col-span-1 md:col-span-2 flex gap-3">
+                    <div class="flex-1 min-w-0">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Nome da Vacina *</label>
+                        <input type="text" id="vac-nome" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
+                    </div>
+                    <div class="w-32 shrink-0">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Mnemônico</label>
+                        <input type="text" id="vac-mnemonico" maxlength="20" class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
+                    </div>
                 </div>
                 <!-- ESQUEMA VACINAL -->
                 <div class="col-span-1 md:col-span-2">
