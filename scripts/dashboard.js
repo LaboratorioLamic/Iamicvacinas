@@ -386,9 +386,11 @@ function renderDashAnalitico(apps) {
         }
     });
 
-    // ── Barras: Faixa Etária (pacientes únicos dos agendamentos filtrados) ──
+    // ── Barras: Faixa Etária empilhada por gênero ──
     const today = new Date();
-    const ageBuckets = {'0-1':0,'2-5':0,'6-9':0,'10-19':0,'20-29':0,'30-39':0,'40-49':0,'50-59':0,'60-69':0,'70-79':0,'80+':0};
+    const AGE_LABELS = ['0-1','2-5','6-9','10-19','20-29','30-39','40-49','50-59','60-69','70-79','80+'];
+    const ageMasc = Object.fromEntries(AGE_LABELS.map(k => [k, 0]));
+    const ageFem  = Object.fromEntries(AGE_LABELS.map(k => [k, 0]));
     const seenPacAge = new Set();
     apps.forEach(a => {
         if (seenPacAge.has(a.patientId)) return;
@@ -399,31 +401,64 @@ function renderDashAnalitico(apps) {
         let age = today.getFullYear() - birth.getFullYear();
         const m = today.getMonth() - birth.getMonth();
         if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-        if (age <= 1) ageBuckets['0-1']++;
-        else if (age <= 5) ageBuckets['2-5']++;
-        else if (age <= 9) ageBuckets['6-9']++;
-        else if (age < 20) ageBuckets['10-19']++;
-        else if (age < 30) ageBuckets['20-29']++;
-        else if (age < 40) ageBuckets['30-39']++;
-        else if (age < 50) ageBuckets['40-49']++;
-        else if (age < 60) ageBuckets['50-59']++;
-        else if (age < 70) ageBuckets['60-69']++;
-        else if (age < 80) ageBuckets['70-79']++;
-        else ageBuckets['80+']++;
+        let bucket;
+        if (age <= 1) bucket = '0-1';
+        else if (age <= 5) bucket = '2-5';
+        else if (age <= 9) bucket = '6-9';
+        else if (age < 20) bucket = '10-19';
+        else if (age < 30) bucket = '20-29';
+        else if (age < 40) bucket = '30-39';
+        else if (age < 50) bucket = '40-49';
+        else if (age < 60) bucket = '50-59';
+        else if (age < 70) bucket = '60-69';
+        else if (age < 80) bucket = '70-79';
+        else bucket = '80+';
+        const g = pac.genero || '';
+        if (g === 'Masculino') ageMasc[bucket]++;
+        else if (g === 'Feminino') ageFem[bucket]++;
+        else { ageMasc[bucket]++; } // sem gênero conta no masc para não sumir
     });
     const ctxAge = document.getElementById('ageChart').getContext('2d');
     if (chartAge) chartAge.destroy();
     chartAge = new Chart(ctxAge, {
         type: 'bar',
         data: {
-            labels: Object.keys(ageBuckets),
-            datasets: [{ label: 'Pacientes', data: Object.values(ageBuckets), backgroundColor: '#3b82f6', borderRadius: 6, borderSkipped: false }]
+            labels: AGE_LABELS,
+            datasets: [
+                { label: 'Masculino', data: AGE_LABELS.map(k => ageMasc[k]), backgroundColor: '#3b82f6', borderRadius: 0, borderSkipped: false, stack: 'age' },
+                { label: 'Feminino',  data: AGE_LABELS.map(k => ageFem[k]),  backgroundColor: '#ec4899', borderRadius: 6, borderSkipped: 'bottom', stack: 'age' }
+            ]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw} paciente${ctx.raw !== 1 ? 's' : ''}` } } },
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } }
-        }
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, padding: 10, color: _dark ? '#94a3b8' : '#64748b' } },
+                tooltip: {
+                    callbacks: {
+                        afterBody(items) {
+                            const total = items.reduce((s, i) => s + i.raw, 0);
+                            return [`Total: ${total} paciente${total !== 1 ? 's' : ''}`];
+                        },
+                        label(ctx) {
+                            const val = ctx.raw;
+                            if (val === 0) return null;
+                            const idx = ctx.dataIndex;
+                            const masc = ageMasc[AGE_LABELS[idx]];
+                            const fem  = ageFem[AGE_LABELS[idx]];
+                            const total = masc + fem;
+                            const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0.0';
+                            return ` ${ctx.dataset.label}: ${val} (${pct}%)`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: { beginAtZero: true, stacked: true, ticks: { stepSize: 1 } },
+                x: { stacked: true, grid: { display: false } }
+            }
+        },
+        plugins: []
     });
 
     // ── Donut: Gênero (pacientes únicos dos agendamentos filtrados) ──
