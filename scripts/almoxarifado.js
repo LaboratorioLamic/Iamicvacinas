@@ -657,10 +657,14 @@ function renderMovimentacao() {
     tbody.innerHTML = movs.map(m => {
         const lote = vaccineLots.find(l => l.id == m.loteId);
         const v = lote ? vaccines.find(x => x.id == lote.vaccineId) : null;
-        const isEntrada = m.tipo === 'entrada';
-        const isReserva = m.tipo === 'reserva';
-        const isAuto    = !!m.appointmentId;
+        const isEntrada  = m.tipo === 'entrada';
+        const isReserva  = m.tipo === 'reserva';
+        const isAuto     = !!m.appointmentId;
         const isAplicado = m.tipo === 'saida' && isAuto;
+
+        // Dados inválidos: automático sem lote ou sem vacina associada
+        const isInvalid = isAuto && (!lote || !v);
+
         const tipoBadge = isEntrada
             ? `<span class="px-2 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-700"><i class="fas fa-arrow-down mr-1"></i>Entrada</span>`
             : isReserva
@@ -679,13 +683,33 @@ function renderMovimentacao() {
                 ${permBtn('edicao_movimentacao', `<button onclick="openEditMovModal(${m.id})" class="h-8 w-8 bg-slate-100 text-slate-600 hover:bg-clinic-600 hover:text-white rounded transition shadow-sm" title="Editar"><i class="fas fa-pen text-[10px]"></i></button>`)}
                 ${permBtn('edicao_movimentacao', `<button onclick="deleteMovimentacao(${m.id})" class="h-8 w-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded transition shadow-sm" title="Excluir"><i class="fas fa-trash text-[10px]"></i></button>`)}
                </div>`;
-        return `<tr class="hover:bg-slate-50 transition">
-            <td class="p-3 text-xs text-slate-500 font-bold whitespace-nowrap">${dataStr}</td>
+
+        const produtoCell = isInvalid
+            ? `<td class="p-3 text-xs">
+                <div class="flex items-center gap-2">
+                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-red-100 flex items-center justify-center" title="Dado inválido: vacina ou lote não encontrado">
+                        <i class="fas fa-triangle-exclamation text-red-600 text-[10px]"></i>
+                    </span>
+                    <div>
+                        <span class="font-black text-red-700">${v ? v.nome : 'Vacina não encontrada'}</span>
+                        <span class="block text-[10px] text-red-400 font-mono">Lote ${lote ? lote.numero : 'não encontrado'}</span>
+                        <span class="block text-[9px] text-red-400 uppercase tracking-wide font-bold mt-0.5">Registro com dado inválido</span>
+                    </div>
+                </div>
+               </td>`
+            : `<td class="p-3 font-bold text-slate-700 text-xs">${v ? v.nome : '—'}<span class="block text-[10px] text-slate-400 font-mono">Lote ${lote ? lote.numero : '—'}</span></td>`;
+
+        const rowClass = isInvalid
+            ? 'bg-red-50 border-l-4 border-red-500 hover:bg-red-100 transition'
+            : 'hover:bg-slate-50 transition';
+
+        return `<tr class="${rowClass}">
+            <td class="p-3 text-xs ${isInvalid ? 'text-red-500' : 'text-slate-500'} font-bold whitespace-nowrap">${dataStr}</td>
             <td class="p-3">${tipoBadge}</td>
-            <td class="p-3 font-bold text-slate-700 text-xs">${v ? v.nome : '—'}<span class="block text-[10px] text-slate-400 font-mono">Lote ${lote ? lote.numero : '—'}</span></td>
-            <td class="p-3 text-center"><span class="font-black ${qtdColor}">${qtdSign}${m.qtd}</span></td>
-            <td class="p-3 text-xs text-slate-600">${m.motivo || '—'}</td>
-            <td class="p-3 text-xs text-slate-400 font-bold">${m.usuario || '—'}</td>
+            ${produtoCell}
+            <td class="p-3 text-center"><span class="font-black ${isInvalid ? 'text-red-600' : qtdColor}">${qtdSign}${m.qtd}</span></td>
+            <td class="p-3 text-xs ${isInvalid ? 'text-red-500' : 'text-slate-600'}">${m.motivo || '—'}</td>
+            <td class="p-3 text-xs ${isInvalid ? 'text-red-400' : 'text-slate-400'} font-bold">${m.usuario || '—'}</td>
             <td class="p-3 text-center">${acoes}</td>
         </tr>`;
     }).join('');
