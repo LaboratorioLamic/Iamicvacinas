@@ -58,7 +58,27 @@ function doBackupUpload() {
     const d = pendingBackupData;
     patients      = d.patients      || [];
     vaccines      = d.vaccines      || [];
-    appointments  = d.appointments  || [];
+
+    const vaccineIds = new Set((d.vaccines || []).map(v => v.id));
+    const allAppointments = d.appointments || [];
+    const orphans = allAppointments.filter(a => !vaccineIds.has(a.vaccineId));
+
+    if (orphans.length > 0) {
+        const names = orphans.map(a => `• ${a.dose || 'Dose ?'} (ID vacina: ${a.vaccineId})`).join('\n');
+        const ok = confirm(
+            `⚠️ ${orphans.length} agendamento(s) referenciam vacinas inexistentes neste backup e serão removidos:\n\n${names}\n\nDeseja continuar mesmo assim?`
+        );
+        if (!ok) {
+            pendingBackupData = null;
+            document.getElementById('backup-file-input').value = '';
+            document.getElementById('backup-file-name').classList.add('hidden');
+            document.getElementById('backup-confirm-area').classList.add('hidden');
+            document.getElementById('backup-confirm-input').value = '';
+            return;
+        }
+    }
+
+    appointments  = allAppointments.filter(a => vaccineIds.has(a.vaccineId));
     cancelReasons = d.cancelReasons || [];
     holidays      = d.holidays      || [];
     vaccineLots   = d.vaccineLots   || [];
