@@ -248,56 +248,70 @@ function renderEstoqueDashboard() {
         return;
     }
 
+    const _isDark = document.body.classList.contains('dark-mode');
+    const _d = (light, dark) => _isDark ? dark : light;
+
     grid.innerHTML = rows.map(({ v, e }) => {
         const semEstoque = e.disponivel <= 0;
         const baixo = !semEstoque && e.disponivel <= (v.estoqueMinimo || 5);
 
-        // Paleta clara e suave por situação
         const tema = semEstoque ? {
-            card:       'bg-red-50 border-red-200',
-            iconBg:     'bg-red-100 text-red-500',
-            acento:     'text-red-500',
-            label:      'text-red-400',
-            valor:      'text-red-700',
-            badge:      'bg-red-100 text-red-600 border-red-200',
-            bar:        'bg-red-300',
-            barBg:      'bg-red-100',
-            rodape:     'bg-red-50 border-red-100',
-            divisor:    'border-red-100',
-            statusBg:   'bg-red-100 text-red-600 border-red-200',
+            card:       _d('bg-red-50 border-red-200',    'border-red-900/60'),
+            cardBg:     _d('#fff',                         '#2d0a0a'),
+            iconBg:     _d('bg-red-100 text-red-500',      'bg-red-900/40 text-red-400'),
+            acento:     _d('text-red-500',                 'text-red-400'),
+            label:      _d('text-red-400',                 'text-red-500/70'),
+            valor:      _d('text-red-700',                 'text-red-400'),
+            badge:      _d('bg-red-100 text-red-600 border-red-200',    'bg-red-900/40 text-red-400 border-red-700/50'),
+            bar:        _d('bg-red-300',                   'bg-red-700'),
+            barBg:      _d('bg-red-100',                   'bg-red-900/40'),
+            divisor:    _d('border-red-100',               'border-red-900/40'),
+            statusBg:   _d('bg-red-100 text-red-600 border-red-200',    'bg-red-900/40 text-red-400 border-red-700/50'),
             statusIcon: 'fa-circle-xmark',
             statusLabel:'Sem estoque',
-            hover:      'hover:shadow-red-100',
+            hover:      'hover:shadow-red-900/20',
+            metaColor:  _d('text-slate-400',               'text-slate-500'),
+            nameColor:  _d('text-slate-800',               'text-slate-200'),
+            numColor:   _d('text-slate-700',               'text-slate-300'),
+            valorBg:    _d('bg-white',                     'bg-red-900/20'),
         } : baixo ? {
-            card:       'bg-amber-50 border-amber-200',
-            iconBg:     'bg-amber-100 text-amber-500',
-            acento:     'text-amber-500',
-            label:      'text-amber-400',
-            valor:      'text-amber-700',
-            badge:      'bg-amber-100 text-amber-600 border-amber-200',
-            bar:        'bg-amber-400',
-            barBg:      'bg-amber-100',
-            rodape:     'bg-amber-50 border-amber-100',
-            divisor:    'border-amber-100',
-            statusBg:   'bg-amber-100 text-amber-600 border-amber-200',
+            card:       _d('bg-amber-50 border-amber-200', 'border-amber-700/60'),
+            cardBg:     _d('#fff',                         '#1c1500'),
+            iconBg:     _d('bg-amber-100 text-amber-500',  'bg-amber-900/40 text-amber-400'),
+            acento:     _d('text-amber-500',               'text-amber-400'),
+            label:      _d('text-amber-400',               'text-amber-500/70'),
+            valor:      _d('text-amber-700',               'text-amber-400'),
+            badge:      _d('bg-amber-100 text-amber-600 border-amber-200', 'bg-amber-900/40 text-amber-400 border-amber-700/50'),
+            bar:        _d('bg-amber-400',                 'bg-amber-600'),
+            barBg:      _d('bg-amber-100',                 'bg-amber-900/40'),
+            divisor:    _d('border-amber-100',             'border-amber-900/40'),
+            statusBg:   _d('bg-amber-100 text-amber-600 border-amber-200', 'bg-amber-900/40 text-amber-400 border-amber-700/50'),
             statusIcon: 'fa-triangle-exclamation',
             statusLabel:'Estoque baixo',
-            hover:      'hover:shadow-amber-100',
+            hover:      'hover:shadow-amber-900/20',
+            metaColor:  _d('text-slate-400',               'text-slate-500'),
+            nameColor:  _d('text-slate-800',               'text-slate-200'),
+            numColor:   _d('text-slate-700',               'text-slate-300'),
+            valorBg:    _d('bg-white',                     'bg-amber-900/20'),
         } : {
-            card:       'bg-sky-50 border-sky-200',
-            iconBg:     'bg-sky-100 text-sky-500',
-            acento:     'text-sky-500',
-            label:      'text-sky-400',
-            valor:      'text-sky-700',
-            badge:      'bg-sky-100 text-sky-600 border-sky-200',
-            bar:        'bg-sky-400',
-            barBg:      'bg-sky-100',
-            rodape:     'bg-sky-50 border-sky-100',
-            divisor:    'border-sky-100',
-            statusBg:   'bg-emerald-100 text-emerald-600 border-emerald-200',
+            card:       _d('bg-sky-50 border-sky-200',     'border-sky-800/60'),
+            cardBg:     _d('#fff',                         '#0c1929'),
+            iconBg:     _d('bg-sky-100 text-sky-500',      'bg-sky-900/40 text-sky-400'),
+            acento:     _d('text-sky-500',                 'text-sky-400'),
+            label:      _d('text-sky-400',                 'text-sky-500/70'),
+            valor:      _d('text-sky-700',                 'text-sky-400'),
+            badge:      _d('bg-sky-100 text-sky-600 border-sky-200',     'bg-sky-900/40 text-sky-400 border-sky-700/50'),
+            bar:        _d('bg-sky-400',                   'bg-sky-600'),
+            barBg:      _d('bg-sky-100',                   'bg-sky-900/40'),
+            divisor:    _d('border-sky-100',               'border-sky-900/40'),
+            statusBg:   _d('bg-emerald-100 text-emerald-600 border-emerald-200', 'bg-emerald-900/40 text-emerald-400 border-emerald-700/50'),
             statusIcon: 'fa-circle-check',
             statusLabel:'Disponível',
-            hover:      'hover:shadow-sky-100',
+            hover:      'hover:shadow-sky-900/20',
+            metaColor:  _d('text-slate-400',               'text-slate-500'),
+            nameColor:  _d('text-slate-800',               'text-slate-200'),
+            numColor:   _d('text-slate-700',               'text-slate-300'),
+            valorBg:    _d('bg-white',                     'bg-sky-900/20'),
         };
 
         const estoqueAtual = e.disponivel + e.reservado;
@@ -314,12 +328,13 @@ function renderEstoqueDashboard() {
 
         const alertaHtml = (lotesVencidos > 0 || lotesVencendo > 0) ? `
             <div class="flex flex-wrap gap-1 mt-2">
-                ${lotesVencidos > 0 ? `<span class="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 border border-red-200 text-red-600 rounded-full text-[8px] font-black"><i class="fas fa-skull-crossbones"></i>${lotesVencidos} vencido${lotesVencidos > 1 ? 's' : ''}</span>` : ''}
-                ${lotesVencendo > 0 ? `<span class="flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 border border-amber-200 text-amber-600 rounded-full text-[8px] font-black"><i class="fas fa-hourglass-half"></i>${lotesVencendo} vencendo</span>` : ''}
+                ${lotesVencidos > 0 ? `<span class="flex items-center gap-1 px-1.5 py-0.5 ${_d('bg-red-100 border-red-200 text-red-600','bg-red-900/40 border-red-700/50 text-red-400')} border rounded-full text-[8px] font-black"><i class="fas fa-skull-crossbones"></i>${lotesVencidos} vencido${lotesVencidos > 1 ? 's' : ''}</span>` : ''}
+                ${lotesVencendo > 0 ? `<span class="flex items-center gap-1 px-1.5 py-0.5 ${_d('bg-amber-100 border-amber-200 text-amber-600','bg-amber-900/40 border-amber-700/50 text-amber-400')} border rounded-full text-[8px] font-black"><i class="fas fa-hourglass-half"></i>${lotesVencendo} vencendo</span>` : ''}
             </div>` : '';
 
         return `
-        <div class="group relative bg-white border ${tema.card} rounded-2xl shadow-sm ${tema.hover} overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+        <div class="group relative border ${tema.card} rounded-2xl shadow-sm ${tema.hover} overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+             style="background:${tema.cardBg};"
              onclick="openVaccineViewModal(${v.id})">
 
             <!-- Topo -->
@@ -330,7 +345,7 @@ function renderEstoqueDashboard() {
                             <i class="fas fa-syringe text-xs"></i>
                         </div>
                         <div class="min-w-0">
-                            <h3 class="font-black text-slate-800 text-xs leading-tight truncate" title="${v.nome}">${v.nome}</h3>
+                            <h3 class="font-black ${tema.nameColor} text-xs leading-tight truncate" title="${v.nome}">${v.nome}</h3>
                             <p class="${tema.label} text-[9px] font-bold">${v.numDoses || 1} dose${(v.numDoses || 1) > 1 ? 's' : ''}${v.reforco ? ' + reforço' : ''}${v.doseUnica ? ' · única' : ''}</p>
                         </div>
                     </div>
@@ -345,12 +360,12 @@ function renderEstoqueDashboard() {
             <div class="px-3.5 pb-2">
                 <div class="flex items-baseline gap-1.5">
                     <span class="text-4xl font-black ${tema.acento} leading-none">${e.disponivel}</span>
-                    <span class="text-slate-400 text-[10px] font-bold">disponíveis</span>
+                    <span class="${tema.metaColor} text-[10px] font-bold">disponíveis</span>
                 </div>
                 <div class="mt-1.5 h-1 ${tema.barBg} rounded-full overflow-hidden">
                     <div class="${tema.bar} h-full rounded-full transition-all duration-500" style="width:${pct}%"></div>
                 </div>
-                <p class="text-slate-400 text-[8px] font-bold mt-0.5">${pct}% do total</p>
+                <p class="${tema.metaColor} text-[8px] font-bold mt-0.5">${pct}% do total</p>
             </div>
 
             <!-- Divisor -->
@@ -359,24 +374,24 @@ function renderEstoqueDashboard() {
             <!-- Métricas -->
             <div class="grid grid-cols-2 px-3.5 py-2">
                 <div class="text-center">
-                    <p class="text-slate-400 text-[8px] font-black uppercase tracking-wide">Reserv.</p>
-                    <p class="text-slate-700 font-black text-sm leading-tight">${e.reservado}</p>
+                    <p class="${tema.metaColor} text-[8px] font-black uppercase tracking-wide">Reserv.</p>
+                    <p class="${tema.numColor} font-black text-sm leading-tight">${e.reservado}</p>
                 </div>
                 <div class="text-center border-l ${tema.divisor}">
-                    <p class="text-slate-400 text-[8px] font-black uppercase tracking-wide">Total</p>
-                    <p class="text-slate-700 font-black text-sm leading-tight">${e.disponivel + e.reservado}</p>
+                    <p class="${tema.metaColor} text-[8px] font-black uppercase tracking-wide">Total</p>
+                    <p class="${tema.numColor} font-black text-sm leading-tight">${e.disponivel + e.reservado}</p>
                 </div>
             </div>
 
             <!-- Rodapé -->
             <div class="border-t ${tema.divisor} px-3.5 py-2 flex items-center justify-between gap-1">
                 <div class="flex items-center gap-2 min-w-0">
-                    <span class="text-slate-400 text-[8px] font-black flex items-center gap-0.5 whitespace-nowrap">
+                    <span class="${tema.metaColor} text-[8px] font-black flex items-center gap-0.5 whitespace-nowrap">
                         <i class="fas fa-layer-group text-[8px]"></i>${e.lotesAtivos} lote${e.lotesAtivos !== 1 ? 's' : ''}
                     </span>
-                    ${proxVal ? `<span class="text-slate-400 text-[8px] font-black flex items-center gap-0.5 truncate"><i class="fas fa-calendar-alt text-[8px]"></i>${proxVal}</span>` : ''}
+                    ${proxVal ? `<span class="${tema.metaColor} text-[8px] font-black flex items-center gap-0.5 truncate"><i class="fas fa-calendar-alt text-[8px]"></i>${proxVal}</span>` : ''}
                 </div>
-                ${valorStr ? `<span class="${tema.valor} font-black text-[9px] bg-white border ${tema.badge.split(' ').slice(2).join(' ')} px-1.5 py-0.5 rounded-lg whitespace-nowrap">${valorStr}</span>` : ''}
+                ${valorStr ? `<span class="${tema.valor} font-black text-[9px] ${tema.valorBg} border ${tema.badge.split(' ').slice(2).join(' ')} px-1.5 py-0.5 rounded-lg whitespace-nowrap">${valorStr}</span>` : ''}
             </div>
         </div>`;
     }).join('');
@@ -659,7 +674,7 @@ function renderMovimentacao() {
         const qtdSign  = isEntrada ? '+' : '−';
         const dataStr = m.data ? new Date(m.data).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
         const acoes = isAuto
-            ? `<button onclick="editRecord(${m.appointmentId})" class="h-8 w-8 bg-slate-50 text-slate-400 hover:bg-clinic-50 hover:text-clinic-600 border border-slate-200 rounded transition shadow-sm flex items-center justify-center mx-auto" title="Ver agendamento"><i class="fas fa-eye text-[10px]"></i></button>`
+            ? `<button onclick="viewRecord(${m.appointmentId})" class="h-8 w-8 bg-slate-50 text-slate-400 hover:bg-clinic-50 hover:text-clinic-600 border border-slate-200 rounded transition shadow-sm flex items-center justify-center mx-auto" title="Ver agendamento"><i class="fas fa-eye text-[10px]"></i></button>`
             : `<div class="flex justify-center gap-1.5">
                 ${permBtn('edicao_movimentacao', `<button onclick="openEditMovModal(${m.id})" class="h-8 w-8 bg-slate-100 text-slate-600 hover:bg-clinic-600 hover:text-white rounded transition shadow-sm" title="Editar"><i class="fas fa-pen text-[10px]"></i></button>`)}
                 ${permBtn('edicao_movimentacao', `<button onclick="deleteMovimentacao(${m.id})" class="h-8 w-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded transition shadow-sm" title="Excluir"><i class="fas fa-trash text-[10px]"></i></button>`)}
@@ -1273,7 +1288,7 @@ function renderVVMovs() {
         const dataStr  = m.data ? new Date(m.data).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
         const isAuto   = !!m.appointmentId;
         const acoesBtns = isAuto
-            ? `<button onclick="editRecord(${m.appointmentId})" class="h-7 w-7 bg-slate-50 border border-slate-200 text-slate-400 hover:text-clinic-600 rounded-lg flex items-center justify-center transition" title="Ver agendamento"><i class="fas fa-eye text-[10px]"></i></button>`
+            ? `<button onclick="viewRecord(${m.appointmentId})" class="h-7 w-7 bg-slate-50 border border-slate-200 text-slate-400 hover:text-clinic-600 rounded-lg flex items-center justify-center transition" title="Ver agendamento"><i class="fas fa-eye text-[10px]"></i></button>`
             : `<div class="flex gap-1">
                 ${permBtn('edicao_movimentacao', `<button onclick="openEditMovModal(${m.id})" class="h-7 w-7 bg-slate-100 text-slate-600 hover:bg-clinic-600 hover:text-white rounded-lg flex items-center justify-center transition" title="Editar"><i class="fas fa-pen text-[10px]"></i></button>`)}
                 ${permBtn('edicao_movimentacao', `<button onclick="deleteMovimentacao(${m.id})" class="h-7 w-7 bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-lg flex items-center justify-center transition" title="Excluir"><i class="fas fa-trash text-[10px]"></i></button>`)}

@@ -8,7 +8,7 @@ function renderPatients() {
     grid.innerHTML = '';
 
     patients.filter(p => normalizeStr(p.nome).includes(s) || normalizeStr(p.cpf).includes(s)).forEach(p => {
-        const age = getAge(p.dtNasc);
+        const age = getAgeDisplay(p.dtNasc);
         const hasAppointments = appointments.some(a => a.patientId == p.id);
 
         grid.innerHTML += `<div class="bg-white border border-slate-200 p-3 rounded-xl shadow-sm hover:shadow-md transition relative flex flex-col gap-2 group">
@@ -20,7 +20,7 @@ function renderPatients() {
                 <div class="h-9 w-9 shrink-0 bg-gradient-to-br from-navy-800 to-navy-600 text-white rounded-full flex items-center justify-center font-black text-base shadow">${p.nome.charAt(0)}</div>
                 <div class="min-w-0">
                     <h4 class="font-black text-navy-900 text-xs leading-tight truncate">${p.nome}</h4>
-                    <p class="text-[9px] font-bold text-slate-400 truncate">${age}a | ${p.cpf}</p>
+                    <p class="text-[9px] font-bold text-slate-400 truncate">${age} | ${p.cpf}</p>
                 </div>
             </div>
             <div class="text-[9px] text-slate-500 font-bold space-y-0.5">
@@ -199,7 +199,7 @@ function renderHistCard(a) {
         : '';
 
     return `
-    <button onclick="editRecord(${a.id})" class="w-full text-left ${bgClass} p-4 rounded-xl border ${borderClass} shadow-sm hover:shadow-md transition flex flex-col md:flex-row justify-between items-start md:items-center mb-3 group">
+    <button onclick="viewRecord(${a.id})" class="w-full text-left ${bgClass} p-4 rounded-xl border ${borderClass} shadow-sm hover:shadow-md transition flex flex-col md:flex-row justify-between items-start md:items-center mb-3 group">
         <div class="flex items-center gap-4 mb-2 md:mb-0">
             <div class="h-10 w-10 bg-white rounded-full flex justify-center items-center shadow-sm text-lg border border-slate-100 group-hover:scale-110 transition duration-300"><i class="fas ${iconClass}"></i></div>
             <div>
@@ -358,7 +358,7 @@ async function downloadVaccineCalendarPDF() {
     doc.line(22, cardY + 17, W - 16, cardY + 17);
 
     // Dados em duas colunas
-    const idade = getAge(p.dtNasc);
+    const idade = getAgeDisplay(p.dtNasc);
     const dtFormatada = p.dtNasc ? p.dtNasc.split('-').reverse().join('/') : '—';
     const cpfFormatado = p.cpf ? p.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—';
 
@@ -374,7 +374,7 @@ async function downloadVaccineCalendarPDF() {
         doc.setTextColor(...navy); doc.text(txt, x, y + 5);
     };
 
-    label('Idade', col1x, rowY1);        value(`${idade} anos`, col1x, rowY1);
+    label('Idade', col1x, rowY1);        value(idade, col1x, rowY1);
     label('Data de Nascimento', col2x, rowY1); value(dtFormatada, col2x, rowY1);
     label('CPF', col1x, rowY2);           value(cpfFormatado, col1x, rowY2);
     if (p.responsavel) {

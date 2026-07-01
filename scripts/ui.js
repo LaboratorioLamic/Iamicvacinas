@@ -27,6 +27,7 @@ function toggleDarkMode() {
     if (btn) btn.classList.toggle('active', isActive);
     try { localStorage.setItem('dark-mode', isActive ? '1' : '0'); } catch(e) {}
     _applyDarkModeInlineColors(isActive);
+    if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
 }
 
 function initDarkMode() {

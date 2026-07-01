@@ -792,6 +792,129 @@ function confirmDeleteRecord() {
     showNotification('Agendamento excluído com sucesso.', 'success');
 }
 
+function closeViewRecord() {
+    document.getElementById('modal-view-record').classList.remove('active');
+    window._vrCurrentId = null;
+}
+
+function viewRecord(id) {
+    if (!isCurrentUserAdmin() && !hasPerm('agendar') && !hasPerm('criar_agendamento')) {
+        showNotification('Acesso negado: você não tem permissão para visualizar agendamentos.', 'error');
+        return;
+    }
+    const a = appointments.find(x => x.id == id);
+    if (!a) return;
+    const pat = patients.find(x => x.id == a.patientId);
+    const vac = vaccines.find(x => x.id == a.vaccineId);
+    window._vrCurrentId = id;
+
+    // Status colors
+    const ST = {
+        'Aplicado':         { color: '#22c55e', bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.3)',   label: 'Aplicado' },
+        'Agendado':         { color: '#3b82f6', bg: 'rgba(59,130,246,0.12)',  border: 'rgba(59,130,246,0.3)',  label: 'Agendado' },
+        'Em negociação':    { color: '#06b6d4', bg: 'rgba(6,182,212,0.12)',   border: 'rgba(6,182,212,0.3)',   label: 'Em Negociação' },
+        'Nova oportunidade':{ color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', border: 'rgba(148,163,184,0.3)', label: 'Nova Oportunidade' },
+        'Perdido':          { color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.3)',   label: 'Perdido' },
+    };
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isDelayed = a.status === 'Agendado' && a.data < todayStr;
+    const st = isDelayed
+        ? { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', label: 'Atrasado' }
+        : (ST[a.status] || ST['Nova oportunidade']);
+
+    // Header accent gradient by status
+    const gradMap = {
+        'Aplicado': '#22c55e,#15803d', 'Agendado': '#6366f1,#2563eb',
+        'Em negociação': '#0891b2,#0e7490', 'Nova oportunidade': '#475569,#334155', 'Perdido': '#dc2626,#b91c1c',
+    };
+    const grad = isDelayed ? '#f59e0b,#d97706' : (gradMap[a.status] || gradMap['Nova oportunidade']);
+    document.querySelector('#modal-view-record .absolute.top-0').style.background =
+        `linear-gradient(90deg,${grad.split(',')[0]},${grad.split(',')[1]},${grad.split(',')[0]})`;
+
+    // Avatar
+    const avatarEl = document.getElementById('vr-avatar');
+    avatarEl.style.background = `linear-gradient(135deg,${grad.split(',')[0]},${grad.split(',')[1]})`;
+    avatarEl.textContent = pat ? (pat.nome || '?')[0].toUpperCase() : '?';
+
+    // Status badge
+    document.getElementById('vr-status-dot').style.background = st.color;
+    const badge = document.getElementById('vr-status-badge');
+    badge.textContent = st.label;
+    badge.style.background = st.bg;
+    badge.style.color = st.color;
+    badge.style.border = `1px solid ${st.border}`;
+
+    // Paciente
+    document.getElementById('vr-patient-name').textContent = pat ? pat.nome : '—';
+    const age = pat && pat.dtNasc ? getAgeDisplay(pat.dtNasc) : '';
+    document.getElementById('vr-patient-meta').textContent = [pat?.cpf, age].filter(Boolean).join(' · ');
+
+    // WhatsApp + prontuário
+    const waEl = document.getElementById('vr-wa-link');
+    waEl.href = pat ? `https://wa.me/55${formatWa(pat.contato || '')}` : '#';
+    const prontuarioBtn = document.getElementById('vr-btn-prontuario');
+    prontuarioBtn.onclick = (e) => { e.stopPropagation(); closeViewRecord(); if (typeof viewPatientHistory === 'function') viewPatientHistory(a.patientId); };
+
+    // Vacina
+    document.getElementById('vr-vaccine-name').textContent = vac ? vac.nome : '—';
+    document.getElementById('vr-dose').textContent = a.doseAtual || '—';
+
+    // Infos
+    document.getElementById('vr-data').textContent = a.data ? a.data.split('-').reverse().join('/') : '—';
+    document.getElementById('vr-hora').textContent = a.hora || '—';
+    document.getElementById('vr-valor').textContent = a.valorAplicado ? 'R$ ' + a.valorAplicado : '—';
+    const vrBadge = document.getElementById('vr-desconto-badge');
+    if (vrBadge) {
+        if (a.descontoPct && a.descontoPct > 0) {
+            vrBadge.textContent = '-' + String(a.descontoPct).replace('.', ',') + '%';
+            vrBadge.classList.remove('hidden');
+        } else {
+            vrBadge.classList.add('hidden');
+        }
+    }
+    document.getElementById('vr-pedido').textContent = a.pedido || a.pedidoNumero || '—';
+
+    // Lote + Nome de Fábrica + Aplicador (independentes)
+    const loteRow = document.getElementById('vr-lote-row');
+    const lotObj = a.loteId ? vaccineLots.find(l => l.id == a.loteId) : null;
+    if (a.lote) {
+        document.getElementById('vr-lote').textContent = a.lote;
+        const nomeFabricaEl = document.getElementById('vr-nome-fabrica');
+        if (nomeFabricaEl) nomeFabricaEl.textContent = (lotObj && lotObj.fabricante) ? lotObj.fabricante : '—';
+        loteRow.classList.remove('hidden');
+    } else { loteRow.classList.add('hidden'); }
+
+    const aplicadorRow = document.getElementById('vr-aplicador-row');
+    if (aplicadorRow) {
+        if (a.aplicador) { document.getElementById('vr-aplicador').textContent = a.aplicador; aplicadorRow.classList.remove('hidden'); }
+        else aplicadorRow.classList.add('hidden');
+    } else {
+        document.getElementById('vr-aplicador').textContent = a.aplicador || '—';
+    }
+
+    // Vendedor
+    const vendRow = document.getElementById('vr-vendedor-row');
+    if (a.vendedor) { document.getElementById('vr-vendedor').textContent = a.vendedor; vendRow.classList.remove('hidden'); }
+    else vendRow.classList.add('hidden');
+
+    // Motivo cancelamento
+    const motivoRow = document.getElementById('vr-motivo-row');
+    if (a.motivoCancelamento) { document.getElementById('vr-motivo').textContent = a.motivoCancelamento; motivoRow.classList.remove('hidden'); }
+    else motivoRow.classList.add('hidden');
+
+    // Obs
+    const obsRow = document.getElementById('vr-obs-row');
+    if (a.obs) { document.getElementById('vr-obs').textContent = a.obs; obsRow.classList.remove('hidden'); }
+    else obsRow.classList.add('hidden');
+
+    // Botão editar — só se tiver permissão
+    const canEdit = isCurrentUserAdmin() || hasPerm('criar_agendamento');
+    document.getElementById('vr-btn-edit').style.display = canEdit ? '' : 'none';
+
+    closeModals();
+    document.getElementById('modal-view-record').classList.add('active');
+}
+
 function editRecord(id) {
     if (!isCurrentUserAdmin() && !hasPerm('agendar') && !hasPerm('criar_agendamento')) {
         showNotification('Acesso negado: você não tem permissão para visualizar agendamentos.', 'error');

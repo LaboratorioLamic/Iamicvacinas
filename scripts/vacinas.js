@@ -685,7 +685,7 @@ function renderViewLoteMov() {
         let acoesBtns = '';
         if (isApt && canEditApt) {
             acoesBtns = `<div class="flex gap-1.5 mt-2">
-                <button onclick="editRecord(${ev._appointmentId})" class="flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 hover:bg-indigo-500 hover:text-white rounded-lg text-[10px] font-black uppercase transition"><i class="fas fa-pen text-[9px]"></i>Editar</button>
+                <button onclick="viewRecord(${ev._appointmentId})" class="flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 hover:bg-indigo-500 hover:text-white rounded-lg text-[10px] font-black uppercase transition"><i class="fas fa-eye text-[9px]"></i>Visualizar</button>
             </div>`;
         } else if (isMov && canEditMov) {
             acoesBtns = `<div class="flex gap-1.5 mt-2">

@@ -84,7 +84,9 @@ function _populateTableColabDropdowns() {
 function renderTable() {
     _populateTableColabDropdowns();
 
-    const search = normalizeStr(document.getElementById('filter-search-agenda').value);
+    const _searchWrap = document.getElementById('wrap-search-agenda');
+    const _searchOpen = _searchWrap && _searchWrap.style.maxWidth !== '0px' && _searchWrap.style.maxWidth !== '0';
+    const search = _searchOpen ? normalizeStr(document.getElementById('filter-search-agenda').value) : '';
     const status = document.getElementById('filter-status-agenda').value;
     const dateFilter = document.getElementById('filter-date-agenda').value;
     const monthFilter = document.getElementById('filter-month-agenda').value;
@@ -133,20 +135,36 @@ function renderTable() {
         return 0;
     });
 
+    const _tblDark = document.body.classList.contains('dark-mode');
     filtered.forEach(a => {
         const pat = patients.find(p=>p.id==a.patientId);
         const vac = vaccines.find(v=>v.id==a.vaccineId);
         const isDelayed = a.data < todayStr && a.status === 'Agendado';
-        let stClass = a.status==='Aplicado'?'bg-green-100 text-green-700':a.status==='Perdido'?'bg-red-100 text-red-700':a.status==='Em negociação'?'bg-cyan-100 text-cyan-700':isDelayed?'bg-yellow-100 text-yellow-700 border border-yellow-300':'bg-blue-100 text-blue-700';
 
-        tbody.innerHTML += `<tr onclick="editRecord(${a.id})" class="cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-clinic-50 hover:shadow-md active:translate-y-0 active:bg-clinic-100 group">
+        // Badge status — cores dark/light
+        const stStyle = a.status==='Aplicado'
+            ? (_tblDark ? 'background:#052e16;color:#4ade80;border:1px solid #166534' : 'background:#dcfce7;color:#15803d')
+            : a.status==='Perdido'
+            ? (_tblDark ? 'background:#2d0a0a;color:#fca5a5;border:1px solid #7f1d1d' : 'background:#fee2e2;color:#b91c1c')
+            : a.status==='Em negociação'
+            ? (_tblDark ? 'background:#0c2535;color:#67e8f9;border:1px solid #164e63' : 'background:#cffafe;color:#0e7490')
+            : a.status==='Nova oportunidade'
+            ? (_tblDark ? 'background:#1e293b;color:#94a3b8;border:1px solid #334155' : 'background:#f1f5f9;color:#475569')
+            : isDelayed
+            ? (_tblDark ? 'background:#1c1500;color:#fbbf24;border:1px solid #78350f' : 'background:#fef9c3;color:#a16207;border:1px solid #fde68a')
+            : (_tblDark ? 'background:#0f1f3d;color:#93c5fd;border:1px solid #1e3a8a' : 'background:#dbeafe;color:#1d4ed8');
+
+        // WhatsApp btn
+        const waBg  = _tblDark ? 'background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.25)' : 'background:#dcfce7;color:#16a34a';
+
+        tbody.innerHTML += `<tr onclick="viewRecord(${a.id})" class="cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-clinic-50 hover:shadow-md active:translate-y-0 active:bg-clinic-100 group">
             <td class="p-4 font-bold text-slate-700 whitespace-nowrap group-hover:text-clinic-700">${a.data.split('-').reverse().join('/')}${a.hora ? ' <span class="text-[10px] text-slate-400 font-bold">'+a.hora+'</span>' : ''} ${isDelayed?'<i class="fas fa-exclamation-triangle text-yellow-500 ml-1" title="Atrasado"></i>':''}</td>
             <td class="p-4">
                 <div class="flex items-center gap-2">
-                    <a href="https://wa.me/55${formatWa(pat.contato)}" target="_blank" onclick="event.stopPropagation()" class="h-7 w-7 shrink-0 bg-green-100 text-green-600 hover:bg-green-500 hover:text-white rounded-lg flex items-center justify-center transition shadow-sm" title="WhatsApp"><i class="fab fa-whatsapp text-sm"></i></a>
+                    <a href="https://wa.me/55${formatWa(pat.contato)}" target="_blank" onclick="event.stopPropagation()" class="h-7 w-7 shrink-0 rounded-lg flex items-center justify-center transition shadow-sm hover:bg-green-500 hover:text-white" style="${waBg}" title="WhatsApp"><i class="fab fa-whatsapp text-sm"></i></a>
                     <div>
                         <div class="font-bold text-navy-900 group-hover:text-clinic-700">${pat.nome}</div>
-                        <div class="text-[10px] text-slate-500">Idade: ${getAge(pat.dtNasc)} anos | CPF: ${pat.cpf}</div>
+                        <div class="text-[10px] text-slate-500">Idade: ${getAgeDisplay(pat.dtNasc)} | CPF: ${pat.cpf}</div>
                     </div>
                 </div>
             </td>
@@ -154,7 +172,7 @@ function renderTable() {
                 <div class="font-bold whitespace-nowrap">${vac.nome}</div>
                 <div class="text-[10px] font-black text-clinic-600 bg-clinic-50 inline-block px-1 rounded">${a.doseAtual}</div>
             </td>
-            <td class="p-4 text-center"><span class="px-2 py-1 rounded text-[10px] font-black uppercase whitespace-nowrap ${stClass}">${isDelayed ? 'Atrasado' : a.status}</span></td>
+            <td class="p-4 text-center"><span class="px-2 py-1 rounded text-[10px] font-black uppercase whitespace-nowrap" style="${stStyle}">${isDelayed ? 'Atrasado' : a.status}</span></td>
             <td class="p-4 text-center" onclick="event.stopPropagation()">
                 <div class="flex justify-center gap-2 flex-wrap">
                     ${a.status === 'Em negociação' ? permBtn('criar_agendamento', `<button onclick="openAgendarModal(${a.id})" class="h-8 w-8 bg-blue-500 text-white hover:bg-blue-600 rounded flex items-center justify-center transition shadow-sm" title="Agendar"><i class="fas fa-calendar-check"></i></button>`) : ''}

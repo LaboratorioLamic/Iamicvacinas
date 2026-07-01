@@ -423,25 +423,36 @@ function _renderOferta() {
 function _renderStats(npat, nopps, rev, nvenc, nprox, isOferta=false, proxDias=30) {
     const el = document.getElementById('oport-stats');
     if (!el) return;
+    const _d = document.body.classList.contains('dark-mode');
+    const chipBase   = _d ? 'background:#1e293b;border-color:#334155;' : 'background:#ffffff;border-color:#e2e8f0;';
+    const chipText   = _d ? '#f1f5f9' : '#172554';
+    const chipMeta   = _d ? '#64748b' : '#64748b';
+    const chipGreen  = _d ? 'background:#052e16;border-color:#166534;' : 'background:#f0fdf4;border-color:#bbf7d0;';
+    const chipGreenT = _d ? '#4ade80' : '#15803d';
+    const chipGreenM = _d ? '#16a34a' : '#16a34a';
+    const chipRed    = _d ? 'background:#2d0a0a;border-color:#7f1d1d;' : 'background:#fff1f2;border-color:#fecdd3;';
+    const chipRedT   = _d ? '#fca5a5' : '#b91c1c';
+    const chipAmber  = _d ? 'background:#1c1500;border-color:#78350f;' : 'background:#fffbeb;border-color:#fde68a;';
+    const chipAmberT = _d ? '#fbbf24' : '#92400e';
     el.innerHTML = `
         <div class="flex flex-wrap gap-3 items-center mb-4">
-            <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+            <div class="flex items-center gap-2 rounded-xl px-4 py-2 shadow-sm border" style="${chipBase}">
                 <i class="fas fa-users text-indigo-500 text-sm"></i>
-                <span class="font-black text-navy-900">${npat}</span>
-                <span class="text-xs text-slate-500 uppercase tracking-wide">Pacientes</span>
+                <span class="font-black" style="color:${chipText}">${npat}</span>
+                <span class="text-xs uppercase tracking-wide" style="color:${chipMeta}">Pacientes</span>
             </div>
-            <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+            <div class="flex items-center gap-2 rounded-xl px-4 py-2 shadow-sm border" style="${chipBase}">
                 <i class="fas fa-bullseye text-clinic-500 text-sm"></i>
-                <span class="font-black text-navy-900">${nopps}</span>
-                <span class="text-xs text-slate-500 uppercase tracking-wide">${isOferta ? 'Vacinas a oferecer' : 'Oportunidades'}</span>
+                <span class="font-black" style="color:${chipText}">${nopps}</span>
+                <span class="text-xs uppercase tracking-wide" style="color:${chipMeta}">${isOferta ? 'Vacinas a oferecer' : 'Oportunidades'}</span>
             </div>
-            <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2 shadow-sm">
-                <i class="fas fa-dollar-sign text-emerald-600 text-sm"></i>
-                <span class="font-black text-emerald-700">${formatCurrency(rev)}</span>
-                <span class="text-xs text-emerald-600 uppercase tracking-wide">Receita potencial</span>
+            <div class="flex items-center gap-2 rounded-xl px-4 py-2 shadow-sm border" style="${chipGreen}">
+                <i class="fas fa-dollar-sign text-sm" style="color:${chipGreenM}"></i>
+                <span class="font-black" style="color:${chipGreenT}">${formatCurrency(rev)}</span>
+                <span class="text-xs uppercase tracking-wide" style="color:${chipGreenM}">Receita potencial</span>
             </div>
-            ${nvenc > 0 ? `<div class="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-2 shadow-sm"><i class="fas fa-exclamation-circle text-red-500 text-sm"></i><span class="font-black text-red-700">${nvenc}</span><span class="text-xs text-red-600 uppercase tracking-wide">Vencidas</span></div>` : ''}
-            ${nprox > 0 ? `<div class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 shadow-sm"><i class="fas fa-clock text-amber-500 text-sm"></i><span class="font-black text-amber-700">${nprox}</span><span class="text-xs text-amber-600 uppercase tracking-wide">Próx. ${proxDias} dias</span></div>` : ''}
+            ${nvenc > 0 ? `<div class="flex items-center gap-2 rounded-xl px-4 py-2 shadow-sm border" style="${chipRed}"><i class="fas fa-exclamation-circle text-sm" style="color:${chipRedT}"></i><span class="font-black" style="color:${chipRedT}">${nvenc}</span><span class="text-xs uppercase tracking-wide" style="color:${chipRedT}">Vencidas</span></div>` : ''}
+            ${nprox > 0 ? `<div class="flex items-center gap-2 rounded-xl px-4 py-2 shadow-sm border" style="${chipAmber}"><i class="fas fa-clock text-sm" style="color:${chipAmberT}"></i><span class="font-black" style="color:${chipAmberT}">${nprox}</span><span class="text-xs uppercase tracking-wide" style="color:${chipAmberT}">Próx. ${proxDias} dias</span></div>` : ''}
         </div>`;
 }
 
@@ -490,11 +501,11 @@ function _renderPatientCard({ patient, opps }, tab) {
                     ${(patient.nome||'?')[0].toUpperCase()}
                 </div>
                 <div class="min-w-0">
-                    <div class="flex items-center gap-2">
-                        <p class="font-black text-sm truncate" style="color:${_isDark?'#f1f5f9':'#172554'}">${patient.nome||'—'}</p>
-                        ${waHref ? `<a href="${waHref}" target="_blank" rel="noopener" title="Abrir WhatsApp" class="shrink-0 h-6 w-6 rounded-lg bg-green-100 hover:bg-green-500 text-green-600 hover:text-white flex items-center justify-center transition"><i class="fab fa-whatsapp text-[11px]"></i></a>` : ''}
+                    <p class="font-black text-sm" style="color:${_isDark?'#f1f5f9':'#172554'}">${patient.nome||'—'}</p>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <p class="text-[11px] truncate" style="color:${_isDark?'#64748b':'#64748b'}">${patient.cpf||''}${age?` · ${age}`:''}${phone?` · ${phone}`:''}</p>
+                        ${waHref ? `<a href="${waHref}" target="_blank" rel="noopener" title="Abrir WhatsApp" class="shrink-0 h-6 w-6 rounded-lg flex items-center justify-center transition hover:bg-green-500 hover:text-white" style="background:${_isDark?'rgba(34,197,94,0.15)':'#dcfce7'};color:${_isDark?'#4ade80':'#16a34a'};border:1px solid ${_isDark?'rgba(34,197,94,0.25)':'#bbf7d0'}"><i class="fab fa-whatsapp text-[11px]"></i></a>` : ''}
                     </div>
-                    <p class="text-[11px] truncate" style="color:${_isDark?'#64748b':'#64748b'}">${patient.cpf||''}${age?` · ${age}`:''}${phone?` · ${phone}`:''}</p>
                 </div>
             </div>
             <div class="flex items-center gap-3 shrink-0">

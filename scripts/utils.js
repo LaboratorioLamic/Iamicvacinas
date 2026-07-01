@@ -51,7 +51,19 @@ function getAgeInMonths(dateStr, refDateStr) {
 
 function getAgeDisplay(dateStr, refDateStr) {
     const {years, months} = getAgeInMonths(dateStr, refDateStr);
-    if (years === 0) return months + (months === 1 ? ' mês' : ' meses');
+    const today = refDateStr ? new Date(refDateStr + 'T00:00:00') : new Date();
+    const birth = new Date(dateStr);
+    if (years === 0 && months === 0) {
+        const days = Math.max(0, Math.floor((today - birth) / 86400000));
+        return days + (days === 1 ? ' dia' : ' dias');
+    }
+    if (years === 0) {
+        // dias restantes após os meses completos
+        const afterMonths = new Date(birth.getFullYear(), birth.getMonth() + months, birth.getDate());
+        const days = Math.max(0, Math.floor((today - afterMonths) / 86400000));
+        const mStr = months + (months === 1 ? ' mês' : ' meses');
+        return days > 0 ? mStr + ' e ' + days + (days === 1 ? ' dia' : ' dias') : mStr;
+    }
     if (months === 0) return years + (years === 1 ? ' ano' : ' anos');
     return years + (years === 1 ? ' ano' : ' anos') + ' e ' + months + (months === 1 ? ' mês' : ' meses');
 }

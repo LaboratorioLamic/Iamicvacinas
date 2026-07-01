@@ -1646,7 +1646,7 @@
     </div>
 
     <div id="modal-day-details" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[100] justify-center items-center p-4">
-        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="dm-modal-panel rounded-[2rem] shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
             <div class="bg-navy-900 p-6 text-white flex justify-between items-center shrink-0">
                 <div>
                     <h3 class="font-black uppercase tracking-tight text-xl">Agendamentos do Dia</h3>
@@ -1657,10 +1657,10 @@
                     <button onclick="closeModals()"><i class="fas fa-times text-xl"></i></button>
                 </div>
             </div>
-            <div class="p-6 overflow-y-auto flex-1 bg-slate-50">
+            <div class="p-6 overflow-y-auto flex-1 dm-modal-body">
                 <div id="day-appointments-list" class="flex flex-col gap-4"></div>
             </div>
-            <div class="p-4 border-t border-slate-200 bg-white shrink-0">
+            <div class="p-4 dm-modal-footer shrink-0">
                 <button id="btn-agendar-dia" onclick="openRecordModalWithDate()" class="w-full bg-clinic-600 text-white font-black py-3 rounded-xl shadow-sm hover:bg-clinic-700 transition-all uppercase text-xs"><i class="fas fa-plus mr-2"></i> Agendar neste dia</button>
             </div>
         </div>
@@ -1944,9 +1944,210 @@
     </div>
     <!-- ════════════════════════════════════════════════════ -->
 
+    <!-- ══════ MODAL VIEW RECORD ══════ -->
+    <div id="modal-view-record" class="modal fixed inset-0 z-[380] justify-center items-center p-4 vr-overlay">
+        <div class="relative w-full max-w-lg flex flex-col rounded-3xl overflow-hidden shadow-2xl vr-panel" style="max-height:92vh;">
+
+            <!-- Top accent bar (cor dinâmica via JS) -->
+            <div id="vr-accent-bar" class="absolute top-0 left-0 right-0 h-1 rounded-t-3xl" style="background:linear-gradient(90deg,#6366f1,#2563eb);background-size:200%;animation:gradientShift 3s linear infinite;"></div>
+
+            <!-- Header -->
+            <div class="relative px-6 pt-7 pb-5 shrink-0 vr-header">
+                <!-- Badge status -->
+                <div class="flex items-center gap-3 mb-4">
+                    <div id="vr-status-dot" class="h-2.5 w-2.5 rounded-full shrink-0"></div>
+                    <span id="vr-status-badge" class="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"></span>
+                    <div class="flex-1"></div>
+                    <a id="vr-wa-link" href="#" target="_blank" onclick="event.stopPropagation()" title="WhatsApp"
+                        class="h-8 w-8 rounded-xl flex items-center justify-center transition vr-wa-btn">
+                        <i class="fab fa-whatsapp text-sm"></i>
+                    </a>
+                    <button id="vr-btn-prontuario" onclick="event.stopPropagation()" title="Prontuário vacinal"
+                        class="h-8 w-8 rounded-xl flex items-center justify-center transition vr-pron-btn">
+                        <i class="fas fa-clipboard-list text-sm"></i>
+                    </button>
+                    <button onclick="closeViewRecord()" title="Fechar"
+                        class="h-8 w-8 rounded-xl flex items-center justify-center transition vr-close-btn">
+                        <i class="fas fa-times text-sm"></i>
+                    </button>
+                </div>
+
+                <!-- Paciente -->
+                <div class="flex items-center gap-4">
+                    <div id="vr-avatar" class="h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 font-black text-2xl text-white shadow-lg"></div>
+                    <div class="flex-1 min-w-0">
+                        <h2 id="vr-patient-name" class="font-black text-xl leading-tight truncate vr-title"></h2>
+                        <p id="vr-patient-meta" class="text-[11px] mt-0.5 vr-meta"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Divider -->
+            <div class="mx-6 h-px shrink-0 vr-divider"></div>
+
+            <!-- Body -->
+            <div class="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4 vr-body">
+
+                <!-- Vacina card -->
+                <div class="rounded-2xl p-4 flex items-center gap-4 vr-vaccine-card">
+                    <div class="h-11 w-11 rounded-xl flex items-center justify-center shrink-0 vr-vaccine-icon">
+                        <i class="fas fa-syringe text-white text-base"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p id="vr-vaccine-name" class="font-black text-sm truncate vr-title"></p>
+                        <p id="vr-dose" class="text-[11px] font-bold mt-0.5 vr-dose-text"></p>
+                    </div>
+                </div>
+
+                <!-- Grid de infos -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label">Data</span>
+                        <span id="vr-data" class="text-sm font-black vr-value"></span>
+                    </div>
+                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label">Horário</span>
+                        <span id="vr-hora" class="text-sm font-black vr-value"></span>
+                    </div>
+                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label">Valor</span>
+                        <span class="flex items-center gap-1.5 flex-wrap">
+                            <span id="vr-valor" class="text-sm font-black vr-value-green"></span>
+                            <span id="vr-desconto-badge" class="hidden text-[9px] font-black px-1.5 py-0.5 rounded-full" style="background:rgba(99,102,241,0.12);color:#6366f1;border:1px solid rgba(99,102,241,0.3);"></span>
+                        </span>
+                    </div>
+                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label">Pedido</span>
+                        <span id="vr-pedido" class="text-sm font-black vr-value"></span>
+                    </div>
+                </div>
+
+                <!-- Lote + Nome de Fábrica -->
+                <div id="vr-lote-row" class="grid grid-cols-2 gap-3 hidden">
+                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label">Nome de Fábrica</span>
+                        <span id="vr-nome-fabrica" class="text-sm font-black vr-value"></span>
+                    </div>
+                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label">Lote</span>
+                        <span id="vr-lote" class="text-sm font-black font-mono vr-value"></span>
+                    </div>
+                </div>
+
+                <!-- Aplicador (oculto quando vazio) -->
+                <div id="vr-aplicador-row" class="rounded-xl p-3.5 flex flex-col gap-1 hidden vr-info-cell">
+                    <span class="text-[9px] font-black uppercase tracking-widest vr-label">Aplicador</span>
+                    <span id="vr-aplicador" class="text-sm font-black vr-value"></span>
+                </div>
+
+                <!-- Vendedor -->
+                <div id="vr-vendedor-row" class="rounded-xl p-3.5 flex flex-col gap-1 hidden vr-info-cell">
+                    <span class="text-[9px] font-black uppercase tracking-widest vr-label">Vendedor</span>
+                    <span id="vr-vendedor" class="text-sm font-black vr-value"></span>
+                </div>
+
+                <!-- Motivo cancelamento -->
+                <div id="vr-motivo-row" class="rounded-xl p-3.5 flex flex-col gap-1 hidden vr-motivo-cell">
+                    <span class="text-[9px] font-black uppercase tracking-widest vr-motivo-label">Motivo</span>
+                    <span id="vr-motivo" class="text-sm font-black vr-motivo-value"></span>
+                </div>
+
+                <!-- Obs -->
+                <div id="vr-obs-row" class="rounded-xl p-3.5 flex flex-col gap-1 hidden vr-info-cell">
+                    <span class="text-[9px] font-black uppercase tracking-widest vr-label">Observações</span>
+                    <span id="vr-obs" class="text-xs leading-relaxed vr-obs-text"></span>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 pb-6 pt-3 flex gap-3 shrink-0 vr-footer">
+                <button onclick="closeViewRecord()" class="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition vr-cancel-btn">
+                    Fechar
+                </button>
+                <button id="vr-btn-edit" onclick="(function(){var _id=window._vrCurrentId;closeViewRecord();editRecord(_id);})()"
+                    class="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-wider text-white flex items-center justify-center gap-2 transition hover:opacity-90 shadow-lg"
+                    style="background:linear-gradient(135deg,#6366f1,#2563eb);box-shadow:0 4px 20px rgba(99,102,241,0.35);">
+                    <i class="fas fa-pencil-alt text-[11px]"></i> Editar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    @keyframes gradientShift { 0%{background-position:0%} 100%{background-position:200%} }
+
+    /* ── VIEW RECORD — Light mode (padrão) ── */
+    #modal-view-record.vr-overlay          { background:rgba(15,23,42,0.55); backdrop-filter:blur(10px); }
+    .vr-panel                              { background:#ffffff; border:1px solid #e2e8f0; }
+    .vr-header                             { background:#ffffff; }
+    .vr-title                              { color:#172554; }
+    .vr-meta                               { color:#64748b; }
+    .vr-divider                            { background:linear-gradient(90deg,transparent,#e2e8f0,transparent); }
+    .vr-body                               { background:#f8fafc; }
+    .vr-wa-btn                             { background:#f0fdf4; border:1px solid #bbf7d0; color:#16a34a; }
+    .vr-wa-btn:hover                       { background:#22c55e; color:#fff; }
+    .vr-pron-btn                           { background:#eef2ff; border:1px solid #c7d2fe; color:#4f46e5; }
+    .vr-pron-btn:hover                     { background:#6366f1; color:#fff; }
+    .vr-close-btn                          { background:#f1f5f9; border:1px solid #e2e8f0; color:#64748b; }
+    .vr-close-btn:hover                    { background:#e2e8f0; color:#1e293b; }
+    .vr-vaccine-card                       { background:#eef2ff; border:1px solid #c7d2fe; }
+    .vr-vaccine-icon                       { background:linear-gradient(135deg,#6366f1,#2563eb); box-shadow:0 4px 14px rgba(99,102,241,0.3); }
+    .vr-dose-text                          { color:#4f46e5; }
+    .vr-info-cell                          { background:#ffffff; border:1px solid #e2e8f0; }
+    .vr-label                              { color:#94a3b8; }
+    .vr-value                              { color:#1e293b; }
+    .vr-value-green                        { color:#15803d; }
+    .vr-motivo-cell                        { background:#fff1f2; border:1px solid #fecdd3; }
+    .vr-motivo-label                       { color:#e11d48; }
+    .vr-motivo-value                       { color:#be123c; }
+    .vr-obs-text                           { color:#475569; }
+    .vr-footer                             { background:#ffffff; border-top:1px solid #e2e8f0; }
+    .vr-cancel-btn                         { background:#f1f5f9; border:1px solid #e2e8f0; color:#475569; }
+    .vr-cancel-btn:hover                   { background:#e2e8f0; color:#1e293b; }
+
+    /* ── VIEW RECORD — Dark mode ── */
+    .dark-mode #modal-view-record.vr-overlay   { background:rgba(8,15,35,0.82); }
+    .dark-mode .vr-panel                       { background:linear-gradient(160deg,#0f172a 0%,#1e293b 100%); border-color:rgba(99,102,241,0.25); }
+    .dark-mode .vr-header                      { background:transparent; }
+    .dark-mode .vr-title                       { color:#f1f5f9; }
+    .dark-mode .vr-meta                        { color:#64748b; }
+    .dark-mode .vr-divider                     { background:linear-gradient(90deg,transparent,rgba(99,102,241,0.4),transparent); }
+    .dark-mode .vr-body                        { background:transparent; }
+    .dark-mode .vr-wa-btn                      { background:rgba(34,197,94,0.12); border-color:rgba(34,197,94,0.25); color:#4ade80; }
+    .dark-mode .vr-pron-btn                    { background:rgba(99,102,241,0.12); border-color:rgba(99,102,241,0.25); color:#818cf8; }
+    .dark-mode .vr-close-btn                   { background:rgba(148,163,184,0.08); border-color:rgba(148,163,184,0.15); color:#94a3b8; }
+    .dark-mode .vr-close-btn:hover             { background:#334155; color:#f1f5f9; }
+    .dark-mode .vr-vaccine-card                { background:rgba(99,102,241,0.08); border-color:rgba(99,102,241,0.18); }
+    .dark-mode .vr-dose-text                   { color:#a5b4fc; }
+    .dark-mode .vr-info-cell                   { background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); }
+    .dark-mode .vr-label                       { color:#475569; }
+    .dark-mode .vr-value                       { color:#f1f5f9; }
+    .dark-mode .vr-value-green                 { color:#4ade80; }
+    .dark-mode .vr-motivo-cell                 { background:rgba(220,38,38,0.08); border-color:rgba(220,38,38,0.25); }
+    .dark-mode .vr-motivo-label                { color:#f87171; }
+    .dark-mode .vr-motivo-value                { color:#fca5a5; }
+    .dark-mode .vr-obs-text                    { color:#94a3b8; }
+    .dark-mode .vr-footer                      { background:transparent; border-top-color:rgba(255,255,255,0.06); }
+    .dark-mode .vr-cancel-btn                  { background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.1); color:#94a3b8; }
+    .dark-mode .vr-cancel-btn:hover            { color:#f1f5f9; }
+
+    /* ── DAY MODAL — Light mode (padrão) ── */
+    .dm-modal-panel   { background:#ffffff; }
+    .dm-modal-body    { background:#f8fafc; }
+    .dm-modal-footer  { background:#ffffff; border-top:1px solid #e2e8f0; }
+
+    /* ── DAY MODAL — Dark mode ── */
+    .dark-mode .dm-modal-panel  { background:#1e293b; }
+    .dark-mode .dm-modal-body   { background:#0f172a; }
+    .dark-mode .dm-modal-footer { background:#1e293b; border-top:1px solid #334155; }
+    </style>
+
+    <!-- ════════════════════════════════════════════════════ -->
+
     <!-- ══════ MODAL AGENDAR GRUPO ══════ -->
     <div id="modal-agendar-grupo" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[350] justify-center items-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col" style="max-height:90vh;">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col" style="max-height:90vh;">
             <div class="bg-gradient-to-br from-blue-600 to-blue-800 p-5 text-white flex items-center gap-3 shrink-0">
                 <div class="h-10 w-10 bg-white/15 rounded-xl flex items-center justify-center border border-white/20 shrink-0">
                     <i class="fas fa-layer-group text-white text-base"></i>
