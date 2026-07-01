@@ -117,6 +117,9 @@ function openRecordModal() {
     // Limpa inputs hidden que não são resetados automaticamente
     document.getElementById('reg-vacina').value = '';
     document.getElementById('hidden-patient-id').value = '';
+    document.getElementById('reg-valor').value = '';
+    document.getElementById('btn-desconto').disabled = false;
+    document.getElementById('reg-desconto-info').style.display = 'none';
     resetDescontoUI();
     document.getElementById('hidden-patient-id').value = '';
     // Limpa o dropdown de vacina para evitar sobreposição visual
@@ -134,6 +137,7 @@ function openRecordModal() {
     document.getElementById('div-motivo-cancelamento').style.display = 'none';
     document.getElementById('sugestao-data').classList.add('hidden');
     document.getElementById('reg-data').removeAttribute('min');
+    document.getElementById('reg-data').value = new Date().toISOString().split('T')[0];
     document.getElementById('reg-lote-validade-hint').classList.add('hidden');
     const _estoqueHintNew = document.getElementById('reg-lote-estoque-hint');
     if (_estoqueHintNew) _estoqueHintNew.classList.add('hidden');
@@ -650,16 +654,18 @@ function confirmarSalvarMesmoAssim() {
 // ─── DESCONTO NO AGENDAMENTO ──────────────────────────────────────────────────
 function openDescontoModal() {
     const valorAtual = document.getElementById('reg-valor').value;
-    if (!valorAtual || valorAtual === '0,00') {
+    if (!valorAtual || (valorAtual === '0,00' && !_cortesia)) {
         showNotification('Selecione uma vacina antes de aplicar desconto.', 'error');
         return;
     }
     // Usa o valor cheio real (sem desconto anterior)
-    const base = _descontoAtivo ? _valorCheio : valorAtual;
+    const base = (_descontoAtivo || _cortesia) ? _valorCheio : valorAtual;
     document.getElementById('modal-desc-valor-cheio').textContent = 'R$ ' + base;
     document.getElementById('desc-pct-input').value = '';
     document.getElementById('desc-val-input').value = '';
     document.getElementById('desc-preview').classList.add('hidden');
+    document.getElementById('desc-cortesia-check').checked = _cortesia;
+    toggleCortesia();
     switchDescontoTab('pct');
     document.getElementById('modal-desconto').classList.add('active');
 }
@@ -703,10 +709,26 @@ function calcDescontoPreview() {
 }
 
 function aplicarDesconto() {
-    const base = _descontoAtivo ? _valorCheio : document.getElementById('reg-valor').value;
+    const isCortesia = document.getElementById('desc-cortesia-check').checked;
+    const base = (_descontoAtivo || _cortesia) ? _valorCheio : document.getElementById('reg-valor').value;
     const baseNum = parseBRL(base);
-    let finalNum = 0, pct = 0;
 
+    if (isCortesia) {
+        _valorCheio = base;
+        _cortesia = true;
+        _descontoAtivo = false;
+        document.getElementById('reg-valor').value = '0,00';
+        document.getElementById('reg-valor-cheio-display').textContent = 'R$ ' + _valorCheio;
+        document.getElementById('reg-desconto-pct-display').textContent = 'CORTESIA';
+        document.getElementById('reg-desconto-info').style.display = 'flex';
+        document.getElementById('btn-desconto').classList.remove('ring-indigo-400');
+        document.getElementById('btn-desconto').classList.add('ring-2', 'ring-amber-400');
+        document.getElementById('modal-desconto').classList.remove('active');
+        showNotification('Vacina marcada como cortesia!', 'success');
+        return;
+    }
+
+    let finalNum = 0, pct = 0;
     if (_descontoTab === 'pct') {
         pct = parseFloat(document.getElementById('desc-pct-input').value) || 0;
         if (pct <= 0 || pct > 100) { showNotification('Informe um percentual entre 0,1% e 100%.', 'error'); return; }
@@ -718,32 +740,56 @@ function aplicarDesconto() {
     }
 
     _valorCheio = base;
+    _cortesia = false;
     _descontoAtivo = true;
     document.getElementById('reg-valor').value = formatBRL(finalNum);
-    // Atualiza info abaixo do campo
     document.getElementById('reg-valor-cheio-display').textContent = 'R$ ' + _valorCheio;
     document.getElementById('reg-desconto-pct-display').textContent = pct.toFixed(1).replace('.', ',') + '% OFF';
-    document.getElementById('reg-desconto-info').classList.remove('hidden');
-    // Estilo do campo: destaque indigo
+    document.getElementById('reg-desconto-info').style.display = 'flex';
+    document.getElementById('btn-desconto').classList.remove('ring-amber-400');
     document.getElementById('btn-desconto').classList.add('ring-2', 'ring-indigo-400');
     document.getElementById('modal-desconto').classList.remove('active');
     showNotification('Desconto aplicado com sucesso!', 'success');
 }
 
+function toggleCortesia() {
+    const isCortesia = document.getElementById('desc-cortesia-check').checked;
+    const tabs = document.getElementById('desc-tabs-container');
+    if (tabs) tabs.classList.toggle('hidden', isCortesia);
+    document.getElementById('desc-preview').classList.add('hidden');
+    if (isCortesia) {
+        document.getElementById('desc-pct-panel').classList.add('hidden');
+        document.getElementById('desc-val-panel').classList.add('hidden');
+    } else {
+        switchDescontoTab(_descontoTab);
+    }
+}
+
+function closeRecordModal() {
+    resetDescontoUI();
+    document.getElementById('reg-valor').value = '';
+    document.getElementById('reg-desconto-info').style.display = 'none';
+    closeModals();
+}
+
 function removerDesconto() {
-    if (!_descontoAtivo) return;
-    document.getElementById('reg-valor').value = _valorCheio;
+    if (!_descontoAtivo && !_cortesia) return;
+    // Fallback: lê o valor cheio do DOM caso _valorCheio tenha sido perdido
+    const cheio = _valorCheio || document.getElementById('reg-valor-cheio-display').textContent.replace('R$', '').trim();
+    if (cheio) document.getElementById('reg-valor').value = cheio;
     _descontoAtivo = false;
+    _cortesia = false;
     _valorCheio = '';
-    document.getElementById('reg-desconto-info').classList.add('hidden');
-    document.getElementById('btn-desconto').classList.remove('ring-2', 'ring-indigo-400');
+    document.getElementById('reg-desconto-info').style.display = 'none';
+    document.getElementById('btn-desconto').classList.remove('ring-2', 'ring-indigo-400', 'ring-amber-400');
 }
 
 function resetDescontoUI() {
     _descontoAtivo = false;
+    _cortesia = false;
     _valorCheio = '';
-    document.getElementById('reg-desconto-info').classList.add('hidden');
-    document.getElementById('btn-desconto').classList.remove('ring-2', 'ring-indigo-400');
+    document.getElementById('reg-desconto-info').style.display = 'none';
+    document.getElementById('btn-desconto').classList.remove('ring-2', 'ring-indigo-400', 'ring-amber-400');
 }
 
 function confirmarDoseAnterior() {
@@ -871,11 +917,18 @@ function viewRecord(id) {
     // Infos
     document.getElementById('vr-data').textContent = a.data ? a.data.split('-').reverse().join('/') : '—';
     document.getElementById('vr-hora').textContent = a.hora || '—';
-    document.getElementById('vr-valor').textContent = a.valorAplicado ? 'R$ ' + a.valorAplicado : '—';
+    document.getElementById('vr-valor').textContent = a.cortesia ? 'R$ 0,00' : (a.valorAplicado ? 'R$ ' + a.valorAplicado : '—');
     const vrBadge = document.getElementById('vr-desconto-badge');
     if (vrBadge) {
-        if (a.descontoPct && a.descontoPct > 0) {
+        if (a.cortesia) {
+            vrBadge.textContent = 'CORTESIA';
+            vrBadge.style.background = '#fef3c7';
+            vrBadge.style.color = '#b45309';
+            vrBadge.classList.remove('hidden');
+        } else if (a.descontoPct && a.descontoPct > 0) {
             vrBadge.textContent = '-' + String(a.descontoPct).replace('.', ',') + '%';
+            vrBadge.style.background = '';
+            vrBadge.style.color = '';
             vrBadge.classList.remove('hidden');
         } else {
             vrBadge.classList.add('hidden');
@@ -995,12 +1048,21 @@ function editRecord(id) {
         document.getElementById('reg-hora').value = a.hora || '';
         document.getElementById('reg-valor').value = String(a.valorAplicado || '').replace('R$', '').trim();
         // Restaura estado de desconto
-        if (a.valorCheio && a.descontoPct) {
+        if (a.cortesia) {
+            _cortesia = true;
+            _descontoAtivo = false;
+            _valorCheio = String(a.valorCheio || '').replace('R$', '').trim();
+            document.getElementById('reg-valor-cheio-display').textContent = 'R$ ' + _valorCheio;
+            document.getElementById('reg-desconto-pct-display').textContent = 'CORTESIA';
+            document.getElementById('reg-desconto-info').style.display = 'flex';
+            document.getElementById('btn-desconto').classList.add('ring-2', 'ring-amber-400');
+        } else if (a.valorCheio && a.descontoPct) {
             _descontoAtivo = true;
+            _cortesia = false;
             _valorCheio = String(a.valorCheio).replace('R$', '').trim();
             document.getElementById('reg-valor-cheio-display').textContent = 'R$ ' + _valorCheio;
             document.getElementById('reg-desconto-pct-display').textContent = String(a.descontoPct).replace('.', ',') + '% OFF';
-            document.getElementById('reg-desconto-info').classList.remove('hidden');
+            document.getElementById('reg-desconto-info').style.display = 'flex';
             document.getElementById('btn-desconto').classList.add('ring-2', 'ring-indigo-400');
         } else {
             resetDescontoUI();
@@ -1447,8 +1509,9 @@ function saveRecord(e) {
         hora: document.getElementById('reg-hora').value,
         doseAtual: doseAtualStr,
         valorAplicado: document.getElementById('reg-valor').value,
-        valorCheio: _descontoAtivo ? _valorCheio : null,
+        valorCheio: (_descontoAtivo || _cortesia) ? _valorCheio : null,
         descontoPct: _descontoAtivo ? parseFloat((((parseBRL(_valorCheio) - parseBRL(document.getElementById('reg-valor').value)) / parseBRL(_valorCheio)) * 100).toFixed(1)) : null,
+        cortesia: _cortesia || false,
         status: statusVal,
         loteId: loteId,
         lote: loteNumero,

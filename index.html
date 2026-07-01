@@ -1672,7 +1672,7 @@
                 <h3 id="modal-title-agenda" class="font-black uppercase tracking-tight text-xl">Novo Agendamento</h3>
                 <div class="flex items-center gap-1">
                     <button onclick="openAuditModal('agendamento', document.getElementById('reg-id').value, document.getElementById('modal-title-agenda').innerText)" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition" title="Histórico de edições"><i class="fas fa-clock text-slate-400 text-sm"></i></button>
-                    <button onclick="closeModals()" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition"><i class="fas fa-times text-xl"></i></button>
+                    <button onclick="closeRecordModal()" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition"><i class="fas fa-times text-xl"></i></button>
                 </div>
             </div>
             <form id="record-form" onsubmit="saveRecord(event)" class="p-6 grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1769,7 +1769,7 @@
                         </button>
                     </div>
                     <!-- Linha de info de desconto -->
-                    <div id="reg-desconto-info" class="hidden mt-1.5 flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1.5">
+                    <div id="reg-desconto-info" class="mt-1.5 items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1.5" style="display:none">
                         <i class="fas fa-tag text-indigo-400 text-[9px] shrink-0"></i>
                         <span class="text-[10px] text-slate-500">Cheio: <b id="reg-valor-cheio-display" class="text-slate-700"></b></span>
                         <span class="text-slate-300 text-[10px]">•</span>
@@ -1848,7 +1848,7 @@
                     <button type="submit" class="flex-1 bg-clinic-600 text-white font-black py-3 rounded-xl hover:bg-clinic-700 shadow-lg uppercase text-xs transition">Salvar Registro</button>
                     <button type="button" id="btn-duplicar-record" onclick="duplicarAgendamento()" class="hidden px-5 py-3 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-xl font-black hover:bg-indigo-600 hover:text-white uppercase text-xs transition shadow-sm"><i class="fas fa-copy mr-1"></i> Duplicar</button>
                     <button type="button" id="btn-delete-record" onclick="openDeleteModal(document.getElementById('reg-id').value)" class="hidden px-5 py-3 bg-red-50 border border-red-200 text-red-600 rounded-xl font-black hover:bg-red-600 hover:text-white uppercase text-xs transition shadow-sm"><i class="fas fa-trash mr-1"></i> Excluir</button>
-                    <button type="button" onclick="closeModals()" class="px-6 py-3 border border-slate-200 rounded-xl font-black text-slate-500 hover:bg-slate-50 uppercase text-xs transition">Cancelar</button>
+                    <button type="button" onclick="closeRecordModal()" class="px-6 py-3 border border-slate-200 rounded-xl font-black text-slate-500 hover:bg-slate-50 uppercase text-xs transition">Cancelar</button>
                 </div>
             </form>
         </div>
@@ -3308,7 +3308,7 @@
             <!-- Body -->
             <div class="p-5 space-y-4">
                 <!-- Tabs: por % ou por valor fixo -->
-                <div class="flex rounded-xl overflow-hidden border border-slate-200 text-[11px] font-black uppercase">
+                <div id="desc-tabs-container" class="flex rounded-xl overflow-hidden border border-slate-200 text-[11px] font-black uppercase">
                     <button type="button" id="tab-desc-pct" onclick="switchDescontoTab('pct')"
                         class="flex-1 py-2 bg-indigo-600 text-white transition">Por %</button>
                     <button type="button" id="tab-desc-val" onclick="switchDescontoTab('val')"
@@ -3354,6 +3354,16 @@
                     <span class="text-2xl font-black text-navy-900" id="desc-preview-valor"></span>
                     <p class="text-[10px] text-slate-400 mt-0.5">Economia de <b class="text-green-600" id="desc-preview-economia"></b></p>
                 </div>
+
+                <!-- Cortesia -->
+                <label id="desc-cortesia-label" class="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 cursor-pointer select-none">
+                    <input type="checkbox" id="desc-cortesia-check" onchange="toggleCortesia()" class="w-4 h-4 accent-amber-500 rounded">
+                    <div class="flex-1">
+                        <span class="block text-[11px] font-black text-amber-700 uppercase">Cortesia (Gratuita)</span>
+                        <span class="block text-[10px] text-amber-500">Não impacta faturamento nem dashboard</span>
+                    </div>
+                    <i class="fas fa-gift text-amber-400 text-base"></i>
+                </label>
 
                 <div class="flex gap-3 pt-1">
                     <button type="button" onclick="aplicarDesconto()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 rounded-xl transition text-xs uppercase shadow-sm">Aplicar</button>

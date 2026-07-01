@@ -527,9 +527,9 @@ function renderDashFinanceiro(apps) {
     const toVal    = a => parseFloat(String(a.valorAplicado || '0').replace(',','.')) || 0;
     const toCheio  = a => a.valorCheio ? (parseFloat(String(a.valorCheio).replace(',','.')) || toVal(a)) : toVal(a);
 
-    const aplicados   = apps.filter(a => a.status === 'Aplicado');
-    const pendentes   = apps.filter(a => a.status === 'Agendado' || a.status === 'Em negociação');
-    const cancelados  = apps.filter(a => a.status === 'Perdido');
+    const aplicados   = apps.filter(a => a.status === 'Aplicado' && !a.cortesia);
+    const pendentes   = apps.filter(a => (a.status === 'Agendado' || a.status === 'Em negociação') && !a.cortesia);
+    const cancelados  = apps.filter(a => a.status === 'Perdido' && !a.cortesia);
 
     const receitaReal  = aplicados.reduce((s,a) => s + toVal(a), 0);
     const receitaPrev  = pendentes.reduce((s,a) => s + toVal(a), 0);

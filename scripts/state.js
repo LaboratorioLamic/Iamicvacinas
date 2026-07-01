@@ -78,6 +78,7 @@ let _esquemas = []; // [{minAnos, minMeses, maxAnos, maxMeses, numDoses, interva
 let _descontoAtivo = false;   // há desconto aplicado?
 let _valorCheio = '';         // valor cheio sem desconto (string mascarada)
 let _descontoTab = 'pct';     // aba ativa: 'pct' | 'val'
+let _cortesia = false;        // vacina gratuita por cortesia (não entra no faturamento)
 
 // Pending action IDs
 let pendingDeleteId = null;
