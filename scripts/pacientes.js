@@ -205,6 +205,10 @@ function viewPatientHistory(id) {
 
         list.innerHTML = html;
     }
+
+    if (typeof updateProntuarioContatoBadge === 'function') updateProntuarioContatoBadge(id);
+    if (typeof switchProntuarioTab === 'function') switchProntuarioTab('info');
+
     document.getElementById('modal-patient-history').classList.add('active');
 }
 

@@ -46,6 +46,16 @@ function setupRealtimeSync() {
     db.ref('auditLog').on('value', snap => {
         auditLog = _fbToArr(snap.val()).sort((a, b) => new Date(b.ts) - new Date(a.ts));
     });
+    db.ref('patientContacts').on('value', snap => {
+        patientContacts = _fbToArr(snap.val());
+        if (_appReady) {
+            updateContactsBadge();
+            const modal = document.getElementById('modal-patient-history');
+            if (modal && modal.classList.contains('active') && _prontuarioTab === 'contato') {
+                renderContatoTab(modal.dataset.patientId);
+            }
+        }
+    });
     db.ref('appUsers').on('value', snap => {
         appUsers = _fbToArr(snap.val());
         if (_appReady) renderUsersList();
@@ -67,6 +77,7 @@ function initFromFirebase() {
         holidays      = _normalizeSimpleArr(data.holidays);
         vaccineLots   = _fbToArr(data.vaccineLots);
         stockMovements = _fbToArr(data.stockMovements);
+        patientContacts = _fbToArr(data.patientContacts);
         auditLog      = _fbToArr(data.auditLog).sort((a, b) => new Date(b.ts) - new Date(a.ts));
         appUsers      = _fbToArr(data.appUsers);
         appGroups     = _fbToArr(data.appGroups);
@@ -99,7 +110,8 @@ function saveAll() {
             cancelReasons: cancelReasons,
             holidays:      holidays,
             vaccineLots:   _arrToFbObj(vaccineLots),
-            stockMovements: _arrToFbObj(stockMovements)
+            stockMovements: _arrToFbObj(stockMovements),
+            patientContacts: _arrToFbObj(patientContacts)
         }).catch(err => console.error('[FB] saveAll:', err));
     }, 300);
 }

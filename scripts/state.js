@@ -4,6 +4,8 @@
 let patients = [], vaccines = [], appointments = [], cancelReasons = [];
 let holidays = [], vaccineLots = [], auditLog = [];
 let stockMovements = []; // [{id, loteId, vaccineId, tipo:'entrada'|'saida', qtd, motivo, descarte, data, usuario}]
+let patientContacts = []; // [{id, patientId, autor, tipo, texto, criadoEm, agendadoPara, status:'aberto'|'concluido', concluidoEm}]
+let _prontuarioTab = 'info'; // 'info' | 'contato'
 let currentLoteModalVaccineId = null;
 
 // Almoxarifado state

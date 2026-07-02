@@ -84,6 +84,7 @@ function createFirstAdmin(e) {
     localStorage.setItem('ig_session', JSON.stringify(currentUser));
     document.getElementById('login-screen').style.display = 'none';
     updateUserUI();
+    if (typeof updateContactsBadge === 'function') updateContactsBadge();
     showNotification(`Bem-vindo, ${admin.nome.split(' ')[0]}!`, 'success');
 }
 
@@ -104,6 +105,7 @@ function doLogin(e) {
     localStorage.setItem('ig_session', JSON.stringify(currentUser));
     document.getElementById('login-screen').style.display = 'none';
     updateUserUI();
+    if (typeof updateContactsBadge === 'function') updateContactsBadge();
     const firstTab = getFirstAllowedTab();
     if (firstTab) switchTab(firstTab);
     showNotification(`Bem-vindo, ${user.nome.split(' ')[0]}!`, 'success');
@@ -116,6 +118,7 @@ function doLogout() {
     document.getElementById('senha-input').value = '';
     document.getElementById('login-error').classList.add('hidden');
     document.getElementById('login-screen').style.display = 'flex';
+    if (typeof updateContactsBadge === 'function') updateContactsBadge();
 }
 
 function getFirstAllowedTab() {

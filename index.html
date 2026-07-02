@@ -280,12 +280,30 @@
             <span id="topbar-module-label" class="hidden sm:block text-slate-400 text-xs font-bold uppercase tracking-widest"></span>
         </div>
         <div class="flex-1"></div>
+        <div class="relative shrink-0">
+            <button onclick="toggleContactsPanel(event)" id="btn-contacts-bell" class="relative h-9 w-9 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition flex items-center justify-center" title="Contatos agendados">
+                <i class="fas fa-bell text-sm"></i>
+                <span id="contacts-badge" class="hidden absolute -top-1 -right-1 h-5 min-w-5 px-1 bg-red-500 text-white text-[9px] font-black rounded-full items-center justify-center shadow leading-none"></span>
+            </button>
+        </div>
         <div class="flex items-center gap-2 text-slate-400 text-xs font-bold" style="margin-right:100px">
             <i class="fas fa-circle text-emerald-500 text-[6px]"></i>
             <span class="hidden sm:block">Online</span>
         </div>
     </header>
     <!-- ══════════════════════════════════════════════════ -->
+
+    <!-- PAINEL FLUTUANTE DE CONTATOS AGENDADOS (sino global) -->
+    <div id="contacts-panel" class="hidden fixed w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-[500] overflow-hidden flex-col" style="max-height: 420px; top: 3.5rem; right: 1rem;">
+        <div class="bg-gradient-to-r from-clinic-600 to-indigo-600 p-3 flex items-center justify-between shrink-0 gap-2">
+            <h4 class="font-black text-white text-xs uppercase tracking-widest shrink-0"><i class="fas fa-bell mr-2"></i>Contatos Agendados</h4>
+            <div class="flex items-center gap-2 shrink-0">
+                <button id="contacts-showall-btn" onclick="toggleContactsShowAll(event)" title="Mostrar contatos agendados por todos os usuários" class="text-[9px] font-black uppercase tracking-wide px-2 py-1 rounded-full bg-white/10 text-white/80 hover:bg-white/20 transition">Ver todos</button>
+                <button onclick="toggleContactsPanel(event)" class="text-white/80 hover:text-white transition"><i class="fas fa-times text-xs"></i></button>
+            </div>
+        </div>
+        <div id="contacts-panel-list" class="overflow-y-auto p-3 space-y-2 flex-1"></div>
+    </div>
 
     <main class="flex-1 overflow-auto p-6 relative" style="padding-top:4rem;min-height:100vh;">
 
@@ -2464,7 +2482,7 @@
                 </div>
             </div>
 
-            <div class="p-6 bg-gradient-to-br from-slate-50 to-white border-b border-slate-200 shrink-0">
+            <div id="ph-patient-header" class="p-6 bg-gradient-to-br from-slate-50 to-white border-b border-slate-200 shrink-0">
                 <div class="flex items-start gap-4">
                     <div id="hist-patient-avatar" class="h-14 w-14 shrink-0 bg-gradient-to-br from-navy-800 to-navy-600 text-white rounded-2xl flex items-center justify-center font-black text-2xl shadow-lg"></div>
                     <div class="min-w-0 flex-1">
@@ -2479,15 +2497,114 @@
                 <div id="hist-patient-resp" class="hidden mt-3 bg-indigo-50/70 border border-indigo-100 rounded-xl p-3"></div>
             </div>
 
-            <div class="p-6 overflow-y-auto flex-1 bg-white" id="patient-history-list"></div>
+            <div class="px-6 pt-3 bg-white border-b border-slate-200 shrink-0 flex gap-2">
+                <button onclick="switchProntuarioTab('info')" id="phtab-info" class="flex-1 py-2.5 text-xs font-black uppercase tracking-widest text-indigo-700 bg-indigo-50 border-b-2 border-indigo-500 rounded-t-lg transition"><i class="fas fa-info-circle mr-1"></i>Informações</button>
+                <button onclick="switchProntuarioTab('contato')" id="phtab-contato" class="flex-1 py-2.5 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 border-b-2 border-transparent rounded-t-lg transition"><i class="fas fa-comments mr-1"></i>Contato<span id="phtab-contato-badge" class="hidden ml-1.5 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full"></span></button>
+            </div>
 
-            <div class="p-4 border-t border-slate-200 bg-slate-50 shrink-0 flex items-center gap-2">
-                <button id="btn-agendar-prontuario" onclick="openAgendarFromProntuario(document.getElementById('modal-patient-history').dataset.patientId)" class="flex-1 flex items-center justify-center gap-2 bg-clinic-600 hover:bg-clinic-700 text-white font-black py-3 rounded-xl uppercase text-xs tracking-widest shadow-lg shadow-clinic-600/20 transition">
-                    <i class="fas fa-calendar-plus"></i> Agendar Vacina
+            <div id="ph-tab-info" class="flex-1 min-h-0 flex flex-col">
+                <div class="p-6 overflow-y-auto flex-1 bg-white" id="patient-history-list"></div>
+
+                <div class="p-4 border-t border-slate-200 bg-slate-50 shrink-0 flex items-center gap-2">
+                    <button id="btn-agendar-prontuario" onclick="openAgendarFromProntuario(document.getElementById('modal-patient-history').dataset.patientId)" class="flex-1 flex items-center justify-center gap-2 bg-clinic-600 hover:bg-clinic-700 text-white font-black py-3 rounded-xl uppercase text-xs tracking-widest shadow-lg shadow-clinic-600/20 transition">
+                        <i class="fas fa-calendar-plus"></i> Agendar Vacina
+                    </button>
+                    <button id="btn-editar-prontuario" onclick="openPatientModal(document.getElementById('modal-patient-history').dataset.patientId)" title="Editar Paciente" class="shrink-0 flex items-center justify-center gap-1.5 bg-white hover:bg-slate-100 text-slate-600 font-black py-2 px-4 rounded-xl uppercase text-[10px] tracking-widest border border-slate-200 shadow-sm transition">
+                        <i class="fas fa-pen"></i> Editar
+                    </button>
+                </div>
+            </div>
+
+            <div id="ph-tab-contato" class="hidden flex-1 min-h-0 flex flex-col">
+                <div class="px-6 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
+                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Paciente</p>
+                    <h4 id="ph-contato-patient-name" class="font-black text-navy-900 text-sm leading-tight truncate"></h4>
+                </div>
+                <div id="contato-timeline" class="p-6 overflow-y-auto flex-1 bg-white space-y-3"></div>
+                <div id="contato-form-wrap" class="p-4 border-t border-slate-200 bg-slate-50 shrink-0"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-concluir-contato" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[130] justify-center items-center p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-navy-900 p-5 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-black uppercase tracking-tight text-lg"><i class="fas fa-check-circle text-clinic-400 mr-2"></i>Concluir Contato</h3>
+                <button onclick="closeConcluirContatoModal()" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 space-y-4">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Resultado da conversa *</label>
+                    <textarea id="concluir-contato-texto" rows="3" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm" placeholder="O que foi conversado com o paciente?"></textarea>
+                </div>
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="concluir-contato-reagendar" onchange="toggleReagendarContatoField()" class="h-4 w-4 rounded border-slate-300 text-clinic-600 focus:ring-clinic-500">
+                    <span class="text-xs font-bold text-slate-600 uppercase tracking-wide">Agendar novo contato</span>
+                </label>
+                <div id="reagendar-contato-data-wrap" class="hidden">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Nova data de contato</label>
+                    <input type="date" id="reagendar-contato-data" class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
+                </div>
+                <p id="concluir-contato-err" class="hidden text-xs font-bold text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>Descreva o resultado da conversa.</p>
+            </div>
+            <div class="p-4 border-t border-slate-200 bg-slate-50 shrink-0">
+                <button onclick="confirmConcluirContato()" class="w-full flex items-center justify-center gap-2 bg-clinic-600 hover:bg-clinic-700 text-white font-black py-3 rounded-xl uppercase text-xs tracking-widest shadow-lg shadow-clinic-600/20 transition">
+                    <i class="fas fa-check"></i> Concluir
                 </button>
-                <button id="btn-editar-prontuario" onclick="openPatientModal(document.getElementById('modal-patient-history').dataset.patientId)" title="Editar Paciente" class="shrink-0 flex items-center justify-center gap-1.5 bg-white hover:bg-slate-100 text-slate-600 font-black py-2 px-4 rounded-xl uppercase text-[10px] tracking-widest border border-slate-200 shadow-sm transition">
-                    <i class="fas fa-pen"></i> Editar
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-editar-contato" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[130] justify-center items-center p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-gradient-to-br from-indigo-600 to-indigo-800 p-5 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-black uppercase tracking-tight text-lg"><i class="fas fa-pen text-indigo-200 mr-2"></i>Editar Publicação</h3>
+                <button onclick="closeEditarContatoModal()" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 space-y-4">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Texto *</label>
+                    <textarea id="editar-contato-texto" rows="3" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"></textarea>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <div class="flex-1 min-w-[140px]">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Tipo</label>
+                        <select id="editar-contato-tipo" class="w-full border border-slate-200 rounded-lg py-2 px-2.5 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none"></select>
+                    </div>
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Lembrar de contatar em</label>
+                        <input type="date" id="editar-contato-data" class="w-full border border-slate-200 rounded-lg py-2 px-2.5 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                </div>
+                <p id="editar-contato-err" class="hidden text-xs font-bold text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>Descreva o conteúdo da publicação.</p>
+            </div>
+            <div class="p-4 border-t border-slate-200 bg-slate-50 shrink-0">
+                <button onclick="confirmEditarContato()" class="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-xl uppercase text-xs tracking-widest shadow-lg shadow-indigo-600/20 transition">
+                    <i class="fas fa-save"></i> Salvar Alterações
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-delete-contato" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[140] justify-center items-center p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="bg-gradient-to-br from-red-600 to-red-800 p-6 text-white text-center">
+                <div class="h-16 w-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                    <i class="fas fa-trash text-2xl text-white"></i>
+                </div>
+                <h3 class="font-black text-xl uppercase tracking-tight">Excluir Publicação</h3>
+                <p class="text-red-200 text-xs mt-1 font-bold uppercase tracking-widest">Ação irreversível</p>
+            </div>
+            <div class="p-6">
+                <p class="text-slate-600 text-sm text-center mb-5">Tem certeza que deseja excluir esta publicação? Se houver um contato agendado nela, o lembrete também será removido.</p>
+                <div class="flex gap-3">
+                    <button onclick="confirmExcluirContato()" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-black py-3 rounded-xl uppercase text-xs transition">
+                        <i class="fas fa-trash mr-1"></i> Excluir
+                    </button>
+                    <button onclick="closeExcluirContatoModal()" class="flex-1 border border-slate-200 text-slate-500 font-black py-3 rounded-xl hover:bg-slate-50 uppercase text-xs transition">
+                        Cancelar
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -4296,6 +4413,7 @@
     <script src="scripts/almoxarifado.js"></script>
     <script src="scripts/appointments.js"></script>
     <script src="scripts/oportunidades.js"></script>
+    <script src="scripts/contatos.js"></script>
     <script src="scripts/users.js"></script>
     <script src="scripts/backup.js"></script>
     <script src="scripts/init.js"></script>
