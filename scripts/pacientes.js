@@ -399,8 +399,9 @@ async function downloadVaccineCalendarPDF() {
 
     const rows = [];
     sortedVaccines.forEach(vacNome => {
+        const doseRank = d => d === 'Dose Zero' ? -1 : (parseInt(d) || 0);
         const doses = grouped[vacNome].sort((a, b) => {
-            const numA = parseInt(a.doseAtual) || 0, numB = parseInt(b.doseAtual) || 0;
+            const numA = doseRank(a.doseAtual), numB = doseRank(b.doseAtual);
             return numA !== numB ? numA - numB : a.doseAtual.localeCompare(b.doseAtual, 'pt-BR');
         });
         doses.forEach(a => {

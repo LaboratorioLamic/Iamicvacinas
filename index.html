@@ -2488,6 +2488,15 @@
                         <span class="text-[10px] font-black text-slate-400 uppercase">meses (opcional)</span>
                     </div>
                 </div>
+                <div class="col-span-1 md:col-span-2 flex items-center gap-4 flex-wrap">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dose Zero</span>
+                    <button type="button" id="btn-dose-zero-toggle" onclick="toggleDoseZero()"
+                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none bg-slate-200"
+                        aria-pressed="false">
+                        <span id="btn-dose-zero-knob" class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
+                    </button>
+                    <input type="hidden" id="vac-dose-zero" value="0">
+                </div>
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Valor Padrão *</label>
                     <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-clinic-500">

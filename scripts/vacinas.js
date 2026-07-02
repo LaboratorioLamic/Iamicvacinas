@@ -260,12 +260,32 @@ function _setReforco(on) {
 }
 function toggleReforco() { _setReforco(document.getElementById('vac-reforco').value !== '1'); }
 
+function _setDoseZero(on) {
+    const btn  = document.getElementById('btn-dose-zero-toggle');
+    const knob = document.getElementById('btn-dose-zero-knob');
+    const inp  = document.getElementById('vac-dose-zero');
+    if (!btn) return;
+    if (on) {
+        btn.classList.replace('bg-slate-200', 'bg-indigo-600');
+        knob.classList.replace('translate-x-1', 'translate-x-6');
+        btn.setAttribute('aria-pressed', 'true');
+        inp.value = '1';
+    } else {
+        btn.classList.replace('bg-indigo-600', 'bg-slate-200');
+        knob.classList.replace('translate-x-6', 'translate-x-1');
+        btn.setAttribute('aria-pressed', 'false');
+        inp.value = '0';
+    }
+}
+function toggleDoseZero() { _setDoseZero(document.getElementById('vac-dose-zero').value !== '1'); }
+
 
 function openVaccineModal() {
     if (!checkPerm('criar_produtos')) return;
     document.getElementById('vacina-form').reset();
     document.getElementById('vac-id').value = '';
     _setReforco(false);
+    _setDoseZero(false);
     _esquemas = [];
     renderEsquemas();
     const btnDel = document.getElementById('btn-delete-vacina');
@@ -281,6 +301,7 @@ function editVaccine(id) {
     document.getElementById('vac-mnemonico').value = v.mnemonico || '';
     _setReforco(v.reforco);
     document.getElementById('vac-reforco-meses').value = v.reforcoMeses != null ? v.reforcoMeses : '';
+    _setDoseZero(v.doseZero);
     document.getElementById('vac-valor').value = String(v.valor || '').replace('R$', '').trim();
     document.getElementById('vac-estoque-minimo').value = v.estoqueMinimo != null ? v.estoqueMinimo : '';
     if (v.esquemas && v.esquemas.length) {
@@ -341,6 +362,7 @@ function saveVaccine(e) {
             ? (parseInt(document.getElementById('vac-reforco-meses').value, 10) || null)
             : null,
         doseUnica,
+        doseZero: document.getElementById('vac-dose-zero').value === '1',
         idadeMinimaAnos, idadeMinimaMeses,
         esquemas: JSON.parse(JSON.stringify(_esquemas)),
         valor: document.getElementById('vac-valor').value,

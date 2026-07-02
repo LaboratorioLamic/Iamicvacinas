@@ -476,6 +476,8 @@ function autoFillVaccine() {
             }
             // Reforço: aparece para todos os esquemas quando a vacina tem reforço
             if (v.reforco) doseSel.innerHTML += `<option value="Reforço">Reforço</option>`;
+            // Dose Zero: opção independente do esquema, sempre por último na lista
+            if (v.doseZero) doseSel.innerHTML += `<option value="Dose Zero">Dose Zero</option>`;
 
             // Label de faixas etárias
             let idadeMinStr = '';
@@ -547,7 +549,7 @@ function updateSuggestedDate() {
     sugDiv.classList.add('hidden');
     document.getElementById('reg-data').removeAttribute('min');
 
-    if (!patId || !vId || !dose || dose.includes('1ª')) return;
+    if (!patId || !vId || !dose || dose.includes('1ª') || dose === 'Dose Zero') return;
 
     const v = vaccines.find(x => String(x.id) === String(vId));
     if (!v) return;
@@ -1349,7 +1351,7 @@ function saveRecord(e) {
     {
         const vIdApr = document.getElementById('reg-vacina').value;
         const doseApr = document.getElementById('reg-dose').value;
-        if (vIdApr && doseApr && !doseApr.includes('1ª') && doseApr !== 'Dose Única' && doseApr !== 'Reforço') {
+        if (vIdApr && doseApr && !doseApr.includes('1ª') && doseApr !== 'Dose Única' && doseApr !== 'Reforço' && doseApr !== 'Dose Zero') {
             const vApr = vaccines.find(x => x.id == vIdApr);
             const dtNascApr = document.getElementById('reg-dtnasc').value;
             const esqApr = getEsquemaPaciente(vApr, dtNascApr);
