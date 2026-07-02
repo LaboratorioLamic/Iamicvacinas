@@ -2910,6 +2910,32 @@
         </div>
     </div>
 
+    <!-- MODAL ALERTA DE VACINA SEM ESTOQUE -->
+    <div id="modal-vacina-sem-estoque" class="modal fixed inset-0 bg-navy-900/70 backdrop-blur-sm z-[160] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="bg-gradient-to-br from-amber-500 to-orange-600 p-6 text-white">
+                <div class="flex items-center gap-4">
+                    <div class="h-14 w-14 bg-white/20 rounded-full flex items-center justify-center shrink-0 shadow-lg">
+                        <i class="fas fa-box-open text-2xl text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-xl uppercase tracking-tight">Sem Estoque</h3>
+                        <p class="text-amber-100 text-xs font-bold mt-0.5">Atenção Farmacêutica</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6">
+                <p class="text-slate-700 text-sm mb-4" id="vacina-sem-estoque-msg"></p>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5">
+                    <p class="text-[11px] text-amber-700 font-bold"><i class="fas fa-info-circle mr-1"></i> O agendamento pode ser feito normalmente, mas não há lote com estoque disponível para aplicação no momento.</p>
+                </div>
+                <button onclick="document.getElementById('modal-vacina-sem-estoque').classList.remove('active')" class="w-full bg-amber-500 text-white font-black py-3 rounded-xl hover:bg-amber-600 transition uppercase text-xs shadow-lg">
+                    <i class="fas fa-check mr-1"></i> Ciente, continuar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL LOTE VENCIDO - BLOQUEIO -->
     <div id="modal-lote-expired-block" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-sm z-[160] justify-center items-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">

@@ -744,6 +744,7 @@ function agendarOportunidade(patId, vacId, dose, dataIso) {
         document.getElementById('reg-vacina').value = vacId;
         document.getElementById('reg-vacina-search').value = vac ? vac.nome : '';
         autoFillVaccine();
+        if (typeof checkVacinaSemEstoque === 'function') checkVacinaSemEstoque(vacId, vac ? vac.nome : '');
 
         setTimeout(() => {
             document.getElementById('reg-dose').value = dose;

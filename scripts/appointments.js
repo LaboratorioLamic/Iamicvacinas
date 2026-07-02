@@ -131,6 +131,7 @@ function openRecordModal() {
     document.getElementById('modal-dose-anterior-aviso')?.classList.remove('active');
     document.getElementById('modal-lote-expired-block')?.classList.remove('active');
     document.getElementById('modal-lote-expiry-warning')?.classList.remove('active');
+    document.getElementById('modal-vacina-sem-estoque')?.classList.remove('active');
     _toggleBtnProntuario(false);
     document.getElementById('div-responsavel').style.display = 'none';
     document.getElementById('div-responsavel-placeholder').style.display = 'block';
@@ -215,6 +216,20 @@ function selectVacinaFromDropdown(id, nome) {
     document.getElementById('reg-vacina').value = id;
     document.getElementById('vacina-dropdown').classList.add('hidden');
     autoFillVaccine();
+    checkVacinaSemEstoque(id, nome);
+}
+
+function checkVacinaSemEstoque(vId, nome) {
+    if (!vId || typeof getLoteDisponivelParaAgendamento !== 'function') return;
+    const editingId = document.getElementById('reg-id')?.value;
+    const openLots = vaccineLots.filter(l => l.vaccineId == vId && l.status === 'aberto');
+    const totalDisp = openLots.reduce((sum, l) =>
+        sum + Math.max(0, getLoteDisponivelParaAgendamento(l.id, editingId ? Number(editingId) : null)), 0);
+    if (totalDisp <= 0) {
+        document.getElementById('vacina-sem-estoque-msg').innerHTML =
+            `A vacina <b>${nome}</b> está sem estoque disponível em nenhum lote no momento.`;
+        document.getElementById('modal-vacina-sem-estoque').classList.add('active');
+    }
 }
 
 function clearVacinaField() {
@@ -1001,6 +1016,7 @@ function editRecord(id) {
     document.getElementById('modal-dose-anterior-aviso')?.classList.remove('active');
     document.getElementById('modal-lote-expired-block')?.classList.remove('active');
     document.getElementById('modal-lote-expiry-warning')?.classList.remove('active');
+    document.getElementById('modal-vacina-sem-estoque')?.classList.remove('active');
     const _chkOutroLocalEdit = document.getElementById('reg-aplicada-outro-local');
     if (_chkOutroLocalEdit) { _chkOutroLocalEdit.checked = false; toggleAplicadaOutroLocal(_chkOutroLocalEdit); }
     document.getElementById('reg-id').value = '';
