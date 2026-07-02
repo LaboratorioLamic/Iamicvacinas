@@ -50,6 +50,7 @@ function setupRealtimeSync() {
         patientContacts = _fbToArr(snap.val());
         if (_appReady) {
             updateContactsBadge();
+            if (typeof renderKanban === 'function') renderKanban();
             const modal = document.getElementById('modal-patient-history');
             if (modal && modal.classList.contains('active') && _prontuarioTab === 'contato') {
                 renderContatoTab(modal.dataset.patientId);

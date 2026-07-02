@@ -23,6 +23,11 @@ function _isContactDue(c) {
     return c.agendadoPara <= new Date().toISOString().split('T')[0];
 }
 
+function _refreshContactAlertsUI() {
+    updateContactsBadge();
+    if (typeof renderKanban === 'function') renderKanban();
+}
+
 function _createContactEntry(patientId, texto, tipo, agendadoPara) {
     const entry = {
         id:          Date.now() + Math.floor(Math.random() * 1000),
@@ -137,7 +142,7 @@ function publicarContato(patientId) {
     _createContactEntry(patientId, texto, tipoEl.value, dataEl.value || null);
     saveAll();
 
-    updateContactsBadge();
+    _refreshContactAlertsUI();
     updateProntuarioContatoBadge(patientId);
     renderContatoTimeline(patientId);
 
@@ -270,7 +275,7 @@ function confirmConcluirContato() {
     _createContactEntry(orig.patientId, texto, orig.tipo, reagendar ? novaData : null);
     saveAll();
 
-    updateContactsBadge();
+    _refreshContactAlertsUI();
     updateProntuarioContatoBadge(orig.patientId);
     renderContatoTimeline(orig.patientId);
     closeConcluirContatoModal();
@@ -321,7 +326,7 @@ function confirmEditarContato() {
     if (novaData) c.concluidoEm = null;
     saveAll();
 
-    updateContactsBadge();
+    _refreshContactAlertsUI();
     updateProntuarioContatoBadge(c.patientId);
     renderContatoTimeline(c.patientId);
     closeEditarContatoModal();
@@ -350,7 +355,7 @@ function confirmExcluirContato() {
     patientContacts = patientContacts.filter(x => x.id !== _excluirContatoPending);
     saveAll();
 
-    updateContactsBadge();
+    _refreshContactAlertsUI();
     updateProntuarioContatoBadge(c.patientId);
     renderContatoTimeline(c.patientId);
     closeExcluirContatoModal();
@@ -419,12 +424,19 @@ function renderContactsPanel() {
         const p = patients.find(x => x.id == c.patientId);
         const isVencido = c.agendadoPara < todayStr;
         const typeInfo = CONTACT_TYPES.find(t => t.val === c.tipo) || CONTACT_TYPES[CONTACT_TYPES.length - 1];
-        const autorTag = _contactsShowAll && c.autor ? `<span class="text-[9px] font-bold text-slate-400 uppercase">· ${_escapeHtml(c.autor)}</span>` : '';
+        const autorTag = _contactsShowAll && c.autor ? `<p class="text-[9px] font-bold text-slate-400 uppercase truncate">${_escapeHtml(c.autor)}</p>` : '';
+        const dateFmt = c.agendadoPara.split('-').reverse().join('/');
         return `
         <button onclick="_openContactFromPanel(${c.patientId})" class="w-full text-left p-3 rounded-xl border ${isVencido ? 'border-red-200 bg-red-50/50 hover:border-red-400' : 'border-amber-200 bg-amber-50/50 hover:border-amber-400'} transition">
-            <div class="flex items-center justify-between gap-2 mb-1">
-                <span class="text-xs font-black text-navy-900 truncate">${_escapeHtml(p ? p.nome : 'Paciente removido')} ${autorTag}</span>
-                <span class="text-[9px] font-black uppercase ${isVencido ? 'text-red-600' : 'text-amber-600'}">${isVencido ? 'Atrasado' : 'Hoje'}</span>
+            <div class="flex items-start justify-between gap-2 mb-1">
+                <span class="min-w-0">
+                    <p class="text-xs font-black text-navy-900 truncate">${_escapeHtml(p ? p.nome : 'Paciente removido')}</p>
+                    ${autorTag}
+                </span>
+                <span class="flex flex-col items-end shrink-0">
+                    <span class="text-[9px] font-black uppercase ${isVencido ? 'text-red-600' : 'text-amber-600'}">${isVencido ? 'Atrasado' : 'Hoje'}</span>
+                    <span class="text-[9px] font-bold text-slate-400">${dateFmt}</span>
+                </span>
             </div>
             <p class="text-[11px] text-slate-500 truncate"><i class="${typeInfo.prefix} ${typeInfo.icon} mr-1"></i>${_escapeHtml(c.texto)}</p>
         </button>`;

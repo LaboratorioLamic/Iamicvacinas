@@ -28,6 +28,130 @@ function calNavPrev() { if (_calView === 'semanal') { _weekStart.setDate(_weekSt
 function calNavNext() { if (_calView === 'semanal') { _weekStart.setDate(_weekStart.getDate() + 7); renderWeekly(); } else { changeMonth(1); } }
 function calGoToday() { if (_calView === 'semanal') { _weekStart = _getSundayOf(new Date()); renderWeekly(); } else { currentDate = new Date(); renderCalendar(); } }
 
+// ─── Vendedor Popover (Agenda/Calendário) ────────────────────────────────
+let _vendedorPopoverNamesCal = [];
+
+function _populateCalVendedorList() {
+    let inRange;
+    if (_calView === 'semanal' && _weekStart) {
+        const start = _weekStart.toISOString().split('T')[0];
+        const end = new Date(new Date(start).setDate(new Date(start).getDate() + 6)).toISOString().split('T')[0];
+        inRange = appointments.filter(a => a.data >= start && a.data <= end);
+    } else {
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        inRange = appointments.filter(a => a.data.startsWith(`${year}-${month}`));
+    }
+    _vendedorPopoverNamesCal = [...new Set(inRange.filter(a => a.vendedor).map(a => a.vendedor))].sort();
+    const curVendInput = document.getElementById('filter-vendedor-cal');
+    const curVend = curVendInput ? curVendInput.value : '';
+    if (curVend && curVend !== '__mine__' && !_vendedorPopoverNamesCal.includes(curVend)) {
+        curVendInput.value = '';
+        _updateVendedorBtnCal('');
+    }
+    _applyVendedorPopoverSearchCal();
+}
+
+function _applyVendedorPopoverSearchCal() {
+    const searchInput = document.getElementById('vendedor-popover-search-cal');
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const list = document.getElementById('vendedor-popover-list-cal');
+    if (!list) return;
+    const curVend = document.getElementById('filter-vendedor-cal').value;
+    const filtered = _vendedorPopoverNamesCal.filter(n => !query || n.toLowerCase().includes(query));
+    if (!filtered.length) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">Nenhum vendedor encontrado</p>';
+        return;
+    }
+    list.innerHTML = filtered.map(nome => {
+        const active = curVend === nome;
+        const initials = nome.trim().split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+        return `<button type="button" onclick="selectVendedorFilterCal('${nome.replace(/'/g, "\\'")}')"
+            class="vendedor-pop-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition text-left ${active ? 'bg-clinic-50 text-clinic-700 font-semibold' : ''}">
+            <span class="h-7 w-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white" style="background: linear-gradient(135deg,#6366f1,#8b5cf6);">${initials}</span>
+            <span class="flex-1 truncate">${nome}</span>
+            ${active ? '<i class="fas fa-check text-clinic-500 text-xs shrink-0"></i>' : ''}
+        </button>`;
+    }).join('');
+}
+
+function filterVendedorPopoverListCal() {
+    _applyVendedorPopoverSearchCal();
+}
+
+function _updateVendedorBtnCal(val) {
+    const btn = document.getElementById('btn-vendedor-popover-cal');
+    const lbl = document.getElementById('btn-vendedor-label-cal');
+    const mineBtn = document.getElementById('btn-vendedor-mine-cal');
+    const todosBtn = document.getElementById('btn-vendedor-todos-cal');
+    if (!lbl) return;
+    const isActive = val !== '';
+    if (val === '__mine__') {
+        lbl.textContent = 'Minhas Vendas';
+    } else if (val) {
+        const short = val.split(' ')[0];
+        lbl.textContent = short.length > 12 ? short.slice(0, 12) + '…' : short;
+    } else {
+        lbl.textContent = 'Vendedores';
+    }
+    if (btn) {
+        btn.classList.toggle('border-clinic-300', isActive);
+        btn.classList.toggle('bg-clinic-50', isActive);
+        btn.classList.toggle('text-clinic-600', isActive);
+    }
+    if (mineBtn) mineBtn.classList.toggle('bg-indigo-50', val === '__mine__');
+    if (todosBtn) {
+        todosBtn.classList.toggle('bg-clinic-100', val === '');
+        todosBtn.classList.toggle('bg-clinic-50', val !== '');
+    }
+}
+
+function selectVendedorFilterCal(val) {
+    document.getElementById('filter-vendedor-cal').value = val;
+    _updateVendedorBtnCal(val);
+    _applyVendedorPopoverSearchCal();
+    _closeVendedorPopoverCal();
+    if (_calView === 'semanal') renderWeekly(); else renderCalendar();
+}
+
+function _closeVendedorPopoverCal() {
+    const pop = document.getElementById('vendedor-popover-cal');
+    const chev = document.getElementById('btn-vendedor-chevron-cal');
+    if (pop) pop.classList.add('hidden');
+    if (chev) chev.style.transform = '';
+    document.removeEventListener('click', _vendedorPopOutsideCal);
+}
+
+function _vendedorPopOutsideCal(e) {
+    if (e.target.closest('#vendedor-popover-cal') || e.target.closest('#btn-vendedor-popover-cal')) return;
+    _closeVendedorPopoverCal();
+}
+
+function toggleVendedorPopoverCal(e) {
+    if (e) e.stopPropagation();
+    const pop = document.getElementById('vendedor-popover-cal');
+    const chev = document.getElementById('btn-vendedor-chevron-cal');
+    const btn = document.getElementById('btn-vendedor-popover-cal');
+    if (!pop) return;
+    const isHidden = pop.classList.contains('hidden');
+    _closeVendedorPopoverCal();
+    if (isHidden) {
+        const searchInput = document.getElementById('vendedor-popover-search-cal');
+        if (searchInput) searchInput.value = '';
+        _applyVendedorPopoverSearchCal();
+        pop.classList.remove('hidden');
+        const r = btn.getBoundingClientRect();
+        pop.style.top = (r.bottom + 8) + 'px';
+        const popW = pop.offsetWidth || 288;
+        let left = r.left;
+        if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+        if (left < 8) left = 8;
+        pop.style.left = left + 'px';
+        if (chev) chev.style.transform = 'rotate(180deg)';
+        setTimeout(() => document.addEventListener('click', _vendedorPopOutsideCal), 10);
+    }
+}
+
 function _getSundayOf(date) {
     const d = new Date(date); d.setHours(0,0,0,0);
     d.setDate(d.getDate() - d.getDay());
@@ -80,6 +204,11 @@ function goToCurrentFilterWeek() {
 function renderWeekly() {
     const board = document.getElementById('weekly-board');
     if (!board) return;
+    _populateCalVendedorList();
+    const _rawVendCal = document.getElementById('filter-vendedor-cal').value;
+    const filterVendedorCal = _rawVendCal === '__mine__'
+        ? (typeof currentUser !== 'undefined' && currentUser ? currentUser.nome : '')
+        : _rawVendCal;
     const DAY_NAMES = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
     const _isDark = document.body.classList.contains('dark-mode');
     const _gray = _isDark
@@ -112,7 +241,7 @@ function renderWeekly() {
         const dateStr = day.toISOString().split('T')[0];
         const isToday = dateStr === todayStr;
         const col = DAY_COLORS[i];
-        const dayApps = appointments.filter(a => a.data === dateStr && a.status !== 'Perdido');
+        const dayApps = appointments.filter(a => a.data === dateStr && a.status !== 'Perdido' && (!filterVendedorCal || a.vendedor === filterVendedorCal));
 
         // Agrupa por paciente, ordena grupos pelo horário do primeiro card
         const _wkApptTime = a => { const t = a.hora ? a.hora.trim() : '00:00'; return new Date(`${a.data}T${t}`); };
@@ -470,6 +599,11 @@ function pickerSelectWeek(year, month, day) {
 function renderMonthYearPicker() { _renderPickerMonthMode(); }
 
 function renderCalendar() {
+    _populateCalVendedorList();
+    const _rawVendCal = document.getElementById('filter-vendedor-cal').value;
+    const filterVendedorCal = _rawVendCal === '__mine__'
+        ? (typeof currentUser !== 'undefined' && currentUser ? currentUser.nome : '')
+        : _rawVendCal;
     const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     const year = currentDate.getFullYear(); const month = currentDate.getMonth();
 
@@ -487,7 +621,7 @@ function renderCalendar() {
         const isSunday = dateObj.getDay() === 0;
         const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const isHoliday = holidays.includes(dateStr);
-        const dayApps = appointments.filter(a => a.data === dateStr);
+        const dayApps = appointments.filter(a => a.data === dateStr && (!filterVendedorCal || a.vendedor === filterVendedorCal));
 
         const cell = document.createElement('div');
 
