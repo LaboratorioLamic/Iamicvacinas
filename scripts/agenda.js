@@ -1006,8 +1006,12 @@ function renderKanban() {
     renderKanbanGrouped();
 }
 
+function _kanbanDefaultSortDir(colKey) {
+    return (colKey === 'Aplicado' || colKey === 'Perdido') ? 'desc' : 'asc';
+}
+
 function kanbanColGroupSortToggle(colKey) {
-    const cur = _kanbanColGroupSort[colKey] || 'asc';
+    const cur = _kanbanColGroupSort[colKey] || _kanbanDefaultSortDir(colKey);
     _kanbanColGroupSort[colKey] = cur === 'asc' ? 'desc' : 'asc';
     _kanbanPage[colKey] = 0;
     renderKanban();
@@ -1183,7 +1187,7 @@ function renderKanbanGrouped() {
             byPat[a.patientId].push(a);
         });
         const groups = Object.entries(byPat);
-        const _gSortDir = _kanbanColGroupSort[col.key] || 'asc';
+        const _gSortDir = _kanbanColGroupSort[col.key] || _kanbanDefaultSortDir(col.key);
         groups.sort(([, appsA], [, appsB]) => {
             let dtA, dtB;
             if (_gSortDir === 'desc') {
@@ -1226,6 +1230,8 @@ function renderKanbanGrouped() {
             const age = pat.dtNasc ? getAgeDisplay(pat.dtNasc) : '';
             const waLink = `https://wa.me/55${formatWa(pat.contato || '')}`;
             const hasDelayed = apps.some(a => a.data < todayStr && a.status === 'Agendado');
+            const hasContactAlert = (typeof patientContacts !== 'undefined' && typeof _isContactDue === 'function')
+                && patientContacts.some(c => c.patientId == patId && _isContactDue(c));
             const allOutroLocal = col.key === 'Perdido' && apps.length > 0 && apps.every(a => a.aplicadaOutroLocal);
             const groupCol = allOutroLocal ? PURPLE : col;
 
@@ -1268,6 +1274,7 @@ function renderKanbanGrouped() {
                             <p class="font-black text-[11px] leading-tight truncate" style="color:${_dl('#172554','#f1f5f9')}">${pat.nome}</p>
                             <p class="text-[9px]" style="color:${_dl('#94a3b8','#475569')}">${pat.cpf}${age ? ' · ' + age : ''}</p>
                         </div>
+                        ${hasContactAlert ? `<button onclick="event.stopPropagation();viewPatientHistory(${patId});if(typeof switchProntuarioTab==='function')switchProntuarioTab('contato');" title="Contato agendado em alerta" class="h-6 w-6 rounded-md flex items-center justify-center transition text-xs shrink-0 animate-pulse" style="background:${_dl('#fee2e2','#450a0a')};color:${_dl('#dc2626','#f87171')}"><i class="fas fa-bell"></i></button>` : ''}
                         <i class="fas fa-grip-vertical text-xs shrink-0" style="color:${_dl('#cbd5e1','#334155')}"></i>
                     </div>
                     <div class="flex items-center gap-2">
