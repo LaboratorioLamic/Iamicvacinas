@@ -264,17 +264,24 @@ function _setDoseZero(on) {
     const btn  = document.getElementById('btn-dose-zero-toggle');
     const knob = document.getElementById('btn-dose-zero-knob');
     const inp  = document.getElementById('vac-dose-zero');
+    const wrap = document.getElementById('dose-zero-idade-wrap');
     if (!btn) return;
     if (on) {
         btn.classList.replace('bg-slate-200', 'bg-indigo-600');
         knob.classList.replace('translate-x-1', 'translate-x-6');
         btn.setAttribute('aria-pressed', 'true');
         inp.value = '1';
+        if (wrap) { wrap.classList.remove('hidden'); wrap.classList.add('flex'); }
     } else {
         btn.classList.replace('bg-indigo-600', 'bg-slate-200');
         knob.classList.replace('translate-x-6', 'translate-x-1');
         btn.setAttribute('aria-pressed', 'false');
         inp.value = '0';
+        if (wrap) { wrap.classList.add('hidden'); wrap.classList.remove('flex'); }
+        const anosInp = document.getElementById('vac-dose-zero-anos');
+        const mesesInp = document.getElementById('vac-dose-zero-meses');
+        if (anosInp) anosInp.value = '';
+        if (mesesInp) mesesInp.value = '';
     }
 }
 function toggleDoseZero() { _setDoseZero(document.getElementById('vac-dose-zero').value !== '1'); }
@@ -302,6 +309,8 @@ function editVaccine(id) {
     _setReforco(v.reforco);
     document.getElementById('vac-reforco-meses').value = v.reforcoMeses != null ? v.reforcoMeses : '';
     _setDoseZero(v.doseZero);
+    document.getElementById('vac-dose-zero-anos').value = v.doseZeroMinAnos != null ? v.doseZeroMinAnos : '';
+    document.getElementById('vac-dose-zero-meses').value = v.doseZeroMinMeses != null ? v.doseZeroMinMeses : '';
     document.getElementById('vac-valor').value = String(v.valor || '').replace('R$', '').trim();
     document.getElementById('vac-estoque-minimo').value = v.estoqueMinimo != null ? v.estoqueMinimo : '';
     if (v.esquemas && v.esquemas.length) {
@@ -363,6 +372,10 @@ function saveVaccine(e) {
             : null,
         doseUnica,
         doseZero: document.getElementById('vac-dose-zero').value === '1',
+        doseZeroMinAnos: document.getElementById('vac-dose-zero').value === '1'
+            ? (parseInt(document.getElementById('vac-dose-zero-anos').value, 10) || 0) : null,
+        doseZeroMinMeses: document.getElementById('vac-dose-zero').value === '1'
+            ? (parseInt(document.getElementById('vac-dose-zero-meses').value, 10) || 0) : null,
         idadeMinimaAnos, idadeMinimaMeses,
         esquemas: JSON.parse(JSON.stringify(_esquemas)),
         valor: document.getElementById('vac-valor').value,

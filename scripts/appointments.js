@@ -456,28 +456,34 @@ function autoFillVaccine() {
             // Determina doses de TODOS os esquemas compatíveis com a idade do paciente
             const dtNasc = document.getElementById('reg-dtnasc').value;
             const esqs = getEsquemasPaciente(v, dtNasc);
-            const esq = esqs.length ? esqs[0] : null;
-            // Coleta opções únicas de todos os esquemas compatíveis
-            const doseOptions = new Set();
-            const esqsToUse = esqs.length ? esqs : (v.esquemas && v.esquemas.length ? [v.esquemas[0]] : [{ numDoses: v.numDoses || 1 }]);
-            esqsToUse.forEach(e => {
-                const n = e.numDoses || 1;
-                if (n === 1) {
-                    doseOptions.add('__dose_unica__');
-                } else {
-                    for (let i = 1; i <= n; i++) doseOptions.add(i);
+
+            if (esqs.length === 0 && _patientMeetsDoseZero(v, dtNasc)) {
+                // Paciente não se encaixa em nenhum esquema normal, mas está dentro do
+                // critério de idade da Dose Zero: apenas essa opção fica disponível.
+                doseSel.innerHTML += `<option value="Dose Zero">Dose Zero</option>`;
+            } else {
+                // Coleta opções únicas de todos os esquemas compatíveis
+                const doseOptions = new Set();
+                const esqsToUse = esqs.length ? esqs : (v.esquemas && v.esquemas.length ? [v.esquemas[0]] : [{ numDoses: v.numDoses || 1 }]);
+                esqsToUse.forEach(e => {
+                    const n = e.numDoses || 1;
+                    if (n === 1) {
+                        doseOptions.add('__dose_unica__');
+                    } else {
+                        for (let i = 1; i <= n; i++) doseOptions.add(i);
+                    }
+                });
+                // Renderiza: primeiro doses numeradas em ordem, depois dose única
+                const numeradas = [...doseOptions].filter(d => d !== '__dose_unica__').sort((a, b) => a - b);
+                numeradas.forEach(i => { doseSel.innerHTML += `<option value="${i}ª Dose">${i}ª Dose</option>`; });
+                if (doseOptions.has('__dose_unica__')) {
+                    doseSel.innerHTML += `<option value="Dose Única">Dose Única</option>`;
                 }
-            });
-            // Renderiza: primeiro doses numeradas em ordem, depois dose única
-            const numeradas = [...doseOptions].filter(d => d !== '__dose_unica__').sort((a, b) => a - b);
-            numeradas.forEach(i => { doseSel.innerHTML += `<option value="${i}ª Dose">${i}ª Dose</option>`; });
-            if (doseOptions.has('__dose_unica__')) {
-                doseSel.innerHTML += `<option value="Dose Única">Dose Única</option>`;
+                // Reforço: aparece para todos os esquemas quando a vacina tem reforço
+                if (v.reforco) doseSel.innerHTML += `<option value="Reforço">Reforço</option>`;
+                // Dose Zero: opção independente do esquema, sempre por último na lista
+                if (v.doseZero) doseSel.innerHTML += `<option value="Dose Zero">Dose Zero</option>`;
             }
-            // Reforço: aparece para todos os esquemas quando a vacina tem reforço
-            if (v.reforco) doseSel.innerHTML += `<option value="Reforço">Reforço</option>`;
-            // Dose Zero: opção independente do esquema, sempre por último na lista
-            if (v.doseZero) doseSel.innerHTML += `<option value="Dose Zero">Dose Zero</option>`;
 
             // Label de faixas etárias
             let idadeMinStr = '';
@@ -497,6 +503,14 @@ function autoFillVaccine() {
 }
 
 
+function _patientMeetsDoseZero(v, dtNasc) {
+    if (!v.doseZero || !dtNasc) return false;
+    const ageInfo = getAgeInMonths(dtNasc);
+    const patientTotalMeses = ageInfo.years * 12 + ageInfo.months;
+    const minAgeDoseZero = (v.doseZeroMinAnos || 0) * 12 + (v.doseZeroMinMeses || 0);
+    return patientTotalMeses >= minAgeDoseZero;
+}
+
 function checkAgeConstraint() {
     const vId = document.getElementById('reg-vacina').value;
     const dtNasc = document.getElementById('reg-dtnasc').value;
@@ -505,6 +519,22 @@ function checkAgeConstraint() {
     if (!v) return false;
     const ageInfo = getAgeInMonths(dtNasc);
     const patientTotalMeses = ageInfo.years * 12 + ageInfo.months;
+
+    // Dose Zero: idade mínima própria, independente dos esquemas da vacina
+    const doseSelecionada = document.getElementById('reg-dose') ? document.getElementById('reg-dose').value : '';
+    if (doseSelecionada === 'Dose Zero') {
+        const minAgeDoseZero = (v.doseZeroMinAnos || 0) * 12 + (v.doseZeroMinMeses || 0);
+        if (patientTotalMeses < minAgeDoseZero) {
+            const minStr = v.doseZeroMinAnos > 0 && v.doseZeroMinMeses > 0 ? `${v.doseZeroMinAnos} ano(s) e ${v.doseZeroMinMeses} mês(es)`
+                : v.doseZeroMinAnos > 0 ? `${v.doseZeroMinAnos} ano(s)` : `${v.doseZeroMinMeses} mês(es)`;
+            const patStr = ageInfo.years > 0 && ageInfo.months > 0 ? `${ageInfo.years} ano(s) e ${ageInfo.months} mês(es)`
+                : ageInfo.years > 0 ? `${ageInfo.years} ano(s)` : `${ageInfo.months} mês(es)`;
+            document.getElementById('age-warning-msg').innerHTML = `O paciente possui <b>${patStr}</b>, porém a idade mínima para a <b>Dose Zero</b> da vacina <b>${v.nome}</b> é de <b>${minStr}</b>.<br><br>O agendamento desta dose para este paciente <b>não é permitido</b>.`;
+            document.getElementById('modal-age-warning').classList.add('active');
+            return true;
+        }
+        return false;
+    }
 
     // Se há esquemas por faixa etária, verifica se o paciente se encaixa em algum
     if (v.esquemas && v.esquemas.length > 0) {
@@ -516,6 +546,8 @@ function checkAgeConstraint() {
             return patientTotalMeses >= minTotal && patientTotalMeses <= maxTotal;
         });
         if (!encaixa) {
+            // Não se encaixa em nenhum esquema normal, mas está dentro do critério de Dose Zero
+            if (_patientMeetsDoseZero(v, dtNasc)) return false;
             const faixas = v.esquemas.filter(esq => esq.minAnos != null).map(esq => formatFaixaEtaria(esq)).join('; ');
             const patStr = ageInfo.years > 0 ? `${ageInfo.years} ano(s) e ${ageInfo.months} mês(es)` : `${ageInfo.months} mês(es)`;
             document.getElementById('age-warning-msg').innerHTML = `O paciente possui <b>${patStr}</b> e não se enquadra em nenhuma faixa etária cadastrada para a vacina <b>${v.nome}</b>.<br><br><span class="text-[11px] text-slate-500">Faixas permitidas: <b>${faixas || 'Não definidas'}</b></span><br><br>O agendamento desta vacina para este paciente <b>não é permitido</b>.`;
@@ -528,6 +560,7 @@ function checkAgeConstraint() {
     // Fallback: usa idadeMinimaAnos/Meses
     const minAgeInMonths = (v.idadeMinimaAnos || 0) * 12 + (v.idadeMinimaMeses || 0);
     if (patientTotalMeses < minAgeInMonths) {
+        if (_patientMeetsDoseZero(v, dtNasc)) return false;
         const minStr = v.idadeMinimaAnos > 0 && v.idadeMinimaMeses > 0 ? `${v.idadeMinimaAnos} ano(s) e ${v.idadeMinimaMeses} mês(es)`
             : v.idadeMinimaAnos > 0 ? `${v.idadeMinimaAnos} ano(s)` : `${v.idadeMinimaMeses} mês(es)`;
         const patStr = ageInfo.years > 0 && ageInfo.months > 0 ? `${ageInfo.years} ano(s) e ${ageInfo.months} mês(es)`
@@ -1124,8 +1157,6 @@ function duplicarAgendamento() {
     // Captura dados ANTES de resetar o formulário
     const patientId = document.getElementById('hidden-patient-id').value;
     const p         = patients.find(x => x.id == patientId);
-    const vacinaId  = document.getElementById('reg-vacina').value;
-    const valor     = document.getElementById('reg-valor').value;
     const vendedor  = document.getElementById('reg-vendedor').value;
     const data      = document.getElementById('reg-data').value;
     const hora      = document.getElementById('reg-hora').value;
@@ -1156,11 +1187,7 @@ function duplicarAgendamento() {
             _enableVaccineFields();
         }
 
-        // Vacina, custo e vendedor
-        const _vacDup = vaccines.find(x => x.id == vacinaId);
-        document.getElementById('reg-vacina').value = vacinaId;
-        document.getElementById('reg-vacina-search').value = _vacDup ? _vacDup.nome : '';
-        document.getElementById('reg-valor').value    = valor;
+        // Vacina: não duplica, campo deve ser escolhido novamente
         document.getElementById('reg-vendedor').value = vendedor;
 
         // Data, hora, número do pedido e status
@@ -1175,7 +1202,7 @@ function duplicarAgendamento() {
             if (typeof toggleCancelReason === 'function') toggleCancelReason();
         }
 
-        // autoFillVaccine preenche dose/lote e aciona updateSuggestedDate
+        // Garante dose/lote limpos já que a vacina não foi duplicada
         if (typeof autoFillVaccine === 'function') autoFillVaccine();
 
         document.getElementById('modal-title-agenda').innerText = 'Novo Agendamento (Duplicado)';

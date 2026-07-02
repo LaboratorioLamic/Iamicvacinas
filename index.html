@@ -1761,7 +1761,7 @@
                 </div>
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Dose Requerida *</label>
-                    <select id="reg-dose" onchange="updateSuggestedDate()" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
+                    <select id="reg-dose" onchange="checkAgeConstraint(); updateSuggestedDate();" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
                         <option value="">Selecione a vacina...</option>
                     </select>
                 </div>
@@ -2403,7 +2403,7 @@
                     <input type="text" id="pac-resp-cpf" placeholder="000.000.000-00" maxlength="14" oninput="maskCPF(this)" class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
                 </div>
                 <div class="col-span-1" id="div-pac-resp-parentesco" style="display:none;">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Grau de Parentesco</label>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Grau de Parentesco *</label>
                     <select id="pac-resp-parentesco" class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
                         <option value="">Selecione...</option>
                         <option>Pai</option><option>Mãe</option><option>Avô</option><option>Avó</option>
@@ -2496,6 +2496,13 @@
                         <span id="btn-dose-zero-knob" class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
                     </button>
                     <input type="hidden" id="vac-dose-zero" value="0">
+                    <div id="dose-zero-idade-wrap" class="hidden items-center gap-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase">A partir de</label>
+                        <input type="number" id="vac-dose-zero-anos" min="0" step="1" placeholder="0" inputmode="numeric" class="w-14 border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-clinic-500 outline-none text-sm font-bold text-center">
+                        <span class="text-[10px] font-black text-slate-400 uppercase">ano(s)</span>
+                        <input type="number" id="vac-dose-zero-meses" min="0" max="11" step="1" placeholder="0" inputmode="numeric" class="w-14 border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-clinic-500 outline-none text-sm font-bold text-center">
+                        <span class="text-[10px] font-black text-slate-400 uppercase">mês(es)</span>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Valor Padrão *</label>

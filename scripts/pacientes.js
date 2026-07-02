@@ -222,14 +222,17 @@ function checkUnderage() {
     const divRespCpf = document.getElementById('div-pac-resp-cpf');
     const divRespParentesco = document.getElementById('div-pac-resp-parentesco');
     const inResp = document.getElementById('pac-responsavel');
+    const selParentesco = document.getElementById('pac-resp-parentesco');
     if(age < 18) {
         divResp.style.display = 'block'; divRespCpf.style.display = 'block'; divRespParentesco.style.display = 'block';
         inResp.required = true;
+        selParentesco.required = true;
     } else {
         divResp.style.display = 'none'; divRespCpf.style.display = 'none'; divRespParentesco.style.display = 'none';
         inResp.required = false; inResp.value = '';
         document.getElementById('pac-resp-cpf').value = '';
-        document.getElementById('pac-resp-parentesco').value = '';
+        selParentesco.required = false;
+        selParentesco.value = '';
     }
 }
 
