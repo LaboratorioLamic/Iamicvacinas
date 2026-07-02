@@ -90,6 +90,7 @@ let pendingConcluirId = null;
 
 // Patient modal state
 let _patientModalOpenedFromRecord = false;
+let _patientModalOpenedFromHistory = false;
 
 // Backup pending data
 let pendingBackupData = null;

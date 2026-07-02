@@ -41,6 +41,8 @@ function openPatientModal(id = null) {
     if (id && !checkPerm('editar_paciente')) return;
     if (!id && !checkPerm('adicionar_paciente')) return;
     _patientModalOpenedFromRecord = document.getElementById('modal-record').classList.contains('active');
+    _patientModalOpenedFromHistory = document.getElementById('modal-patient-history').classList.contains('active');
+    if (_patientModalOpenedFromHistory) document.getElementById('modal-paciente').style.zIndex = '130';
     document.getElementById('paciente-form').reset(); document.getElementById('pac-id').value = '';
     document.getElementById('div-pac-resp').style.display = 'none';
     if(id) {
@@ -60,9 +62,11 @@ function openPatientModal(id = null) {
 
 function closePatientModal() {
     document.getElementById('modal-paciente').classList.remove('active');
+    document.getElementById('modal-paciente').style.removeProperty('z-index');
     if (_patientModalOpenedFromRecord) {
         document.getElementById('modal-record').classList.add('active');
     }
+    _patientModalOpenedFromHistory = false;
 }
 
 function editPatient(id) { openPatientModal(id); }
@@ -159,6 +163,9 @@ function viewPatientHistory(id) {
 
     const btnAgendar = document.getElementById('btn-agendar-prontuario');
     btnAgendar.style.display = (isCurrentUserAdmin() || hasPerm('criar_agendamento')) ? '' : 'none';
+
+    const btnEditar = document.getElementById('btn-editar-prontuario');
+    btnEditar.style.display = (isCurrentUserAdmin() || hasPerm('editar_paciente')) ? '' : 'none';
 
     const list = document.getElementById('patient-history-list');
     const apps = appointments.filter(a=>a.patientId==id).sort((a,b)=>new Date(b.data)-new Date(a.data));
@@ -313,12 +320,16 @@ function savePatient(e) {
     const pacChanges = isNewPac ? null : computeChanges(oldPac, p, {nome:'Nome', cpf:'CPF', dtNasc:'Data Nasc.', genero:'Gênero', contato:'Contato', responsavel:'Responsável', responsavelCPF:'CPF Resp.', responsavelParentesco:'Parentesco'});
     logAudit(isNewPac ? 'Criado' : 'Editado', 'paciente', p.id, p.nome, isNewPac ? `CPF: ${p.cpf}` : null, pacChanges);
     const reopenRecord = _patientModalOpenedFromRecord;
+    const reopenHistory = _patientModalOpenedFromHistory;
     saveAll(); renderPatients(); closeModals(); showNotification('Paciente salvo com sucesso!','success');
     populatePatientDatalist();
     if(reopenRecord) {
         document.getElementById('modal-record').classList.add('active');
         document.getElementById('reg-patient-search').value = `${p.cpf} - ${p.nome}`;
         autoFillPatient();
+    }
+    if(reopenHistory) {
+        viewPatientHistory(p.id);
     }
 }
 

@@ -2481,9 +2481,12 @@
 
             <div class="p-6 overflow-y-auto flex-1 bg-white" id="patient-history-list"></div>
 
-            <div class="p-4 border-t border-slate-200 bg-slate-50 shrink-0">
-                <button id="btn-agendar-prontuario" onclick="openAgendarFromProntuario(document.getElementById('modal-patient-history').dataset.patientId)" class="w-full flex items-center justify-center gap-2 bg-clinic-600 hover:bg-clinic-700 text-white font-black py-3 rounded-xl uppercase text-xs tracking-widest shadow-lg shadow-clinic-600/20 transition">
+            <div class="p-4 border-t border-slate-200 bg-slate-50 shrink-0 flex items-center gap-2">
+                <button id="btn-agendar-prontuario" onclick="openAgendarFromProntuario(document.getElementById('modal-patient-history').dataset.patientId)" class="flex-1 flex items-center justify-center gap-2 bg-clinic-600 hover:bg-clinic-700 text-white font-black py-3 rounded-xl uppercase text-xs tracking-widest shadow-lg shadow-clinic-600/20 transition">
                     <i class="fas fa-calendar-plus"></i> Agendar Vacina
+                </button>
+                <button id="btn-editar-prontuario" onclick="openPatientModal(document.getElementById('modal-patient-history').dataset.patientId)" title="Editar Paciente" class="shrink-0 flex items-center justify-center gap-1.5 bg-white hover:bg-slate-100 text-slate-600 font-black py-2 px-4 rounded-xl uppercase text-[10px] tracking-widest border border-slate-200 shadow-sm transition">
+                    <i class="fas fa-pen"></i> Editar
                 </button>
             </div>
         </div>

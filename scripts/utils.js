@@ -126,7 +126,10 @@ function closeModals() {
     document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
     const _mr = document.getElementById('modal-record');
     if (_mr) _mr.style.removeProperty('z-index');
+    const _mp = document.getElementById('modal-paciente');
+    if (_mp) _mp.style.removeProperty('z-index');
     window._agendaOpenedFromProntuario = false;
+    _patientModalOpenedFromHistory = false;
 }
 
 // ─── BRL parsing helpers (used in discount module) ───────────────────────────
