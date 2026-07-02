@@ -122,7 +122,12 @@ function showNotification(msg, type='info') {
     container.appendChild(el); setTimeout(()=>el.remove(), 5000);
 }
 
-function closeModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('active')); }
+function closeModals() {
+    document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+    const _mr = document.getElementById('modal-record');
+    if (_mr) _mr.style.removeProperty('z-index');
+    window._agendaOpenedFromProntuario = false;
+}
 
 // ─── BRL parsing helpers (used in discount module) ───────────────────────────
 function parseBRL(str) {

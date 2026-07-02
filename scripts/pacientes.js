@@ -112,6 +112,54 @@ function viewPatientHistory(id) {
     if(!p) return;
     document.getElementById('modal-patient-history').dataset.patientId = id;
     document.getElementById('hist-patient-name').innerText = p.nome;
+    document.getElementById('hist-patient-avatar').innerText = p.nome.charAt(0).toUpperCase();
+
+    const idade = getAgeDisplay(p.dtNasc);
+    const dtNascFmt = p.dtNasc ? p.dtNasc.split('-').reverse().join('/') : '—';
+    const waLink = `https://wa.me/55${formatWa(p.contato || '')}`;
+
+    document.getElementById('hist-patient-badges').innerHTML = `
+        <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full"><i class="fas fa-birthday-cake text-[8px]"></i>${idade}</span>
+        ${p.genero ? `<span class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full"><i class="fas ${p.genero === 'Feminino' ? 'fa-venus' : 'fa-mars'} text-[8px]"></i>${p.genero}</span>` : ''}
+    `;
+
+    document.getElementById('hist-patient-grid').innerHTML = `
+        <div class="bg-white border border-slate-200 rounded-xl p-2.5">
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5"><i class="fas fa-id-card mr-1 text-clinic-500"></i>CPF</p>
+            <p class="text-xs font-black text-navy-900 truncate">${p.cpf || '—'}</p>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-2.5">
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5"><i class="fas fa-cake-candles mr-1 text-clinic-500"></i>Nascimento</p>
+            <p class="text-xs font-black text-navy-900 truncate">${dtNascFmt}</p>
+        </div>
+        <div class="col-span-2 bg-white border border-slate-200 rounded-xl p-2.5 flex items-center justify-between gap-2">
+            <div class="min-w-0">
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5"><i class="fas fa-phone mr-1 text-clinic-500"></i>Contato</p>
+                <p class="text-xs font-black text-navy-900 truncate">${formatPhone(p.contato || '')}</p>
+            </div>
+            <a href="${waLink}" target="_blank" title="Abrir WhatsApp" class="shrink-0 h-8 w-8 rounded-lg bg-green-50 hover:bg-green-500 border border-green-200 text-green-600 hover:text-white flex items-center justify-center transition"><i class="fab fa-whatsapp"></i></a>
+        </div>
+    `;
+
+    const respEl = document.getElementById('hist-patient-resp');
+    if (p.responsavel) {
+        respEl.classList.remove('hidden');
+        respEl.innerHTML = `
+            <p class="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1"><i class="fas fa-user-shield mr-1"></i>Responsável</p>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <p class="text-xs font-black text-navy-900">${p.responsavel}</p>
+                ${p.responsavelParentesco ? `<span class="text-[9px] font-black uppercase text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">${p.responsavelParentesco}</span>` : ''}
+                ${p.responsavelCPF ? `<span class="text-[11px] font-bold text-slate-500"><i class="fas fa-id-card mr-1 text-slate-400"></i>${p.responsavelCPF}</span>` : ''}
+            </div>
+        `;
+    } else {
+        respEl.classList.add('hidden');
+        respEl.innerHTML = '';
+    }
+
+    const btnAgendar = document.getElementById('btn-agendar-prontuario');
+    btnAgendar.style.display = (isCurrentUserAdmin() || hasPerm('criar_agendamento')) ? '' : 'none';
+
     const list = document.getElementById('patient-history-list');
     const apps = appointments.filter(a=>a.patientId==id).sort((a,b)=>new Date(b.data)-new Date(a.data));
 
@@ -249,6 +297,18 @@ function savePatient(e) {
     };
     const isNewPac = !id;
     const oldPac = isNewPac ? null : patients.find(x => x.id == p.id);
+
+    const dupCpf = p.cpf && patients.find(x => x.id != p.id && x.cpf === p.cpf);
+    const dupNomeNasc = patients.find(x => x.id != p.id && normalizeStr(x.nome) === normalizeStr(p.nome) && x.dtNasc === p.dtNasc);
+    if (dupCpf) {
+        showDuplicatePatientBlock('Já existe um paciente cadastrado com este CPF.', `${dupCpf.nome} • ${dupCpf.cpf}`, dupCpf.id);
+        return;
+    }
+    if (dupNomeNasc) {
+        showDuplicatePatientBlock('Já existe um paciente cadastrado com este nome e data de nascimento.', `${dupNomeNasc.nome} • ${dupNomeNasc.dtNasc.split('-').reverse().join('/')}`, dupNomeNasc.id);
+        return;
+    }
+
     if(id) patients = patients.map(x=>x.id==p.id?p:x); else patients.push(p);
     const pacChanges = isNewPac ? null : computeChanges(oldPac, p, {nome:'Nome', cpf:'CPF', dtNasc:'Data Nasc.', genero:'Gênero', contato:'Contato', responsavel:'Responsável', responsavelCPF:'CPF Resp.', responsavelParentesco:'Parentesco'});
     logAudit(isNewPac ? 'Criado' : 'Editado', 'paciente', p.id, p.nome, isNewPac ? `CPF: ${p.cpf}` : null, pacChanges);

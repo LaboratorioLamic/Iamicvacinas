@@ -182,6 +182,21 @@ function openRecordModalWithPatient(patId) {
     }
 }
 
+// Abre o agendamento por cima do prontuário vacinal, sem fechá-lo
+function openAgendarFromProntuario(patId) {
+    if (!checkPerm('criar_agendamento')) return;
+    window._agendaOpenedFromProntuario = true;
+    openRecordModal();
+    document.getElementById('modal-record').style.zIndex = '130';
+    const p = patients.find(x=>x.id==patId);
+    if(p) {
+        setTimeout(() => {
+            document.getElementById('reg-patient-search').value = `${p.cpf} - ${p.nome}`;
+            autoFillPatient();
+        }, 50);
+    }
+}
+
 function filterVacinaDropdown() {
     const input = document.getElementById('reg-vacina-search');
     const dd    = document.getElementById('vacina-dropdown');
@@ -819,6 +834,12 @@ function closeRecordModal() {
     resetDescontoUI();
     document.getElementById('reg-valor').value = '';
     document.getElementById('reg-desconto-info').style.display = 'none';
+    if (window._agendaOpenedFromProntuario) {
+        window._agendaOpenedFromProntuario = false;
+        document.getElementById('modal-record').classList.remove('active');
+        document.getElementById('modal-record').style.removeProperty('z-index');
+        return;
+    }
     closeModals();
 }
 

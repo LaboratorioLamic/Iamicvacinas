@@ -135,6 +135,37 @@
         </div>
     </div>
 
+    <!-- ══ MODAL BLOQUEIO PACIENTE DUPLICADO ══ -->
+    <div id="modal-patient-duplicate" class="hidden fixed inset-0 z-[10001] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeDuplicatePatientModal()"></div>
+        <div class="relative w-full max-w-sm animate-[fadeInScale_.18s_ease-out]">
+            <div class="absolute -inset-1 bg-gradient-to-br from-amber-500 to-orange-700 rounded-3xl blur-lg opacity-60"></div>
+            <div class="relative bg-gradient-to-br from-amber-600 to-orange-800 rounded-2xl shadow-2xl border border-amber-400/40 overflow-hidden">
+                <div class="h-1.5 w-full bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400"></div>
+                <div class="px-7 pt-7 pb-6">
+                    <div class="flex justify-center mb-5">
+                        <div class="w-16 h-16 rounded-full bg-amber-400/20 border-2 border-amber-300/50 flex items-center justify-center shadow-inner">
+                            <i class="fas fa-user-shield text-2xl text-amber-200"></i>
+                        </div>
+                    </div>
+                    <h3 class="text-center text-white font-black text-lg uppercase tracking-wide mb-2">Paciente já cadastrado</h3>
+                    <p id="modal-patient-duplicate-msg" class="text-center text-amber-100 text-sm font-semibold leading-relaxed mb-2"></p>
+                    <p id="modal-patient-duplicate-info" class="text-center text-amber-200/80 text-[11px] font-bold uppercase tracking-wide mb-7"></p>
+                    <div class="flex gap-3">
+                        <button onclick="closeDuplicatePatientModal()"
+                            class="flex-1 py-3 rounded-xl text-sm font-black uppercase tracking-wide bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all duration-150">
+                            Entendi
+                        </button>
+                        <button id="modal-patient-duplicate-btn-view"
+                            class="flex-1 py-3 rounded-xl text-sm font-black uppercase tracking-wide bg-amber-400 hover:bg-amber-300 active:scale-95 text-amber-950 shadow-lg shadow-amber-900/60 transition-all duration-150">
+                            <i class="fas fa-file-medical-alt mr-1.5"></i>Ver cadastro
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="loading-overlay" class="fixed inset-0 bg-[#0f172a] z-[9500] flex items-center justify-center flex-col gap-4">
         <i class="fas fa-syringe text-blue-500 text-5xl" style="animation:pulse 1.5s ease-in-out infinite;"></i>
         <p class="text-white font-black uppercase tracking-[0.3em] text-sm mt-2">Conectando ao servidor...</p>
@@ -2420,7 +2451,7 @@
     </div>
 
     <div id="modal-patient-history" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[120] justify-center items-center p-4">
-        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh]">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
             <div class="bg-navy-900 p-5 text-white flex justify-between items-center shrink-0">
                 <h3 class="font-black uppercase tracking-tight text-xl">
                     <i class="fas fa-file-medical-alt text-clinic-400 mr-2"></i> Prontuário Vacinal
@@ -2432,13 +2463,29 @@
                     <button onclick="document.getElementById('modal-patient-history').classList.remove('active')" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition"><i class="fas fa-times text-xl"></i></button>
                 </div>
             </div>
-            
-            <div class="p-6 bg-slate-50 border-b border-slate-200 shrink-0">
-                <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Paciente</p>
-                <h4 id="hist-patient-name" class="font-black text-navy-900 text-2xl truncate"></h4>
+
+            <div class="p-6 bg-gradient-to-br from-slate-50 to-white border-b border-slate-200 shrink-0">
+                <div class="flex items-start gap-4">
+                    <div id="hist-patient-avatar" class="h-14 w-14 shrink-0 bg-gradient-to-br from-navy-800 to-navy-600 text-white rounded-2xl flex items-center justify-center font-black text-2xl shadow-lg"></div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[10px] font-black text-slate-400 uppercase mb-0.5 tracking-widest">Paciente</p>
+                        <h4 id="hist-patient-name" class="font-black text-navy-900 text-xl leading-tight truncate"></h4>
+                        <div id="hist-patient-badges" class="flex flex-wrap gap-1.5 mt-2"></div>
+                    </div>
+                </div>
+
+                <div id="hist-patient-grid" class="grid grid-cols-2 md:grid-cols-4 gap-2.5 mt-4"></div>
+
+                <div id="hist-patient-resp" class="hidden mt-3 bg-indigo-50/70 border border-indigo-100 rounded-xl p-3"></div>
             </div>
 
             <div class="p-6 overflow-y-auto flex-1 bg-white" id="patient-history-list"></div>
+
+            <div class="p-4 border-t border-slate-200 bg-slate-50 shrink-0">
+                <button id="btn-agendar-prontuario" onclick="openAgendarFromProntuario(document.getElementById('modal-patient-history').dataset.patientId)" class="w-full flex items-center justify-center gap-2 bg-clinic-600 hover:bg-clinic-700 text-white font-black py-3 rounded-xl uppercase text-xs tracking-widest shadow-lg shadow-clinic-600/20 transition">
+                    <i class="fas fa-calendar-plus"></i> Agendar Vacina
+                </button>
+            </div>
         </div>
     </div>
 

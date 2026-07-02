@@ -105,6 +105,18 @@ function closeDangerConfirm() {
     _dangerCallback = null;
 }
 
+function showDuplicatePatientBlock(msg, info, existingId) {
+    document.getElementById('modal-patient-duplicate-msg').textContent = msg;
+    document.getElementById('modal-patient-duplicate-info').textContent = info;
+    const btnView = document.getElementById('modal-patient-duplicate-btn-view');
+    btnView.onclick = () => { closeDuplicatePatientModal(); closeModals(); viewPatientHistory(existingId); };
+    document.getElementById('modal-patient-duplicate').classList.remove('hidden');
+}
+
+function closeDuplicatePatientModal() {
+    document.getElementById('modal-patient-duplicate').classList.add('hidden');
+}
+
 let agendaView = 'kanban'; // 'agenda' | 'planilha' | 'kanban' | 'oportunidades'
 
 function switchAgendaView(view) {
