@@ -3,6 +3,9 @@
 let _calView = 'mensal'; // 'mensal' | 'semanal'
 let _weekStart = null; // Date do domingo da semana atual
 
+const KANBAN_COLLAPSE_BTN_STYLE = 'background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);';
+const KANBAN_COLLAPSE_BTN_ACTIVE_STYLE = 'background:rgba(0,0,0,0.3);border:1px solid rgba(0,0,0,0.4);';
+
 function switchCalView(view) {
     _calView = view;
     const btnM = document.getElementById('btn-cal-mensal');
@@ -1010,18 +1013,19 @@ function kanbanColGroupSortToggle(colKey) {
     renderKanban();
 }
 
-function kanbanColToggleAllVaccines(colKey) {
+function kanbanColToggleAllVaccines(colKey, btn) {
     const col = document.querySelector(`.kanban-col[data-col="${colKey}"]`);
     if (!col) return;
+    const hidden = !_kanbanColVaccinesHidden[colKey];
+    _kanbanColVaccinesHidden[colKey] = hidden;
+    if (btn) btn.setAttribute('style', (btn.getAttribute('style') || '').replace(/background:[^;]*;border:1px solid [^;]*;/, hidden ? KANBAN_COLLAPSE_BTN_ACTIVE_STYLE : KANBAN_COLLAPSE_BTN_STYLE));
     const bodies = [...col.querySelectorAll('.kanban-group-card .p-2.flex.flex-col')];
-    const anyVisible = bodies.some(b => b.style.display !== 'none');
     bodies.forEach(body => {
-        const hidden = !anyVisible;
-        body.style.display = hidden ? '' : 'none';
-        const btn = body.closest('.kanban-group-card').querySelector('button[onclick*="kanbanGroupToggleVaccines"] i');
-        if (btn) {
-            btn.classList.toggle('fa-chevron-up', hidden);
-            btn.classList.toggle('fa-chevron-down', !hidden);
+        body.style.display = hidden ? 'none' : '';
+        const btn2 = body.closest('.kanban-group-card').querySelector('button[onclick*="kanbanGroupToggleVaccines"] i');
+        if (btn2) {
+            btn2.classList.toggle('fa-chevron-up', !hidden);
+            btn2.classList.toggle('fa-chevron-down', hidden);
         }
     });
 }
@@ -1209,6 +1213,7 @@ function renderKanbanGrouped() {
         const pageGroups = groups.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
         const colKeyEsc = col.key.replace(/'/g, "\\'");
+        const colVaccinesHidden = !!_kanbanColVaccinesHidden[col.key];
 
         const PURPLE = _dark
             ? { color: '#7c3aed', border: '#4c1d95', light: '#1e1535', text: '#c4b5fd' }
@@ -1267,7 +1272,7 @@ function renderKanbanGrouped() {
                     </div>
                     <div class="flex items-center gap-2">
                         <button onclick="event.stopPropagation();kanbanGroupToggleVaccines(this)" title="Mostrar/ocultar vacinas"
-                            class="h-6 w-6 rounded-md flex items-center justify-center transition text-xs shrink-0" style="background:${_dl('#f1f5f9','#1e293b')};color:${_dl('#64748b','#94a3b8')}"><i class="fas fa-chevron-up"></i></button>
+                            class="h-6 w-6 rounded-md flex items-center justify-center transition text-xs shrink-0" style="background:${_dl('#f1f5f9','#1e293b')};color:${_dl('#64748b','#94a3b8')}"><i class="fas ${colVaccinesHidden ? 'fa-chevron-down' : 'fa-chevron-up'}"></i></button>
                         <div class="flex-1"></div>
                         <div class="text-right">
                             <div class="text-[8px] uppercase tracking-wide" style="color:${_dl('#94a3b8','#475569')}">Ticket</div>
@@ -1285,7 +1290,7 @@ function renderKanbanGrouped() {
                             class="h-6 w-6 rounded-md flex items-center justify-center transition text-xs shrink-0" style="background:${_dl('#dcfce7','#052e16')};color:${_dl('#15803d','#4ade80')}"><i class="fas fa-pencil-alt"></i></button>`) : ''}
                     </div>
                 </div>
-                <div class="p-2 flex flex-col gap-1.5" style="background:${_dl('#fff','#1e293b')}">${minicardsHtml}</div>
+                <div class="p-2 flex flex-col gap-1.5" style="background:${_dl('#fff','#1e293b')};${colVaccinesHidden ? 'display:none' : ''}">${minicardsHtml}</div>
             </div>`;
         }).join('');
 
@@ -1296,27 +1301,38 @@ function renderKanbanGrouped() {
             <p class="text-[11px] font-black uppercase tracking-wider" style="color:${col.text};">Sem registros</p>
         </div>`;
 
-        const collapseBtnStyle = 'background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);';
+        const collapseBtnStyle = KANBAN_COLLAPSE_BTN_STYLE;
+        const collapseBtnActiveStyle = KANBAN_COLLAPSE_BTN_ACTIVE_STYLE;
         const gSortIcon = _gSortDir === 'desc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up-alt';
         const gSortTitle = _gSortDir === 'desc' ? 'Maior→menor (última vacina) — clique para inverter' : 'Menor→maior (1ª vacina) — clique para inverter';
-        const gSortBtnStyle = _gSortDir === 'desc' ? 'background:rgba(255,255,255,0.35);border:1px solid rgba(255,255,255,0.5);' : collapseBtnStyle;
+        const gSortBtnStyle = _gSortDir === 'desc' ? collapseBtnActiveStyle : collapseBtnStyle;
         const gColBodyBg  = _dark ? '#0f172a' : 'rgba(255,255,255,0.70)';
-        const gPagBg      = _dark ? '#1e293b' : '#f8fafc';
+        const gPagBg      = _dark ? 'linear-gradient(180deg,#1e293b,#182131)' : 'linear-gradient(180deg,#ffffff,#f8fafc)';
         const gPagBorder  = _dark ? '#334155' : '#e2e8f0';
         const gPagTxt     = _dark ? '#94a3b8' : '#64748b';
         const gColBorder  = _dark ? '#334155' : 'rgba(203,213,225,0.60)';
+        const gPagBtnBg   = _dark ? '#0f172a' : '#ffffff';
+
+        const pagBtn = (dir, disabled) => `
+            <button onclick="kanbanPageGo('${colKeyEsc}',${page + dir})" ${disabled ? 'disabled' : ''}
+                class="h-6 w-6 rounded-lg flex items-center justify-center border transition disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-sm active:scale-90"
+                style="background:${gPagBtnBg};border-color:${gPagBorder};color:${disabled ? gPagTxt : col.color}">
+                <i class="fas fa-chevron-${dir < 0 ? 'left' : 'right'} text-[10px]"></i>
+            </button>`;
 
         const paginationHtml = (totalPages > 1) ? `
-            <div class="flex items-center justify-between px-3 py-1.5 shrink-0" style="background:${gPagBg};border-bottom:1px solid ${gPagBorder}">
-                <button onclick="kanbanPageGo('${colKeyEsc}',${page - 1})" ${page === 0 ? 'disabled' : ''}
-                    class="h-6 w-6 rounded-md flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition text-xs" style="color:${gPagTxt}">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-                <span class="text-[11px] font-bold" style="color:${gPagTxt}">${page + 1}/${totalPages} <span style="opacity:0.6">(${totalGroups}g · ${totalApps}v)</span></span>
-                <button onclick="kanbanPageGo('${colKeyEsc}',${page + 1})" ${page >= totalPages - 1 ? 'disabled' : ''}
-                    class="h-6 w-6 rounded-md flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition text-xs" style="color:${gPagTxt}">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
+            <div class="flex items-center justify-between gap-2 px-3 py-1.5 shrink-0" style="background:${gPagBg};border-bottom:1px solid ${gPagBorder}">
+                ${pagBtn(-1, page === 0)}
+                <span class="flex items-center gap-1.5 leading-none">
+                    <span class="text-[11px] font-black px-2 py-1 rounded-full" style="background:${col.light};color:${col.text};border:1px solid ${col.border}">${page + 1}/${totalPages}</span>
+                    <span class="flex items-center gap-1 text-[11px] font-black px-2 py-1 rounded-full" style="background:${gPagBtnBg};color:${gPagTxt};border:1px solid ${gPagBorder}" title="${totalGroups} paciente(s)">
+                        <i class="fas fa-user text-[10px]" style="opacity:0.85"></i>${totalGroups}
+                    </span>
+                    <span class="flex items-center gap-1 text-[11px] font-black px-2 py-1 rounded-full" style="background:${gPagBtnBg};color:${gPagTxt};border:1px solid ${gPagBorder}" title="${totalApps} vacina(s)">
+                        <i class="fas fa-syringe text-[10px]" style="opacity:0.85"></i>${totalApps}
+                    </span>
+                </span>
+                ${pagBtn(1, page >= totalPages - 1)}
             </div>` : '';
 
         return `<div class="kanban-col flex flex-col rounded-2xl overflow-hidden shadow-md transition-all duration-200" style="height:100%;flex:1 1 0;min-width:240px;border:1px solid ${gColBorder};"
@@ -1333,9 +1349,9 @@ function renderKanbanGrouped() {
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="h-6 min-w-6 px-1.5 bg-white/25 text-white font-black text-xs rounded-full flex items-center justify-center border border-white/30">${totalGroups}</span>
-                    <button onclick="kanbanColToggleAllVaccines('${colKeyEsc}')" title="Mostrar/ocultar vacinas de todos os grupos"
+                    <button onclick="kanbanColToggleAllVaccines('${colKeyEsc}',this)" title="Mostrar/ocultar vacinas de todos os grupos"
                         class="h-6 w-6 rounded-md flex items-center justify-center transition text-white hover:scale-110 active:scale-95"
-                        style="${collapseBtnStyle}">
+                        style="${colVaccinesHidden ? collapseBtnActiveStyle : collapseBtnStyle}">
                         <i class="fas fa-list text-[10px]"></i>
                     </button>
                     <button onclick="kanbanColGroupSortToggle('${colKeyEsc}')" title="${gSortTitle}"

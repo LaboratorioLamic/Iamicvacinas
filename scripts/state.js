@@ -37,6 +37,7 @@ let _kanbanPage = {}; // { [colKey]: pageIndex (0-based) }
 let _kanbanGroupDragPatId = null;
 let _kanbanGroupDragFromStatus = null;
 let _kanbanColGroupSort = {}; // { [colKey]: 'asc'|'desc'|null } — sort por data no modo agrupado
+let _kanbanColVaccinesHidden = {}; // { [colKey]: bool } — estado do botão "mostrar/ocultar vacinas de todos os grupos", persiste entre paginações
 let _agendarGrupoPending = null;
 let _agendarGrupoRemovedIds = new Set();
 let _agendarGrupoRemovePending = null;
