@@ -869,6 +869,7 @@ function openAgendarModal(id) {
     document.getElementById('agendar-info').innerText = pat && vac ? `${pat.nome} — ${vac.nome} (${a.doseAtual})` : '';
     const dataInput = document.getElementById('agendar-data');
     dataInput.value = a.data || '';
+    document.getElementById('agendar-pedido').value = a.pedido || a.pedidoNumero || '';
     document.getElementById('agendar-data-erro').classList.add('hidden');
     document.getElementById('agendar-data-spacer').style.display = 'block';
     checkAgendarData();
@@ -877,8 +878,9 @@ function openAgendarModal(id) {
 
 function checkAgendarData() {
     const val = document.getElementById('agendar-data').value;
+    const pedido = document.getElementById('agendar-pedido').value.trim();
     const btn = document.getElementById('btn-confirm-agendar');
-    const ok = val.length > 0;
+    const ok = val.length > 0 && pedido.length > 0;
     btn.disabled = !ok;
     btn.className = ok
         ? 'flex-1 bg-blue-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-700 cursor-pointer shadow-md'
@@ -887,6 +889,11 @@ function checkAgendarData() {
 
 function confirmAgendar() {
     const data = document.getElementById('agendar-data').value;
+    const pedido = document.getElementById('agendar-pedido').value.trim();
+    if (!pedido) {
+        showNotification('Informe o número do pedido para agendar.', 'error');
+        return;
+    }
     if (!data) {
         document.getElementById('agendar-data-erro').classList.remove('hidden');
         document.getElementById('agendar-data-spacer').style.display = 'none';
@@ -916,6 +923,7 @@ function confirmAgendar() {
         }
         appointments[idx].status = 'Agendado';
         appointments[idx].data = data;
+        appointments[idx].pedido = pedido;
         pendingAgendarId = null;
         document.getElementById('modal-agendar').classList.remove('active');
         if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
@@ -1364,6 +1372,7 @@ function renderKanbanGrouped() {
             const age = pat.dtNasc ? getAgeDisplay(pat.dtNasc) : '';
             const waLink = `https://wa.me/55${formatWa(pat.contato || '')}`;
             const hasDelayed = apps.some(a => a.data < todayStr && a.status === 'Agendado');
+            const hasToday = apps.some(a => a.data === todayStr && a.status === 'Agendado');
             const hasContactAlert = (typeof patientContacts !== 'undefined' && typeof _isContactDue === 'function')
                 && patientContacts.some(c => c.patientId == patId && _isContactDue(c));
             const allOutroLocal = col.key === 'Perdido' && apps.length > 0 && apps.every(a => a.aplicadaOutroLocal);
@@ -1373,23 +1382,28 @@ function renderKanbanGrouped() {
                 const vac = vaccines.find(v => v.id == a.vaccineId);
                 if (!vac) return '';
                 const isDelayed = a.data < todayStr && a.status === 'Agendado';
+                const isToday = a.data === todayStr && a.status === 'Agendado';
                 const isOutroLocal = col.key === 'Perdido' && a.aplicadaOutroLocal;
                 const miniCol = isOutroLocal ? PURPLE : col;
                 const dateLabel = a.data ? a.data.split('-').reverse().join('/') : '—';
+                const miniBg = isDelayed ? _dl('#fef2f2','#2d0a0a') : isToday ? _dl('#fffbeb','#1c1500') : _dl('#fff','#1e293b');
+                const miniBorder = isDelayed ? _dl('#fecaca','#7f1d1d') : isToday ? _dl('#fde68a','#78350f') : miniCol.border;
+                const miniAccent = isDelayed ? '#dc2626' : isToday ? '#f59e0b' : miniCol.color;
                 return `<div
                     draggable="true"
                     ondragstart="kanbanMiniInGroupDragStart(event,${a.id})"
                     ondragend="kanbanDragEnd(event)"
                     onclick="kanbanMiniInGroupClick(event,${a.id})"
                     class="flex items-center gap-2 rounded-lg px-2 py-1.5 border cursor-pointer hover:shadow-sm transition-all select-none"
-                    style="background:${_dl('#fff','#1e293b')};border-color:${isDelayed ? _dl('#fde68a','#78350f') : miniCol.border};border-left:3px solid ${isDelayed ? '#f59e0b' : miniCol.color};">
+                    style="background:${miniBg};border-color:${miniBorder};border-left:3px solid ${miniAccent};">
                     <i class="fas fa-syringe text-[9px] shrink-0" style="color:${miniCol.text};"></i>
                     <div class="flex-1 min-w-0">
                         <p class="text-[10px] font-black truncate leading-tight" style="color:${_dl('#172554','#f1f5f9')}">${vac.nome}</p>
                         <p class="text-[9px] font-bold" style="color:${_dl('#94a3b8','#475569')}">${a.doseAtual} · ${dateLabel}${a.hora ? ' ' + a.hora : ''}</p>
                     </div>
                      ${a.valorAplicado ? `<span class="text-[9px] font-black shrink-0 whitespace-nowrap" style="color:${_dl('#059669','#34d399')}">R$ ${a.valorAplicado}</span>` : ''}
-                    ${isDelayed ? `<span class="text-[8px] font-black px-1 py-0.5 rounded-full shrink-0" style="color:${_dl('#92400e','#fbbf24')};background:${_dl('#fffbeb','#1c1500')};border:1px solid ${_dl('#fde68a','#78350f')}">!</span>` : ''}
+                    ${isDelayed ? `<span class="text-[8px] font-black px-1 py-0.5 rounded-full shrink-0" style="color:${_dl('#991b1b','#fca5a5')};background:${_dl('#fee2e2','#450a0a')};border:1px solid ${_dl('#fecaca','#7f1d1d')}">!</span>` : ''}
+                    ${isToday ? `<span class="text-[8px] font-black px-1 py-0.5 rounded-full shrink-0" style="color:${_dl('#92400e','#fbbf24')};background:${_dl('#fffbeb','#1c1500')};border:1px solid ${_dl('#fde68a','#78350f')}">Hoje</span>` : ''}
                 </div>`;
             }).join('');
 
@@ -1398,7 +1412,7 @@ function renderKanbanGrouped() {
                 ondragstart="kanbanGroupDragStart(event,${patId},'${colKeyEsc}')"
                 ondragend="kanbanGroupDragEnd(event)"
                 class="kanban-group-card rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing select-none"
-                style="border:2px solid ${hasDelayed ? _dl('#fde68a','#78350f') : groupCol.border};background:${_dl('#fff','#1e293b')};">
+                style="border:2px solid ${hasDelayed ? _dl('#fecaca','#7f1d1d') : hasToday ? _dl('#fde68a','#78350f') : groupCol.border};background:${_dl('#fff','#1e293b')};">
                 <div class="px-3 pt-2 pb-1.5 flex flex-col gap-1.5" style="background:${groupCol.light};border-bottom:1px solid ${groupCol.border};">
                     <div class="flex items-center gap-2">
                         <div class="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 font-black text-xs text-white" style="background:${groupCol.color};">
@@ -1610,7 +1624,9 @@ function openAgendarGrupoModal(patId, fromStatus, groupApps) {
             dose: a.doseAtual,
             data: a.data,
             hora: a.hora || '',
-            valorAplicado: a.valorAplicado
+            valorAplicado: a.valorAplicado,
+            loteId: a.loteId,
+            pedido: a.pedido || a.pedidoNumero || ''
         }))
     };
     _agendarGrupoRemovedIds = new Set();
@@ -1694,6 +1710,8 @@ function _renderAgendarGrupoLines() {
                     <p class="text-[11px] font-black text-navy-900 truncate leading-tight">${nomVac}</p>
                     <p class="text-[10px] text-slate-500">${app.dose}${valorStr}</p>
                 </div>
+                <input type="text" id="agendar-grupo-pedido-${app.id}" value="${app.pedido || ''}" placeholder="Nº pedido" oninput="_checkAgendarGrupoBtn()"
+                    class="border border-slate-200 rounded-lg py-1.5 px-2 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0 w-[100px]">
                 ${openLots.length > 0 ? `<select id="agendar-grupo-lote-${app.id}"
                     class="border border-slate-200 rounded-lg py-1.5 px-2 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0 max-w-[140px]">
                     ${loteOptions}
@@ -1714,14 +1732,23 @@ function _renderAgendarGrupoLines() {
     const totalEl = document.getElementById('agendar-grupo-total');
     if (totalEl) totalEl.textContent = `${activeApps.length} vacina${activeApps.length !== 1 ? 's' : ''} · ${formatCurrency(total)}`;
 
+    _checkAgendarGrupoBtn();
+}
+
+function _checkAgendarGrupoBtn() {
+    if (!_agendarGrupoPending) return;
+    const activeApps = _agendarGrupoPending.apps.filter(a => !_agendarGrupoRemovedIds.has(a.id));
     const btn = document.getElementById('btn-confirm-agendar-grupo');
-    if (btn) {
-        const canConfirm = activeApps.length > 0;
-        btn.disabled = !canConfirm;
-        btn.className = canConfirm
-            ? 'flex-1 bg-blue-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-700 cursor-pointer shadow-md'
-            : 'flex-1 bg-blue-200 text-blue-400 font-black py-3 rounded-xl uppercase text-xs cursor-not-allowed';
-    }
+    if (!btn) return;
+    const allPedidosPreenchidos = activeApps.every(app => {
+        const el = document.getElementById(`agendar-grupo-pedido-${app.id}`);
+        return el && el.value.trim().length > 0;
+    });
+    const canConfirm = activeApps.length > 0 && allPedidosPreenchidos;
+    btn.disabled = !canConfirm;
+    btn.className = canConfirm
+        ? 'flex-1 bg-blue-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-700 cursor-pointer shadow-md'
+        : 'flex-1 bg-blue-200 text-blue-400 font-black py-3 rounded-xl uppercase text-xs cursor-not-allowed';
 }
 
 function removeAgendarGrupoLine(appId) {
@@ -1757,7 +1784,17 @@ function confirmAgendarGrupo() {
     // Valida datas e coleta lotes de cada linha ativa
     const dateMap = {};
     const loteMap = {};
+    const pedidoMap = {};
     for (const app of activeApps) {
+        const pedidoInput = document.getElementById(`agendar-grupo-pedido-${app.id}`);
+        const pedido = pedidoInput ? pedidoInput.value.trim() : '';
+        if (!pedido) {
+            showNotification(`Informe o número do pedido para "${vaccines.find(v => v.id == app.vaccineId)?.nome || 'vacina'}".`, 'error');
+            if (pedidoInput) { pedidoInput.focus(); pedidoInput.classList.add('border-red-400', 'ring-2', 'ring-red-200'); }
+            return;
+        }
+        pedidoMap[app.id] = pedido;
+
         const input = document.getElementById(`agendar-grupo-date-${app.id}`);
         const data = input ? input.value : '';
         if (!data) {
@@ -1809,6 +1846,7 @@ function confirmAgendarGrupo() {
             appointments[idx].status = 'Agendado';
             appointments[idx].data = dateMap[app.id];
             appointments[idx].hora = dateMap[`hora_${app.id}`] || appointments[idx].hora || '';
+            appointments[idx].pedido = pedidoMap[app.id];
             if (loteMap[app.id]) {
                 appointments[idx].loteId = loteMap[app.id];
                 const lote = vaccineLots.find(l => l.id == loteMap[app.id]);

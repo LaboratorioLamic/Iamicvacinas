@@ -634,42 +634,6 @@
                                 <span id="btn-vendedor-label-cal">Vendedores</span>
                                 <i class="fas fa-chevron-down text-xs text-slate-400" id="btn-vendedor-chevron-cal"></i>
                             </button>
-                            <!-- Popover -->
-                            <div id="vendedor-popover-cal"
-                                class="hidden fixed z-50 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
-                                <!-- Header -->
-                                <div class="px-4 pt-4 pb-3 border-b border-slate-100">
-                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Filtrar por Vendedor</p>
-                                    <div class="relative">
-                                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
-                                        <input type="text" id="vendedor-popover-search-cal" placeholder="Buscar vendedor..."
-                                            oninput="filterVendedorPopoverListCal()"
-                                            class="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-400 bg-slate-50 transition">
-                                    </div>
-                                </div>
-                                <!-- Minhas vendas -->
-                                <div class="px-3 pt-2 pb-1">
-                                    <button type="button" onclick="selectVendedorFilterCal('__mine__')"
-                                        id="btn-vendedor-mine-cal"
-                                        class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition text-left">
-                                        <span class="flex items-center justify-center h-7 w-7 rounded-lg bg-indigo-100 text-indigo-500">
-                                            <i class="fas fa-user text-xs"></i>
-                                        </span>
-                                        Minhas Vendas
-                                    </button>
-                                </div>
-                                <!-- Lista -->
-                                <div id="vendedor-popover-list-cal" class="overflow-y-auto px-3 pb-2" style="max-height:200px;"></div>
-                                <!-- Footer -->
-                                <div class="px-3 pb-3 pt-1 border-t border-slate-100 mt-1">
-                                    <button type="button" onclick="selectVendedorFilterCal('')"
-                                        id="btn-vendedor-todos-cal"
-                                        class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-bold text-clinic-600 bg-clinic-50 hover:bg-clinic-100 transition">
-                                        <i class="fas fa-users text-xs"></i>
-                                        Visualizar Todos
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                         <!-- Mensal / Semanal toggle -->
                         <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
@@ -716,6 +680,42 @@
                             <button onclick="calNavNext()" class="h-8 w-8 bg-white hover:bg-slate-200 rounded-lg flex items-center justify-center font-bold shadow-sm transition"><i class="fas fa-chevron-right text-xs"></i></button>
                             <button onclick="calGoToday()" class="px-3 h-8 rounded-lg text-xs font-black uppercase tracking-wider transition bg-white text-navy-900 hover:bg-clinic-50 hover:text-clinic-700">Hoje</button>
                         </div>
+                    </div>
+                </div>
+                <!-- Vendedor Popover (fora do glass-card p/ nao ficar preso no containing block do backdrop-filter) -->
+                <div id="vendedor-popover-cal"
+                    class="hidden fixed z-[200] w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+                    <!-- Header -->
+                    <div class="px-4 pt-4 pb-3 border-b border-slate-100">
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Filtrar por Vendedor</p>
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+                            <input type="text" id="vendedor-popover-search-cal" placeholder="Buscar vendedor..."
+                                oninput="filterVendedorPopoverListCal()"
+                                class="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-400 bg-slate-50 transition">
+                        </div>
+                    </div>
+                    <!-- Minhas vendas -->
+                    <div class="px-3 pt-2 pb-1">
+                        <button type="button" onclick="selectVendedorFilterCal('__mine__')"
+                            id="btn-vendedor-mine-cal"
+                            class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition text-left">
+                            <span class="flex items-center justify-center h-7 w-7 rounded-lg bg-indigo-100 text-indigo-500">
+                                <i class="fas fa-user text-xs"></i>
+                            </span>
+                            Minhas Vendas
+                        </button>
+                    </div>
+                    <!-- Lista -->
+                    <div id="vendedor-popover-list-cal" class="overflow-y-auto px-3 pb-2" style="max-height:200px;"></div>
+                    <!-- Footer -->
+                    <div class="px-3 pb-3 pt-1 border-t border-slate-100 mt-1">
+                        <button type="button" onclick="selectVendedorFilterCal('')"
+                            id="btn-vendedor-todos-cal"
+                            class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-bold text-clinic-600 bg-clinic-50 hover:bg-clinic-100 transition">
+                            <i class="fas fa-users text-xs"></i>
+                            Visualizar Todos
+                        </button>
                     </div>
                 </div>
                 <!-- Mensal -->
@@ -2276,7 +2276,7 @@
 
     <!-- ══════ MODAL AGENDAR GRUPO ══════ -->
     <div id="modal-agendar-grupo" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[350] justify-center items-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col" style="max-height:90vh;">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col" style="max-height:90vh;">
             <div class="bg-gradient-to-br from-blue-600 to-blue-800 p-5 text-white flex items-center gap-3 shrink-0">
                 <div class="h-10 w-10 bg-white/15 rounded-xl flex items-center justify-center border border-white/20 shrink-0">
                     <i class="fas fa-layer-group text-white text-base"></i>
@@ -2999,6 +2999,9 @@
                 <p id="agendar-info" class="text-blue-200 text-xs mt-2 font-bold truncate px-2"></p>
             </div>
             <div class="p-6">
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Nº Pedido *</label>
+                <input type="text" id="agendar-pedido" oninput="checkAgendarData()" placeholder="Nº do pedido..."
+                    class="w-full border-2 border-slate-200 rounded-xl py-3 px-4 font-bold text-sm focus:outline-none focus:border-blue-400 transition mb-3">
                 <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Data do Agendamento *</label>
                 <input type="date" id="agendar-data" oninput="checkAgendarData()"
                     class="w-full border-2 border-slate-200 rounded-xl py-3 px-4 font-bold text-sm focus:outline-none focus:border-blue-400 transition mb-1">
