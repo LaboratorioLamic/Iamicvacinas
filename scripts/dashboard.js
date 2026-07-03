@@ -6,9 +6,6 @@ function getAppsByPeriodo() {
     if (periodo === 'ano') {
         const ano = document.getElementById('dash-ano-base').value;
         if (ano) apps = apps.filter(a => a.data && a.data.startsWith(ano));
-    } else if (periodo === 'mes') {
-        const mes = document.getElementById('dash-filter-mes').value;
-        if (mes) apps = apps.filter(a => a.data && a.data.startsWith(mes));
     } else if (periodo === 'personalizado') {
         const inicio = document.getElementById('dash-data-inicio').value;
         const fim = document.getElementById('dash-data-fim').value;
@@ -524,8 +521,8 @@ function renderDashAnalitico(apps) {
 
 function renderDashFinanceiro(apps) {
     const fmt = fmtBRL;
-    const toVal    = a => parseFloat(String(a.valorAplicado || '0').replace(',','.')) || 0;
-    const toCheio  = a => a.valorCheio ? (parseFloat(String(a.valorCheio).replace(',','.')) || toVal(a)) : toVal(a);
+    const toVal    = a => parseBRL(a.valorAplicado);
+    const toCheio  = a => a.valorCheio ? (parseBRL(a.valorCheio) || toVal(a)) : toVal(a);
 
     const aplicados   = apps.filter(a => a.status === 'Aplicado' && !a.cortesia);
     const pendentes   = apps.filter(a => (a.status === 'Agendado' || a.status === 'Em negociação') && !a.cortesia);

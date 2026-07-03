@@ -277,9 +277,9 @@ function toggleLineBtn(id) {
 
 function toggleDashPeriodo() {
     const periodo = document.getElementById('dash-periodo').value;
-    document.getElementById('dash-wrap-ano').classList.toggle('hidden', periodo !== 'ano');
-    document.getElementById('dash-wrap-range').classList.toggle('hidden', periodo !== 'personalizado');
-    document.getElementById('dash-wrap-mes').classList.toggle('hidden', periodo !== 'mes');
+    document.getElementById('dash-wrap-ano') && document.getElementById('dash-wrap-ano').classList.toggle('hidden', periodo !== 'ano');
+    document.getElementById('dash-wrap-range') && document.getElementById('dash-wrap-range').classList.toggle('hidden', periodo !== 'personalizado');
+    document.getElementById('dash-wrap-mes') && document.getElementById('dash-wrap-mes').classList.toggle('hidden', periodo !== 'mes');
     renderDashboard();
 }
 
@@ -287,39 +287,323 @@ function populateDashDropdowns() {
     const appsPeriodo = getAppsByPeriodo();
 
     // Vacinas presentes no período
-    const vacSel = document.getElementById('dash-filter-vacina');
-    const curVac = vacSel.value;
-    vacSel.innerHTML = '<option value="">Todas</option>';
+    const curVac = document.getElementById('dash-filter-vacina').value;
     const vacIdsNoPeriodo = new Set(appsPeriodo.map(a => String(a.vaccineId)));
-    vaccines
+    const vacOptions = vaccines
         .filter(v => vacIdsNoPeriodo.has(String(v.id)))
         .sort((a, b) => a.nome.localeCompare(b.nome))
-        .forEach(v => {
-            const opt = document.createElement('option');
-            opt.value = v.id;
-            opt.textContent = v.nome;
-            if (String(v.id) === curVac) opt.selected = true;
-            vacSel.appendChild(opt);
-        });
-    if (curVac && !vacIdsNoPeriodo.has(curVac)) vacSel.value = '';
+        .map(v => ({ value: String(v.id), label: v.nome }));
+    if (curVac && !vacIdsNoPeriodo.has(curVac)) document.getElementById('dash-filter-vacina').value = '';
+    renderDashPopList('vacina', vacOptions, 'Todas');
 
     // Vendedores presentes no período
-    const colSel = document.getElementById('dash-filter-colaborador');
-    const curCol = colSel.value;
-    colSel.innerHTML = '<option value="">Todos</option>';
+    const curCol = document.getElementById('dash-filter-colaborador').value;
     const vendedoresNoPeriodo = new Set(appsPeriodo.filter(a => a.vendedor).map(a => a.vendedor));
-    appUsers
+    const colOptions = appUsers
         .filter(u => u.isVendedor && u.ativo !== false && vendedoresNoPeriodo.has(u.nome))
         .map(u => u.nome)
         .sort()
-        .forEach(nome => {
-            const opt = document.createElement('option');
-            opt.value = nome;
-            opt.textContent = nome;
-            if (nome === curCol) opt.selected = true;
-            colSel.appendChild(opt);
-        });
-    if (curCol && !vendedoresNoPeriodo.has(curCol)) colSel.value = '';
+        .map(nome => ({ value: nome, label: nome }));
+    if (curCol && !vendedoresNoPeriodo.has(curCol)) document.getElementById('dash-filter-colaborador').value = '';
+    renderDashPopList('vendedor', colOptions, 'Todos');
+}
+
+// ─── FILTROS DO DASHBOARD: POPOVERS ──────────────────────────────────────────
+const _dashPopData = { vacina: [], vendedor: [] };
+
+function renderDashPopList(key, options, allLabel) {
+    _dashPopData[key] = options;
+    const curVal = document.getElementById(key === 'vacina' ? 'dash-filter-vacina' : 'dash-filter-colaborador').value;
+    const list = document.getElementById(`dfpop-${key}-list`);
+    if (!list) return;
+    const allActive = !curVal;
+    let html = `<button type="button" class="dash-pop-item ${allActive ? 'active' : ''}" onclick="selectDashPopValue('${key}','')">
+                    <i class="fas fa-check dash-pop-item-check"></i><span>${allLabel}</span>
+                </button>`;
+    html += options.map((o, i) => `
+        <button type="button" class="dash-pop-item ${String(o.value) === curVal ? 'active' : ''}" data-label="${(o.label || '').toLowerCase()}" onclick="selectDashPopValueAt('${key}', ${i})">
+            <i class="fas fa-check dash-pop-item-check"></i><span>${o.label}</span>
+        </button>`).join('');
+    if (!options.length) html += `<div class="dash-pop-empty">Nenhum resultado no período</div>`;
+    list.innerHTML = html;
+    updateDashFilterLabel(key, allLabel);
+}
+
+function filterDashPopList(key, term) {
+    const list = document.getElementById(`dfpop-${key}-list`);
+    if (!list) return;
+    const t = term.trim().toLowerCase();
+    list.querySelectorAll('.dash-pop-item[data-label]').forEach(btn => {
+        btn.classList.toggle('hidden', !btn.dataset.label.includes(t));
+    });
+}
+
+function selectDashPopValueAt(key, index) {
+    const opt = _dashPopData[key][index];
+    selectDashPopValue(key, opt ? String(opt.value) : '');
+}
+
+function selectDashPopValue(key, value) {
+    const inputId = key === 'vacina' ? 'dash-filter-vacina' : 'dash-filter-colaborador';
+    document.getElementById(inputId).value = value;
+    const allLabel = key === 'vacina' ? 'Todas' : 'Todos';
+    renderDashPopList(key, _dashPopData[key], allLabel);
+    closeDashPops();
+    renderDashboard();
+}
+
+function updateDashFilterLabel(key, allLabel) {
+    const inputId = key === 'vacina' ? 'dash-filter-vacina' : 'dash-filter-colaborador';
+    const val = document.getElementById(inputId).value;
+    const labelEl = document.getElementById(`dfbtn-${key}-label`);
+    if (!labelEl) return;
+    const prefix = key === 'vacina' ? 'Vacina' : 'Vendedor';
+    if (!val) { labelEl.textContent = `${prefix}: ${allLabel}`; return; }
+    const found = (_dashPopData[key] || []).find(o => String(o.value) === val);
+    labelEl.textContent = `${prefix}: ${found ? found.label : allLabel}`;
+}
+
+function toggleDashPop(key) {
+    const pop = document.getElementById(`dfpop-${key}`);
+    const isOpen = pop.classList.contains('active');
+    closeDashPops();
+    if (!isOpen) {
+        pop.classList.add('active');
+        document.getElementById(`dfbtn-${key}`).classList.add('active');
+        setTimeout(() => document.addEventListener('click', _dashPopOutsideHandler), 0);
+    }
+}
+
+function closeDashPops() {
+    document.querySelectorAll('.dash-pop.active').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.dash-filter-btn.active').forEach(b => b.classList.remove('active'));
+    document.removeEventListener('click', _dashPopOutsideHandler);
+}
+
+function _dashPopOutsideHandler(e) {
+    // Usa composedPath em vez de e.target.closest: durante o clique de seleção do
+    // intervalo de meses o grid é re-renderizado (innerHTML) no mesmo ciclo do
+    // evento, desconectando o elemento original do DOM antes do "click" borbulhar —
+    // e.target.closest() falharia nesse caso e fecharia o popover indevidamente.
+    const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+    const insidePop = path.some(el => el instanceof Element && el.classList && el.classList.contains('dash-filter-pop'));
+    if (!insidePop) closeDashPops();
+}
+
+// ─── PERÍODO: MODOS ───────────────────────────────────────────────────────────
+function initDashPeriodoFilters() {
+    const ano = document.getElementById('dash-ano-base').value || new Date().getFullYear();
+    document.getElementById('dash-ano-base-display').textContent = ano;
+    _dashRangeCalYear = parseInt(ano, 10);
+    document.querySelectorAll('.dash-period-tab').forEach(t => t.classList.toggle('active', t.dataset.periodo === 'ano'));
+    renderDashRangeCalendar();
+    updateDashPeriodoLabel();
+}
+
+// Restaura o filtro de Período para o estado padrão (Ano Inteiro / ano atual),
+// usado pelo botão "Atualizar dados" do painel do dashboard.
+function resetDashPeriodoFiltro() {
+    const anoAtual = new Date().getFullYear();
+    document.getElementById('dash-periodo').value = 'ano';
+    document.getElementById('dash-ano-base').value = anoAtual;
+    document.getElementById('dash-filter-mes').value = '';
+    document.getElementById('dash-data-inicio').value = '';
+    document.getElementById('dash-data-fim').value = '';
+
+    _dashRangeStart = null;
+    _dashRangeEnd = null;
+    _dashRangePendingStart = null;
+    _dashRangeDragging = false;
+    _dashRangeDragMoved = false;
+
+    document.getElementById('dash-filter-vacina').value = '';
+    document.getElementById('dash-filter-colaborador').value = '';
+    document.getElementById('dash-range-summary').textContent = 'Selecione um mês ou arraste para um intervalo';
+
+    document.querySelectorAll('.dash-period-panel').forEach(p => p.classList.add('hidden'));
+    document.getElementById('dash-period-panel-ano').classList.remove('hidden');
+
+    initDashPeriodoFilters();
+    closeDashPops();
+    renderDashboard();
+}
+
+function setDashPeriodoMode(mode) {
+    document.getElementById('dash-periodo').value = mode;
+    document.querySelectorAll('.dash-period-tab').forEach(t => t.classList.toggle('active', t.dataset.periodo === mode));
+    document.querySelectorAll('.dash-period-panel').forEach(p => p.classList.add('hidden'));
+    const panel = document.getElementById(`dash-period-panel-${mode}`);
+    if (panel) panel.classList.remove('hidden');
+
+    if (mode === 'personalizado') renderDashRangeCalendar();
+
+    updateDashPeriodoLabel();
+    renderDashboard();
+}
+
+function updateDashPeriodoLabel() {
+    const mode = document.getElementById('dash-periodo').value;
+    const labelEl = document.getElementById('dfbtn-periodo-label');
+    if (!labelEl) return;
+    const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    if (mode === 'geral') {
+        labelEl.textContent = 'Geral (Lifetime)';
+    } else if (mode === 'ano') {
+        labelEl.textContent = `Ano Inteiro · ${document.getElementById('dash-ano-base').value}`;
+    } else if (mode === 'personalizado') {
+        const ini = document.getElementById('dash-data-inicio').value;
+        const fim = document.getElementById('dash-data-fim').value;
+        if (ini && fim) {
+            const [yi, mi] = ini.split('-');
+            const [yf, mf] = fim.split('-');
+            const a = `${MESES_ABREV[parseInt(mi,10)-1]}/${yi.slice(2)}`;
+            const b = `${MESES_ABREV[parseInt(mf,10)-1]}/${yf.slice(2)}`;
+            labelEl.textContent = a === b ? a : `${a} — ${b}`;
+        } else {
+            labelEl.textContent = 'Selecione o intervalo';
+        }
+    }
+}
+
+// ─── PERÍODO: ANO INTEIRO ─────────────────────────────────────────────────────
+function stepDashAno(delta) {
+    const input = document.getElementById('dash-ano-base');
+    const next = (parseInt(input.value, 10) || new Date().getFullYear()) + delta;
+    input.value = next;
+    document.getElementById('dash-ano-base-display').textContent = next;
+    updateDashPeriodoLabel();
+    populateDashDropdowns();
+    renderDashboard();
+}
+
+// ─── PERÍODO: INTERVALO PERSONALIZADO (grade de meses com drag-select) ────────
+let _dashRangeCalYear = new Date().getFullYear();
+let _dashRangeStart = null;   // { y, m } (m = 1-12)
+let _dashRangeEnd   = null;
+let _dashRangeDragging = false;
+let _dashRangeDragAnchor = null;
+let _dashRangeLastHoverMonth = null; // mês (1-12) sob o cursor, para continuar o arraste ao trocar de ano
+let _dashRangeDragMoved = false;     // true se o cursor passou por outro mês durante o mousedown (= foi arraste)
+let _dashRangePendingStart = null;   // { y, m } aguardando o clique do mês final (seleção por 2 cliques)
+
+function stepDashRangeCalYear(delta) {
+    _dashRangeCalYear += delta;
+    if (_dashRangeDragging && _dashRangeLastHoverMonth) {
+        _dashRangeMouseEnter(_dashRangeCalYear, _dashRangeLastHoverMonth);
+    }
+    renderDashRangeCalendar();
+}
+
+function _dashKeyToNum(y, m) { return y * 12 + (m - 1); }
+
+function renderDashRangeCalendar() {
+    document.getElementById('dash-range-cal-year').textContent = _dashRangeCalYear;
+    const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const grid = document.getElementById('dash-range-cal-grid');
+
+    let selMin = null, selMax = null;
+    if (_dashRangeStart) {
+        const a = _dashKeyToNum(_dashRangeStart.y, _dashRangeStart.m);
+        const b = _dashRangeEnd ? _dashKeyToNum(_dashRangeEnd.y, _dashRangeEnd.m) : a;
+        selMin = Math.min(a, b);
+        selMax = Math.max(a, b);
+    }
+
+    grid.innerHTML = MESES_ABREV.map((m, i) => {
+        const monthNum = i + 1;
+        const num = _dashKeyToNum(_dashRangeCalYear, monthNum);
+        const inRange = selMin !== null && num >= selMin && num <= selMax;
+        const isEdgeStart = selMin !== null && num === selMin;
+        const isEdgeEnd = selMax !== null && num === selMax;
+        const isPending = _dashRangePendingStart && _dashKeyToNum(_dashRangePendingStart.y, _dashRangePendingStart.m) === num;
+        const cls = ['dash-month-cell'];
+        if (inRange) cls.push('in-range');
+        if (isEdgeStart || isEdgeEnd) cls.push('active');
+        if (isPending) cls.push('pending');
+        return `<button type="button" class="${cls.join(' ')}"
+                    data-y="${_dashRangeCalYear}" data-m="${monthNum}"
+                    onmousedown="_dashRangeMouseDown(event, ${_dashRangeCalYear}, ${monthNum})"
+                    onmouseenter="_dashRangeMouseEnter(${_dashRangeCalYear}, ${monthNum})"
+                    onclick="_dashRangeClick(${_dashRangeCalYear}, ${monthNum})">${m}</button>`;
+    }).join('');
+}
+
+// Clique simples (sem arraste): primeiro clique marca o início ("pending"),
+// segundo clique num mês diferente fecha o intervalo. Clicar de novo no mesmo mês pendente reseta para seleção única.
+function _dashRangeClick(y, m) {
+    if (_dashRangeDragMoved) { _dashRangeDragMoved = false; return; } // foi arraste, já tratado no mouseup
+
+    if (!_dashRangePendingStart) {
+        _dashRangePendingStart = { y, m };
+        _dashRangeStart = { y, m };
+        _dashRangeEnd = { y, m };
+        renderDashRangeCalendar();
+        const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        document.getElementById('dash-range-summary').textContent = `${MESES_ABREV[m - 1]}/${y} selecionado — clique no mês final do intervalo`;
+        return;
+    }
+
+    const a = _dashRangePendingStart;
+    _dashRangePendingStart = null;
+    const aNum = _dashKeyToNum(a.y, a.m);
+    const bNum = _dashKeyToNum(y, m);
+    if (aNum <= bNum) { _dashRangeStart = a; _dashRangeEnd = { y, m }; }
+    else { _dashRangeStart = { y, m }; _dashRangeEnd = a; }
+    renderDashRangeCalendar();
+    _commitDashRange();
+}
+
+function _dashRangeMouseDown(e, y, m) {
+    e.preventDefault();
+    _dashRangeDragging = true;
+    _dashRangeDragMoved = false;
+    _dashRangeDragAnchor = { y, m };
+    _dashRangeLastHoverMonth = m;
+    document.addEventListener('mouseup', _dashRangeMouseUp);
+}
+
+function _dashRangeMouseEnter(y, m) {
+    if (!_dashRangeDragging) return;
+    _dashRangeDragMoved = true;
+    _dashRangePendingStart = null;
+    _dashRangeLastHoverMonth = m;
+    const anchorNum = _dashKeyToNum(_dashRangeDragAnchor.y, _dashRangeDragAnchor.m);
+    const curNum = _dashKeyToNum(y, m);
+    if (curNum >= anchorNum) {
+        _dashRangeStart = _dashRangeDragAnchor;
+        _dashRangeEnd = { y, m };
+    } else {
+        _dashRangeStart = { y, m };
+        _dashRangeEnd = _dashRangeDragAnchor;
+    }
+    renderDashRangeCalendar();
+}
+
+function _dashRangeMouseUp() {
+    if (!_dashRangeDragging) return;
+    _dashRangeDragging = false;
+    _dashRangeLastHoverMonth = null;
+    document.removeEventListener('mouseup', _dashRangeMouseUp);
+    if (_dashRangeDragMoved) {
+        _commitDashRange();
+    }
+    // se não moveu, deixa o onclick (_dashRangeClick) decidir (1º ou 2º clique)
+}
+
+function _commitDashRange() {
+    if (!_dashRangeStart) return;
+    const a = _dashRangeStart, b = _dashRangeEnd || _dashRangeStart;
+    const lastDay = new Date(b.y, b.m, 0).getDate();
+    document.getElementById('dash-data-inicio').value = `${a.y}-${String(a.m).padStart(2, '0')}-01`;
+    document.getElementById('dash-data-fim').value = `${b.y}-${String(b.m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const la = `${MESES_ABREV[a.m - 1]}/${a.y}`;
+    const lb = `${MESES_ABREV[b.m - 1]}/${b.y}`;
+    document.getElementById('dash-range-summary').textContent = (a.y === b.y && a.m === b.m) ? la : `${la} — ${lb}`;
+
+    updateDashPeriodoLabel();
+    renderDashboard();
 }
 
 function populateVaccineSelects() {

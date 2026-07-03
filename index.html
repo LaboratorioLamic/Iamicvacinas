@@ -309,8 +309,8 @@
 
         <section id="tab-dashboard" class="tab-content container mx-auto">
             <!-- PAINEL DE CONTROLE ANALÍTICO -->
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 mb-6 overflow-hidden">
-                <div class="bg-navy-900 px-5 py-3 flex items-center gap-3">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 mb-6">
+                <div class="bg-navy-900 px-5 py-3 flex items-center gap-3 rounded-t-2xl">
                     <i class="fas fa-filter text-clinic-400 text-xs"></i>
                     <span class="text-white font-black text-xs uppercase tracking-widest flex-1">Painel de Controle Analítico</span>
                     <div class="flex gap-1">
@@ -324,75 +324,93 @@
                         </button>
                     </div>
                 </div>
-                <div class="p-4 flex flex-wrap gap-x-4 gap-y-3 items-end">
-                    <!-- Ano Base -->
-                    <div id="dash-wrap-ano">
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Ano Base</label>
-                        <input type="number" id="dash-ano-base" min="2000" max="2099" value="2026"
-                            onchange="renderDashboard()"
-                            class="border-2 border-blue-400 rounded-lg px-3 py-[7px] text-sm font-black text-navy-900 w-24 focus:ring-2 focus:ring-clinic-500 outline-none shadow-sm">
-                    </div>
-
-                    <!-- Vacina -->
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Vacina</label>
-                        <select id="dash-filter-vacina" onchange="renderDashboard()"
-                            class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-clinic-500 outline-none shadow-sm min-w-[150px]">
-                            <option value="">Todas</option>
-                        </select>
-                    </div>
-
-                    <!-- Vendedor -->
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Vendedor</label>
-                        <select id="dash-filter-colaborador" onchange="renderDashboard()"
-                            class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-clinic-500 outline-none shadow-sm min-w-[170px]">
-                            <option value="">Todos</option>
-                        </select>
-                    </div>
-
-                    <!-- Período Personalizado -->
-                    <div id="dash-wrap-range" class="hidden">
-                        <div class="flex gap-3 items-end">
-                            <div>
-                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Data Início</label>
-                                <input type="date" id="dash-data-inicio" onchange="renderDashboard()"
-                                    class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-clinic-500 outline-none shadow-sm">
+                <div class="p-4 flex flex-wrap gap-3 items-center">
+                    <!-- Filtro: Vacina -->
+                    <div class="dash-filter-pop relative">
+                        <button type="button" id="dfbtn-vacina" onclick="toggleDashPop('vacina')"
+                            class="dash-filter-btn">
+                            <i class="fas fa-syringe"></i>
+                            <span class="dash-filter-label" id="dfbtn-vacina-label">Vacina: Todas</span>
+                            <i class="fas fa-chevron-down dash-filter-caret"></i>
+                        </button>
+                        <div class="dash-pop" id="dfpop-vacina">
+                            <div class="dash-pop-search">
+                                <i class="fas fa-search"></i>
+                                <input type="text" placeholder="Buscar vacina..." oninput="filterDashPopList('vacina', this.value)">
                             </div>
-                            <div>
-                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Data Fim</label>
-                                <input type="date" id="dash-data-fim" onchange="renderDashboard()"
-                                    class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-clinic-500 outline-none shadow-sm">
-                            </div>
+                            <div class="dash-pop-list" id="dfpop-vacina-list"></div>
                         </div>
+                        <input type="hidden" id="dash-filter-vacina" value="">
                     </div>
 
-                    <!-- Mês Específico -->
-                    <div id="dash-wrap-mes" class="hidden">
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Mês</label>
-                        <input type="month" id="dash-filter-mes" onchange="renderDashboard()" oninput="renderDashboard()" onclick="try{this.showPicker()}catch(e){}"
-                            class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-clinic-500 outline-none shadow-sm cursor-pointer" style="color-scheme: light;">
+                    <!-- Filtro: Vendedor -->
+                    <div class="dash-filter-pop relative">
+                        <button type="button" id="dfbtn-vendedor" onclick="toggleDashPop('vendedor')"
+                            class="dash-filter-btn">
+                            <i class="fas fa-user-tie"></i>
+                            <span class="dash-filter-label" id="dfbtn-vendedor-label">Vendedor: Todos</span>
+                            <i class="fas fa-chevron-down dash-filter-caret"></i>
+                        </button>
+                        <div class="dash-pop" id="dfpop-vendedor">
+                            <div class="dash-pop-search">
+                                <i class="fas fa-search"></i>
+                                <input type="text" placeholder="Buscar vendedor..." oninput="filterDashPopList('vendedor', this.value)">
+                            </div>
+                            <div class="dash-pop-list" id="dfpop-vendedor-list"></div>
+                        </div>
+                        <input type="hidden" id="dash-filter-colaborador" value="">
                     </div>
 
                     <div class="flex-1"></div>
 
-                    <!-- Período + Botão Atualizar -->
-                    <div class="flex items-end gap-2">
-                        <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Período</label>
-                            <select id="dash-periodo" onchange="toggleDashPeriodo()"
-                                class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-clinic-500 outline-none shadow-sm">
-                                <option value="geral">Geral (Lifetime)</option>
-                                <option value="personalizado">Período Personalizado</option>
-                                <option value="mes">Mês Específico</option>
-                                <option value="ano" selected>Ano Inteiro</option>
-                            </select>
-                        </div>
-                        <button onclick="renderDashboard()" title="Atualizar dados"
-                            class="h-9 w-9 bg-clinic-600 hover:bg-clinic-700 text-white rounded-lg flex items-center justify-center shadow-md transition shrink-0">
-                            <i class="fas fa-sync-alt text-sm"></i>
+                    <!-- Filtro: Período -->
+                    <div class="dash-filter-pop relative">
+                        <button type="button" id="dfbtn-periodo" onclick="toggleDashPop('periodo')"
+                            class="dash-filter-btn dash-filter-btn-accent">
+                            <i class="fas fa-calendar-days"></i>
+                            <span class="dash-filter-label" id="dfbtn-periodo-label">Ano Inteiro · 2026</span>
+                            <i class="fas fa-chevron-down dash-filter-caret"></i>
                         </button>
+                        <div class="dash-pop dash-pop-wide" id="dfpop-periodo">
+                            <div class="dash-period-tabs">
+                                <button type="button" data-periodo="geral" onclick="setDashPeriodoMode('geral')" class="dash-period-tab">Geral</button>
+                                <button type="button" data-periodo="ano" onclick="setDashPeriodoMode('ano')" class="dash-period-tab">Ano Inteiro</button>
+                                <button type="button" data-periodo="personalizado" onclick="setDashPeriodoMode('personalizado')" class="dash-period-tab">Intervalo</button>
+                            </div>
+
+                            <!-- painel: Ano Inteiro -->
+                            <div id="dash-period-panel-ano" class="dash-period-panel">
+                                <div class="dash-year-picker">
+                                    <button type="button" onclick="stepDashAno(-1)" class="dash-year-arrow"><i class="fas fa-chevron-left"></i></button>
+                                    <span id="dash-ano-base-display" class="dash-year-value">2026</span>
+                                    <button type="button" onclick="stepDashAno(1)" class="dash-year-arrow"><i class="fas fa-chevron-right"></i></button>
+                                </div>
+                                <input type="hidden" id="dash-ano-base" value="2026">
+                            </div>
+
+                            <input type="hidden" id="dash-filter-mes">
+
+                            <!-- painel: Intervalo personalizado (calendário de meses com drag) -->
+                            <div id="dash-period-panel-personalizado" class="dash-period-panel hidden">
+                                <div class="dash-month-cal-header">
+                                    <button type="button" onclick="stepDashRangeCalYear(-1)" class="dash-year-arrow"><i class="fas fa-chevron-left"></i></button>
+                                    <span id="dash-range-cal-year" class="dash-year-value"></span>
+                                    <button type="button" onclick="stepDashRangeCalYear(1)" class="dash-year-arrow"><i class="fas fa-chevron-right"></i></button>
+                                </div>
+                                <div class="dash-month-grid" id="dash-range-cal-grid"></div>
+                                <div class="dash-range-summary" id="dash-range-summary">Selecione um mês ou arraste para um intervalo</div>
+                                <input type="hidden" id="dash-data-inicio">
+                                <input type="hidden" id="dash-data-fim">
+                            </div>
+                        </div>
                     </div>
+
+                    <input type="hidden" id="dash-periodo" value="ano">
+
+                    <button onclick="resetDashPeriodoFiltro()" title="Atualizar dados"
+                        class="h-9 w-9 bg-clinic-600 hover:bg-clinic-700 text-white rounded-lg flex items-center justify-center shadow-md transition shrink-0">
+                        <i class="fas fa-sync-alt text-sm"></i>
+                    </button>
                 </div>
             </div>
 

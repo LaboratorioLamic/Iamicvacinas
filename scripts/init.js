@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initFromFirebase().then(() => {
         setupRealtimeSync();
         document.getElementById('dash-ano-base').value = new Date().getFullYear();
+        if (typeof initDashPeriodoFilters === 'function') initDashPeriodoFilters();
         populatePatientDatalist(); populateVaccineSelects(); renderVaccines(); renderPatients();
 const initTab = getFirstAllowedTab() || 'agenda';
         switchTab(initTab);
