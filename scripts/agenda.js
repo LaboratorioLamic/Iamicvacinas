@@ -1707,7 +1707,7 @@ function _renderAgendarGrupoLines() {
         return `<div class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition">
                 <i class="fas fa-syringe text-indigo-400 text-xs shrink-0"></i>
                 <div class="flex-1 min-w-0">
-                    <p class="text-[11px] font-black text-navy-900 truncate leading-tight">${nomVac}</p>
+                    <p class="text-[11px] font-black text-navy-900 truncate leading-tight flex items-center gap-1.5">${nomVac}${vac && vac.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case shrink-0">${vac.mnemonico}</span>` : ''}</p>
                     <p class="text-[10px] text-slate-500">${app.dose}${valorStr}</p>
                 </div>
                 <input type="text" id="agendar-grupo-pedido-${app.id}" value="${app.pedido || ''}" placeholder="Nº pedido" oninput="_checkAgendarGrupoBtn()"
@@ -1889,8 +1889,10 @@ function openAplicarGrupoModal(patId, fromStatus, groupApps) {
             vaccineId: a.vaccineId,
             dose: a.doseAtual,
             data: a.data || new Date().toISOString().split('T')[0],
+            hora: a.hora || '',
             loteId: a.loteId || '',
-            aplicador: a.aplicador || (currentUser ? currentUser.nome : '')
+            aplicador: a.aplicador || (currentUser ? currentUser.nome : ''),
+            pedido: a.pedido || a.pedidoNumero || ''
         }))
     };
     _aplicarGrupoRemovedIds = new Set();
@@ -1981,7 +1983,7 @@ function _renderAplicarGrupoLines() {
                 <div class="flex items-center gap-3">
                     <i class="fas fa-syringe text-indigo-400 text-xs shrink-0"></i>
                     <div class="flex-1 min-w-0">
-                        <p class="text-[11px] font-black text-navy-900 truncate leading-tight">${nomVac}</p>
+                        <p class="text-[11px] font-black text-navy-900 truncate leading-tight flex items-center gap-1.5">${nomVac}${vac && vac.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case shrink-0">${vac.mnemonico}</span>` : ''}</p>
                         <p class="text-[10px] text-slate-500">${app.dose}</p>
                     </div>
                     <button onclick="removeAplicarGrupoLine(${app.id})"
@@ -1989,16 +1991,26 @@ function _renderAplicarGrupoLines() {
                         <i class="fas fa-times text-[9px]"></i>
                     </button>
                 </div>
-                <div class="grid gap-2 md:grid-cols-3">
+                <div class="grid gap-2" style="grid-template-columns: 0.8fr 1fr 0.7fr 1.3fr 1.3fr;">
+                    <div class="flex flex-col">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Nº Pedido</label>
+                        <input type="text" id="aplicar-grupo-pedido-${app.id}" value="${app.pedido || ''}" placeholder="Nº do pedido..." oninput="_checkAplicarGrupoBtn()"
+                            class="w-full border border-slate-200 rounded-lg py-2 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50">
+                    </div>
                     <div class="flex flex-col">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Data da Aplicação</label>
                         <input type="date" id="aplicar-grupo-date-${app.id}" value="${dateVal}"
-                            class="border border-slate-200 rounded-lg py-2 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50">
+                            class="w-full border border-slate-200 rounded-lg py-2 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50">
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Hora</label>
+                        <input type="time" id="aplicar-grupo-hora-${app.id}" value="${app.hora || ''}"
+                            class="w-full border border-slate-200 rounded-lg py-2 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50">
                     </div>
                     <div class="flex flex-col">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Lote</label>
                         <select id="aplicar-grupo-lote-${app.id}"
-                            class="border border-slate-200 rounded-lg py-2 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50">
+                            class="w-full border border-slate-200 rounded-lg py-2 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50">
                             <option value="">Selecione o lote...</option>
                             ${loteOptions}
                         </select>
@@ -2026,14 +2038,23 @@ function _renderAplicarGrupoLines() {
     const totalEl = document.getElementById('aplicar-grupo-total');
     if (totalEl) totalEl.textContent = `${activeApps.length} vacina${activeApps.length !== 1 ? 's' : ''}`;
 
+    _checkAplicarGrupoBtn();
+}
+
+function _checkAplicarGrupoBtn() {
+    if (!_aplicarGrupoPending) return;
+    const activeApps = _aplicarGrupoPending.apps.filter(a => !_aplicarGrupoRemovedIds.has(a.id));
     const btn = document.getElementById('btn-confirm-aplicar-grupo');
-    if (btn) {
-        const canConfirm = activeApps.length > 0;
-        btn.disabled = !canConfirm;
-        btn.className = canConfirm
-            ? 'flex-1 bg-green-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-green-700 cursor-pointer shadow-md'
-            : 'flex-1 bg-green-200 text-emerald-400 font-black py-3 rounded-xl uppercase text-xs cursor-not-allowed';
-    }
+    if (!btn) return;
+    const allPedidosPreenchidos = activeApps.every(app => {
+        const el = document.getElementById(`aplicar-grupo-pedido-${app.id}`);
+        return el && el.value.trim().length > 0;
+    });
+    const canConfirm = activeApps.length > 0 && allPedidosPreenchidos;
+    btn.disabled = !canConfirm;
+    btn.className = canConfirm
+        ? 'flex-1 bg-green-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-green-700 cursor-pointer shadow-md'
+        : 'flex-1 bg-green-200 text-emerald-400 font-black py-3 rounded-xl uppercase text-xs cursor-not-allowed';
 }
 
 function _openAplicadorDropdown(input) {
@@ -2095,18 +2116,28 @@ function confirmAplicarGrupo() {
     }
 
     const dateMap = {};
+    const horaMap = {};
     const loteMap = {};
     const aplicadorMap = {};
+    const pedidoMap = {};
 
     for (const app of activeApps) {
+        const pedidoInput = document.getElementById(`aplicar-grupo-pedido-${app.id}`);
         const dateInput = document.getElementById(`aplicar-grupo-date-${app.id}`);
+        const horaInput = document.getElementById(`aplicar-grupo-hora-${app.id}`);
         const loteSel = document.getElementById(`aplicar-grupo-lote-${app.id}`);
         const aplicadorInput = document.getElementById(`aplicar-grupo-aplicador-${app.id}`);
+        const pedido = pedidoInput ? pedidoInput.value.trim() : '';
         const data = dateInput ? dateInput.value : '';
         const loteId = loteSel ? loteSel.value : '';
         const aplicador = aplicadorInput ? aplicadorInput.value.trim() : '';
         const nomVac = vaccines.find(v => v.id == app.vaccineId)?.nome || 'vacina';
 
+        if (!pedido) {
+            showNotification(`Informe o número do pedido para "${nomVac}".`, 'error');
+            if (pedidoInput) { pedidoInput.focus(); pedidoInput.classList.add('border-red-400', 'ring-2', 'ring-red-200'); }
+            return;
+        }
         if (!data) {
             showNotification(`Informe a data de aplicação de "${nomVac}".`, 'error');
             if (dateInput) { dateInput.focus(); dateInput.classList.add('border-red-400', 'ring-2', 'ring-red-200'); }
@@ -2147,8 +2178,10 @@ function confirmAplicarGrupo() {
         }
 
         dateMap[app.id] = data;
+        horaMap[app.id] = horaInput ? horaInput.value : '';
         loteMap[app.id] = loteId;
         aplicadorMap[app.id] = aplicador;
+        pedidoMap[app.id] = pedido;
     }
 
     activeApps.forEach(app => {
@@ -2158,9 +2191,11 @@ function confirmAplicarGrupo() {
             const lote = vaccineLots.find(l => l.id == loteId);
             appointments[idx].status = 'Aplicado';
             appointments[idx].data = dateMap[app.id];
+            appointments[idx].hora = horaMap[app.id] || appointments[idx].hora || '';
             appointments[idx].loteId = loteId;
             appointments[idx].lote = lote ? lote.numero.toUpperCase() : '';
             appointments[idx].aplicador = aplicadorMap[app.id].toUpperCase();
+            appointments[idx].pedido = pedidoMap[app.id];
             if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         }
     });

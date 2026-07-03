@@ -97,11 +97,54 @@ function switchProntuarioTab(tab) {
 
 // ── Feed (form + timeline) ───────────────────────────────────────────────────
 
+function copyContatoPhone(contato) {
+    const num = formatPhone(contato || '');
+    navigator.clipboard.writeText(num).then(() => {
+        showNotification('Número copiado!', 'success');
+    });
+}
+
 function renderContatoTab(patientId) {
     const nameEl = document.getElementById('ph-contato-patient-name');
-    if (nameEl) {
-        const p = patients.find(x => x.id == patientId);
-        nameEl.textContent = p ? p.nome : '';
+    const waEl   = document.getElementById('ph-contato-whatsapp');
+    const respWrap = document.getElementById('ph-contato-resp-wrap');
+    const respEl   = document.getElementById('ph-contato-resp-name');
+    const p = patients.find(x => x.id == patientId);
+    if (nameEl) nameEl.textContent = p ? p.nome : '';
+    if (waEl) {
+        const numEl  = document.getElementById('ph-contato-whatsapp-num');
+        const linkEl = document.getElementById('ph-contato-whatsapp-link');
+        if (p && p.contato) {
+            if (linkEl) linkEl.href = `https://wa.me/55${formatWa(p.contato)}`;
+            waEl.classList.remove('hidden');
+            waEl.classList.add('flex');
+            if (numEl) {
+                numEl.textContent = formatPhone(p.contato);
+                numEl.onclick = () => copyContatoPhone(p.contato);
+            }
+            const copyBtn = document.getElementById('ph-contato-whatsapp-copy');
+            if (copyBtn) copyBtn.onclick = () => copyContatoPhone(p.contato);
+        } else {
+            waEl.classList.add('hidden');
+            waEl.classList.remove('flex');
+        }
+    }
+    if (respWrap && respEl) {
+        const parentescoEl = document.getElementById('ph-contato-resp-parentesco');
+        if (p && p.responsavel) {
+            respEl.textContent = p.responsavel;
+            respWrap.classList.remove('hidden');
+            if (parentescoEl) {
+                if (p.responsavelParentesco) {
+                    parentescoEl.textContent = p.responsavelParentesco;
+                    parentescoEl.classList.remove('hidden');
+                } else {
+                    parentescoEl.classList.add('hidden');
+                }
+            }
+        } else {
+            respWrap.classList.add('hidden');
+        }
     }
     renderContatoForm(patientId);
     renderContatoTimeline(patientId);
