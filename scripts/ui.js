@@ -286,9 +286,12 @@ function toggleDashPeriodo() {
 function populateDashDropdowns() {
     const appsPeriodo = getAppsByPeriodo();
 
-    // Vacinas presentes no período
     const curVac = document.getElementById('dash-filter-vacina').value;
-    const vacIdsNoPeriodo = new Set(appsPeriodo.map(a => String(a.vaccineId)));
+    const curCol = document.getElementById('dash-filter-colaborador').value;
+
+    // Vacinas presentes no período + respeitando o vendedor selecionado
+    const appsParaVac = curCol ? appsPeriodo.filter(a => a.vendedor === curCol) : appsPeriodo;
+    const vacIdsNoPeriodo = new Set(appsParaVac.map(a => String(a.vaccineId)));
     const vacOptions = vaccines
         .filter(v => vacIdsNoPeriodo.has(String(v.id)))
         .sort((a, b) => a.nome.localeCompare(b.nome))
@@ -296,9 +299,9 @@ function populateDashDropdowns() {
     if (curVac && !vacIdsNoPeriodo.has(curVac)) document.getElementById('dash-filter-vacina').value = '';
     renderDashPopList('vacina', vacOptions, 'Todas');
 
-    // Vendedores presentes no período
-    const curCol = document.getElementById('dash-filter-colaborador').value;
-    const vendedoresNoPeriodo = new Set(appsPeriodo.filter(a => a.vendedor).map(a => a.vendedor));
+    // Vendedores presentes no período + respeitando a vacina selecionada
+    const appsParaCol = curVac ? appsPeriodo.filter(a => String(a.vaccineId) === curVac) : appsPeriodo;
+    const vendedoresNoPeriodo = new Set(appsParaCol.filter(a => a.vendedor).map(a => a.vendedor));
     const colOptions = appUsers
         .filter(u => u.isVendedor && u.ativo !== false && vendedoresNoPeriodo.has(u.nome))
         .map(u => u.nome)
