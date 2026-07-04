@@ -86,7 +86,7 @@ const est = (typeof getVaccineEstoque === 'function') ? getVaccineEstoque(v.id) 
                 <span class="px-2.5 py-1 rounded-full text-xs font-black ${avencerCls}">${avencerVal}</span>
             </td>
             <td class="p-3 text-center">
-                <span class="px-2.5 py-1 rounded-full text-xs font-black ${estCls}">${est.disponivel}</span>
+                <span class="px-2.5 py-1 rounded-full text-xs font-black ${estCls}">${est.disponivel + est.reservado}</span>
                 ${est.reservado > 0 ? `<span class="block text-[9px] text-indigo-500 font-bold mt-0.5">${est.reservado} reserv.</span>` : ''}
             </td>
             <td class="p-3 text-center">
