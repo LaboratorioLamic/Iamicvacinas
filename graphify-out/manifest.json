@@ -1,0 +1,107 @@
+{
+  ".claude/settings.local.json": {
+    "mtime": 1780140051.8293018,
+    "ast_hash": "70ffb234039b891099db869a969faee0",
+    "semantic_hash": "70ffb234039b891099db869a969faee0"
+  },
+  "scripts/agenda.js": {
+    "mtime": 1783078945.1522684,
+    "ast_hash": "e6f971562f2c7f02e07b96cacaf797c3",
+    "semantic_hash": "e6f971562f2c7f02e07b96cacaf797c3"
+  },
+  "scripts/almoxarifado.js": {
+    "mtime": 1782914455.7812428,
+    "ast_hash": "c7bf75f024e04f7244625350ba35a72a",
+    "semantic_hash": "c7bf75f024e04f7244625350ba35a72a"
+  },
+  "scripts/appointments.js": {
+    "mtime": 1783012930.2851963,
+    "ast_hash": "f9826d94c3a2917c0618be07a8c9a2bd",
+    "semantic_hash": "f9826d94c3a2917c0618be07a8c9a2bd"
+  },
+  "scripts/audit.js": {
+    "mtime": 1782389844.3754656,
+    "ast_hash": "764b5c4b8a5dde0471bed0a2cff43387",
+    "semantic_hash": "764b5c4b8a5dde0471bed0a2cff43387"
+  },
+  "scripts/auth.js": {
+    "mtime": 1783015600.2173622,
+    "ast_hash": "2c5c36d72c99c6364fa80690cd47c339",
+    "semantic_hash": "2c5c36d72c99c6364fa80690cd47c339"
+  },
+  "scripts/backup.js": {
+    "mtime": 1782911686.3146303,
+    "ast_hash": "975d138a88eb1b7eb304acb57fe839a8",
+    "semantic_hash": "975d138a88eb1b7eb304acb57fe839a8"
+  },
+  "scripts/config.js": {
+    "mtime": 1782144507.5212061,
+    "ast_hash": "86e1703a37cab67cc275bfe479fa8df1",
+    "semantic_hash": "86e1703a37cab67cc275bfe479fa8df1"
+  },
+  "scripts/contatos.js": {
+    "mtime": 1783079579.7045863,
+    "ast_hash": "a7bcd64b089884b24c8d9b45b8115add",
+    "semantic_hash": "a7bcd64b089884b24c8d9b45b8115add"
+  },
+  "scripts/dashboard.js": {
+    "mtime": 1783097716.1480658,
+    "ast_hash": "1c77624f0fe51cde15cc29cb11327158",
+    "semantic_hash": "1c77624f0fe51cde15cc29cb11327158"
+  },
+  "scripts/firebase.js": {
+    "mtime": 1783018597.7123044,
+    "ast_hash": "fdacc36fadda4fa9fc331d2628250732",
+    "semantic_hash": "fdacc36fadda4fa9fc331d2628250732"
+  },
+  "scripts/init.js": {
+    "mtime": 1783096434.3947024,
+    "ast_hash": "507d1bfc9b89a06e948038fd546f4b20",
+    "semantic_hash": "507d1bfc9b89a06e948038fd546f4b20"
+  },
+  "scripts/oportunidades.js": {
+    "mtime": 1782988787.2742145,
+    "ast_hash": "21e340d4d292db3276a4f0b0e328f52e",
+    "semantic_hash": "21e340d4d292db3276a4f0b0e328f52e"
+  },
+  "scripts/pacientes.js": {
+    "mtime": 1783440797.1441662,
+    "ast_hash": "73583ae0b73b60290b2bbddfd58dbbdb",
+    "semantic_hash": "73583ae0b73b60290b2bbddfd58dbbdb"
+  },
+  "scripts/state.js": {
+    "mtime": 1783014198.487327,
+    "ast_hash": "2c8fa6294b340010d2091f98b1c3075a",
+    "semantic_hash": "2c8fa6294b340010d2091f98b1c3075a"
+  },
+  "scripts/tabela.js": {
+    "mtime": 1782924018.6499872,
+    "ast_hash": "cf9e5c825df9f91cc1e5299f42df35e2",
+    "semantic_hash": "cf9e5c825df9f91cc1e5299f42df35e2"
+  },
+  "scripts/ui.js": {
+    "mtime": 1783098445.337927,
+    "ast_hash": "8896d27d1bf6bcbe0359939e30360542",
+    "semantic_hash": "8896d27d1bf6bcbe0359939e30360542"
+  },
+  "scripts/users.js": {
+    "mtime": 1782298605.4711597,
+    "ast_hash": "15f9f195a441cd03580b5a95f1393d33",
+    "semantic_hash": "15f9f195a441cd03580b5a95f1393d33"
+  },
+  "scripts/utils.js": {
+    "mtime": 1783013751.9917183,
+    "ast_hash": "b82dd336aa4229730984a9601ca38f4c",
+    "semantic_hash": "b82dd336aa4229730984a9601ca38f4c"
+  },
+  "scripts/vacinas.js": {
+    "mtime": 1783160053.7162442,
+    "ast_hash": "60b9987f8b5ddd0d9b93ac1f3c089f89",
+    "semantic_hash": "60b9987f8b5ddd0d9b93ac1f3c089f89"
+  },
+  "index.html": {
+    "mtime": 1783440766.5008416,
+    "ast_hash": "a96a1ab4a30fb29ffd56837a6f519540",
+    "semantic_hash": "a96a1ab4a30fb29ffd56837a6f519540"
+  }
+}
