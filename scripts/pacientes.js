@@ -1,13 +1,27 @@
 // ─── PATIENT MANAGEMENT (from index.html lines ~3969-4491) ───────────────────
 
-function renderPatients() {
+const PATIENTS_PAGE_SIZE = 20;
+let patientsCurrentPage = 1;
+
+function renderPatients(resetPage = true) {
     const btnNovoPac = document.getElementById('btn-novo-paciente');
     if (btnNovoPac) btnNovoPac.style.display = (currentUser && (isCurrentUserAdmin() || hasPerm('adicionar_paciente'))) ? '' : 'none';
     const s = normalizeStr(document.getElementById('filter-patient').value);
     const grid = document.getElementById('patients-grid');
     grid.innerHTML = '';
 
-    patients.filter(p => normalizeStr(p.nome).includes(s) || normalizeStr(p.cpf).includes(s)).forEach(p => {
+    if (resetPage) patientsCurrentPage = 1;
+
+    const filtered = patients.filter(p => normalizeStr(p.nome).includes(s) || normalizeStr(p.cpf).includes(s))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PATIENTS_PAGE_SIZE));
+    if (patientsCurrentPage > totalPages) patientsCurrentPage = totalPages;
+
+    const startIdx = (patientsCurrentPage - 1) * PATIENTS_PAGE_SIZE;
+    const pageItems = filtered.slice(startIdx, startIdx + PATIENTS_PAGE_SIZE);
+
+    pageItems.forEach(p => {
         const age = getAgeDisplay(p.dtNasc);
         const hasAppointments = appointments.some(a => a.patientId == p.id);
 
@@ -35,6 +49,59 @@ function renderPatients() {
             </div>
         </div>`;
     });
+
+    renderPatientsPagination(filtered.length, totalPages);
+}
+
+function renderPatientsPagination(totalItems, totalPages) {
+    const wrap = document.getElementById('patients-pagination');
+    const info = document.getElementById('patients-page-info');
+    const btnsWrap = document.getElementById('patients-page-buttons');
+
+    if (totalItems <= PATIENTS_PAGE_SIZE) {
+        wrap.classList.add('hidden');
+        return;
+    }
+    wrap.classList.remove('hidden');
+
+    const startIdx = (patientsCurrentPage - 1) * PATIENTS_PAGE_SIZE;
+    const endIdx = Math.min(startIdx + PATIENTS_PAGE_SIZE, totalItems);
+    info.textContent = `${startIdx + 1}–${endIdx} de ${totalItems}`;
+
+    const pageBtnClass = (active) => active
+        ? 'h-8 min-w-[2rem] px-2.5 bg-clinic-600 text-white rounded-lg text-xs font-black shadow transition'
+        : 'h-8 min-w-[2rem] px-2.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-black hover:bg-slate-100 transition';
+
+    let html = `<button onclick="goToPatientsPage(${patientsCurrentPage - 1})" ${patientsCurrentPage === 1 ? 'disabled' : ''} class="h-8 px-3 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-black hover:bg-slate-100 transition disabled:opacity-40 disabled:cursor-not-allowed"><i class="fas fa-chevron-left"></i></button>`;
+
+    const pages = [];
+    const addRange = (from, to) => { for (let i = from; i <= to; i++) pages.push(i); };
+    if (totalPages <= 7) {
+        addRange(1, totalPages);
+    } else if (patientsCurrentPage <= 4) {
+        addRange(1, 5); pages.push('...'); pages.push(totalPages);
+    } else if (patientsCurrentPage >= totalPages - 3) {
+        pages.push(1); pages.push('...'); addRange(totalPages - 4, totalPages);
+    } else {
+        pages.push(1); pages.push('...'); addRange(patientsCurrentPage - 1, patientsCurrentPage + 1); pages.push('...'); pages.push(totalPages);
+    }
+
+    pages.forEach(p => {
+        if (p === '...') {
+            html += `<span class="h-8 min-w-[2rem] flex items-center justify-center text-slate-300 text-xs font-black">…</span>`;
+        } else {
+            html += `<button onclick="goToPatientsPage(${p})" class="${pageBtnClass(p === patientsCurrentPage)}">${p}</button>`;
+        }
+    });
+
+    html += `<button onclick="goToPatientsPage(${patientsCurrentPage + 1})" ${patientsCurrentPage === totalPages ? 'disabled' : ''} class="h-8 px-3 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-black hover:bg-slate-100 transition disabled:opacity-40 disabled:cursor-not-allowed"><i class="fas fa-chevron-right"></i></button>`;
+
+    btnsWrap.innerHTML = html;
+}
+
+function goToPatientsPage(page) {
+    patientsCurrentPage = page;
+    renderPatients(false);
 }
 
 function openPatientModal(id = null) {
