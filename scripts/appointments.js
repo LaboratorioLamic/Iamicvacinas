@@ -1109,6 +1109,11 @@ function editRecord(id) {
         document.getElementById('reg-vacina').value = '';
         document.getElementById('reg-vacina-search').value = '';
         
+        // Define a data agendada ANTES de autoFillVaccine para que a idade
+        // e a restrição de idade sejam calculadas com base nela
+        document.getElementById('reg-data').value = a.data;
+        updateIdadeField();
+
         // Preenche com a nova vacina
         const _vac = vaccines.find(x => x.id == a.vaccineId);
         document.getElementById('reg-vacina').value = a.vaccineId;
@@ -1118,6 +1123,7 @@ function editRecord(id) {
         document.getElementById('reg-dose').value = a.doseAtual;
         updateSuggestedDate();
         document.getElementById('reg-data').value = a.data;
+        updateIdadeField();
         document.getElementById('reg-hora').value = a.hora || '';
         document.getElementById('reg-valor').value = String(a.valorAplicado || '').replace('R$', '').trim();
         // Restaura estado de desconto
@@ -1196,6 +1202,7 @@ function duplicarAgendamento() {
             psEl.classList.remove('border-red-400');
             psEl.classList.add('border-slate-200');
             document.getElementById('hidden-patient-id').value = p.id;
+            _toggleBtnProntuario(true);
             document.getElementById('reg-cpf').value     = p.cpf;
             document.getElementById('reg-dtnasc').value  = p.dtNasc;
             updateIdadeField();
