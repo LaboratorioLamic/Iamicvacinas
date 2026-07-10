@@ -518,9 +518,9 @@ function autoFillVaccine() {
 }
 
 
-function _patientMeetsDoseZero(v, dtNasc) {
+function _patientMeetsDoseZero(v, dtNasc, refDateStr) {
     if (!v.doseZero || !dtNasc) return false;
-    const ageInfo = getAgeInMonths(dtNasc);
+    const ageInfo = getAgeInMonths(dtNasc, refDateStr || undefined);
     const patientTotalMeses = ageInfo.years * 12 + ageInfo.months;
     const minAgeDoseZero = (v.doseZeroMinAnos || 0) * 12 + (v.doseZeroMinMeses || 0);
     return patientTotalMeses >= minAgeDoseZero;
@@ -532,7 +532,8 @@ function checkAgeConstraint() {
     if (!vId || !dtNasc) return false;
     const v = vaccines.find(x => x.id == vId);
     if (!v) return false;
-    const ageInfo = getAgeInMonths(dtNasc);
+    const dtAgendada = document.getElementById('reg-data') ? document.getElementById('reg-data').value : '';
+    const ageInfo = getAgeInMonths(dtNasc, dtAgendada || undefined);
     const patientTotalMeses = ageInfo.years * 12 + ageInfo.months;
 
     // Dose Zero: idade mínima própria, independente dos esquemas da vacina
@@ -562,7 +563,7 @@ function checkAgeConstraint() {
         });
         if (!encaixa) {
             // Não se encaixa em nenhum esquema normal, mas está dentro do critério de Dose Zero
-            if (_patientMeetsDoseZero(v, dtNasc)) return false;
+            if (_patientMeetsDoseZero(v, dtNasc, dtAgendada || undefined)) return false;
             const faixas = v.esquemas.filter(esq => esq.minAnos != null).map(esq => formatFaixaEtaria(esq)).join('; ');
             const patStr = ageInfo.years > 0 ? `${ageInfo.years} ano(s) e ${ageInfo.months} mês(es)` : `${ageInfo.months} mês(es)`;
             document.getElementById('age-warning-msg').innerHTML = `O paciente possui <b>${patStr}</b> e não se enquadra em nenhuma faixa etária cadastrada para a vacina <b>${v.nome}</b>.<br><br><span class="text-[11px] text-slate-500">Faixas permitidas: <b>${faixas || 'Não definidas'}</b></span><br><br>O agendamento desta vacina para este paciente <b>não é permitido</b>.`;
@@ -575,7 +576,7 @@ function checkAgeConstraint() {
     // Fallback: usa idadeMinimaAnos/Meses
     const minAgeInMonths = (v.idadeMinimaAnos || 0) * 12 + (v.idadeMinimaMeses || 0);
     if (patientTotalMeses < minAgeInMonths) {
-        if (_patientMeetsDoseZero(v, dtNasc)) return false;
+        if (_patientMeetsDoseZero(v, dtNasc, dtAgendada || undefined)) return false;
         const minStr = v.idadeMinimaAnos > 0 && v.idadeMinimaMeses > 0 ? `${v.idadeMinimaAnos} ano(s) e ${v.idadeMinimaMeses} mês(es)`
             : v.idadeMinimaAnos > 0 ? `${v.idadeMinimaAnos} ano(s)` : `${v.idadeMinimaMeses} mês(es)`;
         const patStr = ageInfo.years > 0 && ageInfo.months > 0 ? `${ageInfo.years} ano(s) e ${ageInfo.months} mês(es)`
