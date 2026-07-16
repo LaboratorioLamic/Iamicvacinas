@@ -1890,7 +1890,7 @@
                 <!-- Linha 2: 4 campos -->
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Data Agendada *</label>
-                    <input type="date" id="reg-data" required onchange="onLoteChange(); updateIdadeField(); checkAgeConstraint();" class="w-full border border-clinic-300 rounded-lg py-2 px-3 ring-2 ring-clinic-100 focus:ring-clinic-500 outline-none font-bold text-sm">
+                    <input type="date" id="reg-data" required onchange="onLoteChange(); updateIdadeField(); autoFillVaccine(true);" class="w-full border border-clinic-300 rounded-lg py-2 px-3 ring-2 ring-clinic-100 focus:ring-clinic-500 outline-none font-bold text-sm">
                     <p id="sugestao-data" class="text-[9px] text-clinic-600 mt-1 hidden"><i class="fas fa-magic"></i> Aprazamento sugerido: <span id="span-sugestao-data" class="font-bold cursor-pointer underline" onclick="applySuggestedDate()"></span></p>
                 </div>
                 <div class="col-span-1 md:col-span-1">

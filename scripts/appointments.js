@@ -442,11 +442,11 @@ function getEsquemaPaciente(v, dtNasc) {
     }) || null;
 }
 
-function getEsquemasPaciente(v, dtNasc) {
-    // Retorna TODOS os esquemas compatíveis com a idade do paciente
+function getEsquemasPaciente(v, dtNasc, refDateStr) {
+    // Retorna TODOS os esquemas compatíveis com a idade do paciente na data de referência (agendada)
     if (!v.esquemas || !v.esquemas.length) return [];
     if (!dtNasc) return v.esquemas;
-    const ageInfo = getAgeInMonths(dtNasc);
+    const ageInfo = getAgeInMonths(dtNasc, refDateStr || undefined);
     const totalMeses = ageInfo.years * 12 + ageInfo.months;
     return v.esquemas.filter(esq => {
         if (esq.minAnos == null) return true;
@@ -457,9 +457,10 @@ function getEsquemasPaciente(v, dtNasc) {
     });
 }
 
-function autoFillVaccine() {
+function autoFillVaccine(preserveDose) {
     const vId = document.getElementById('reg-vacina').value;
     const doseSel = document.getElementById('reg-dose');
+    const doseAnterior = preserveDose ? doseSel.value : '';
     doseSel.innerHTML = '<option value="">Selecione...</option>';
     document.getElementById('reg-idade-min').value = '';
     document.getElementById('reg-valor').value = '';
@@ -468,11 +469,12 @@ function autoFillVaccine() {
     if (vId) {
         const v = vaccines.find(x => x.id == vId);
         if (v) {
-            // Determina doses de TODOS os esquemas compatíveis com a idade do paciente
+            // Determina doses de TODOS os esquemas compatíveis com a idade do paciente na data agendada
             const dtNasc = document.getElementById('reg-dtnasc').value;
-            const esqs = getEsquemasPaciente(v, dtNasc);
+            const dtAgendada = document.getElementById('reg-data') ? document.getElementById('reg-data').value : '';
+            const esqs = getEsquemasPaciente(v, dtNasc, dtAgendada);
 
-            if (esqs.length === 0 && _patientMeetsDoseZero(v, dtNasc)) {
+            if (esqs.length === 0 && _patientMeetsDoseZero(v, dtNasc, dtAgendada || undefined)) {
                 // Paciente não se encaixa em nenhum esquema normal, mas está dentro do
                 // critério de idade da Dose Zero: apenas essa opção fica disponível.
                 doseSel.innerHTML += `<option value="Dose Zero">Dose Zero</option>`;
@@ -510,6 +512,9 @@ function autoFillVaccine() {
             }
             document.getElementById('reg-idade-min').value = idadeMinStr;
             document.getElementById('reg-valor').value = String(v.valor || '').replace('R$', '').trim();
+            if (doseAnterior && [...doseSel.options].some(o => o.value === doseAnterior)) {
+                doseSel.value = doseAnterior;
+            }
             resetDescontoUI();
             checkAgeConstraint();
             updateSuggestedDate();
@@ -1205,23 +1210,27 @@ function duplicarAgendamento() {
             _toggleBtnProntuario(true);
             document.getElementById('reg-cpf').value     = p.cpf;
             document.getElementById('reg-dtnasc').value  = p.dtNasc;
-            updateIdadeField();
             document.getElementById('reg-contato').value = formatPhone(p.contato);
             if (p.responsavel) {
                 document.getElementById('div-responsavel').style.display = 'block';
                 document.getElementById('div-responsavel-placeholder').style.display = 'none';
                 document.getElementById('reg-responsavel').value = p.responsavel;
             }
-            if (typeof checkAgeConstraint === 'function') checkAgeConstraint();
             _enableVaccineFields();
         }
 
         // Vacina: não duplica, campo deve ser escolhido novamente
         document.getElementById('reg-vendedor').value = vendedor;
 
-        // Data, hora, número do pedido e status
+        // Data e hora preenchidas ANTES de calcular idade/dose
         document.getElementById('reg-data').value   = data;
         document.getElementById('reg-hora').value   = hora;
+        updateIdadeField();
+
+        // Garante dose/lote limpos já que a vacina não foi duplicada
+        if (typeof autoFillVaccine === 'function') autoFillVaccine();
+
+        if (typeof checkAgeConstraint === 'function') checkAgeConstraint();
         if (pedido) {
             document.getElementById('reg-pedido').value = pedido;
         }
@@ -1230,9 +1239,6 @@ function duplicarAgendamento() {
             // Atualiza os campos obrigatórios baseado no status
             if (typeof toggleCancelReason === 'function') toggleCancelReason();
         }
-
-        // Garante dose/lote limpos já que a vacina não foi duplicada
-        if (typeof autoFillVaccine === 'function') autoFillVaccine();
 
         document.getElementById('modal-title-agenda').innerText = 'Novo Agendamento (Duplicado)';
     }, 120);
