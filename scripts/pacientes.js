@@ -240,7 +240,7 @@ function viewPatientHistory(id) {
     if(apps.length === 0) {
         list.innerHTML = '<div class="text-center py-10"><i class="fas fa-folder-open text-4xl text-slate-200 mb-3"></i><p class="text-sm text-slate-400 font-bold uppercase">Nenhum registro encontrado</p></div>';
     } else {
-        const pendentes   = apps.filter(a => a.status === 'Agendado' || a.status === 'Em negociação');
+        const pendentes   = apps.filter(a => a.status === 'Agendado' || a.status === 'Em negociação' || a.status === 'Nova oportunidade');
         const concluidos  = apps.filter(a => a.status === 'Aplicado');
         const outroLocal  = apps.filter(a => a.status === 'Perdido' && a.aplicadaOutroLocal);
         const cancelados  = apps.filter(a => a.status === 'Perdido' && !a.aplicadaOutroLocal);
@@ -307,6 +307,11 @@ function renderHistCard(a) {
         bgClass     = 'bg-cyan-50/50';
         stTextClass = 'text-cyan-600';
         iconClass   = 'fa-comments text-cyan-500';
+    } else if (a.status === 'Nova oportunidade') {
+        borderClass = 'border-slate-300 hover:border-slate-500';
+        bgClass     = 'bg-slate-50/50';
+        stTextClass = 'text-slate-500';
+        iconClass   = 'fa-star text-slate-400';
     } else if (isDelayed) {
         borderClass = 'border-yellow-300 hover:border-yellow-500';
         bgClass     = 'bg-yellow-50/50';
