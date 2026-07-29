@@ -2337,6 +2337,129 @@
             </div>
         </div>
     </div>
+
+    <!-- ══════ MODAL EDITAR GRUPO OPORTUNIDADE ══════ -->
+    <div id="modal-editar-grupo-oportunidade" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[350] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col" style="max-height:90vh;">
+            <div id="oport-modal-header" class="bg-gradient-to-br from-slate-600 to-slate-800 p-5 text-white flex items-center gap-3 shrink-0">
+                <div class="h-10 w-10 bg-white/15 rounded-xl flex items-center justify-center border border-white/20 shrink-0">
+                    <i id="oport-modal-icon" class="fas fa-star text-white text-base"></i>
+                </div>
+                <div class="min-w-0">
+                    <h3 id="oport-modal-title" class="font-black uppercase tracking-tight text-base leading-tight">Editar Oportunidade</h3>
+                    <p id="oport-grupo-paciente" class="text-[11px] text-slate-200 font-bold truncate mt-0.5"></p>
+                </div>
+            </div>
+            <div id="oport-modal-accent" class="h-1 w-full bg-gradient-to-r from-slate-400 via-slate-300 to-transparent shrink-0"></div>
+            <div class="p-5 space-y-4 overflow-y-auto flex-1">
+                <div id="oport-info-box" class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                    <i id="oport-info-icon" class="fas fa-info-circle text-slate-500 text-xs shrink-0"></i>
+                    <p id="oport-info-text" class="text-[11px] text-slate-600 font-bold">
+                        <span id="oport-grupo-count"></span> nesta oportunidade. Vacina e dose são obrigatórias e respeitam o esquema vacinal e a idade do paciente; o valor só muda via desconto.
+                    </p>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider">Vacinas do Grupo</label>
+                        <button type="button" onclick="addOportunidadeLine()" class="flex items-center gap-1.5 text-[10px] font-black uppercase text-indigo-600 hover:text-indigo-800 transition">
+                            <i class="fas fa-plus-circle"></i>Adicionar Vacina
+                        </button>
+                    </div>
+                    <div id="oport-grupo-lines" class="flex flex-col gap-2"></div>
+                </div>
+                <div class="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-wide">Total</span>
+                    <span id="oport-grupo-total" class="text-sm font-black text-emerald-700"></span>
+                </div>
+            </div>
+            <div class="p-5 pt-0 flex gap-3 shrink-0">
+                <button onclick="closeEditarOportunidadeModal()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Cancelar</button>
+                <button id="btn-confirm-editar-oportunidade" onclick="confirmEditarOportunidade()"
+                    class="flex-1 bg-slate-700 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-slate-800 cursor-pointer shadow-md">
+                    <i class="fas fa-save mr-1"></i>Salvar Alterações
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════ MODAL DESCONTO (OPORTUNIDADE - GRUPO) ══════ -->
+    <div id="modal-desconto-oportunidade" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[360] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="bg-gradient-to-br from-indigo-700 to-indigo-900 p-5 text-white">
+                <div class="flex items-center gap-3">
+                    <div class="h-10 w-10 bg-white/15 rounded-xl flex items-center justify-center shadow">
+                        <i class="fas fa-tag text-lg text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-base uppercase tracking-tight leading-none">Aplicar Desconto</h3>
+                        <p class="text-indigo-200 text-[10px] font-bold uppercase tracking-widest mt-0.5">Valor da vacina</p>
+                    </div>
+                </div>
+                <div class="mt-4 bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                    <span class="text-indigo-200 text-xs font-bold uppercase">Valor Cheio</span>
+                    <span class="text-white font-black text-xl" id="oport-modal-desc-valor-cheio">R$ 0,00</span>
+                </div>
+            </div>
+            <div class="p-5 space-y-4">
+                <div id="oport-desc-tabs-container" class="flex rounded-xl overflow-hidden border border-slate-200 text-[11px] font-black uppercase">
+                    <button type="button" id="oport-tab-desc-pct" onclick="switchOportunidadeDescontoTab('pct')"
+                        class="flex-1 py-2 bg-indigo-600 text-white transition">Por %</button>
+                    <button type="button" id="oport-tab-desc-val" onclick="switchOportunidadeDescontoTab('val')"
+                        class="flex-1 py-2 bg-white text-slate-400 hover:bg-slate-50 transition">Valor fixo</button>
+                </div>
+
+                <div id="oport-desc-pct-panel">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Percentual de desconto</label>
+                    <div class="flex items-center border-2 border-indigo-200 focus-within:border-indigo-500 rounded-xl overflow-hidden transition">
+                        <input type="number" id="oport-desc-pct-input" min="0" max="100" step="0.5" placeholder="0"
+                            oninput="calcOportunidadeDescontoPreview()"
+                            class="flex-1 py-2.5 px-4 text-lg font-black text-navy-900 outline-none bg-white">
+                        <span class="px-4 text-indigo-600 font-black text-lg bg-indigo-50 border-l border-indigo-200 select-none">%</span>
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        <button type="button" onclick="setOportunidadeDescontoPct(5)"  class="flex-1 py-1 text-[10px] font-black rounded-lg bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 transition">5%</button>
+                        <button type="button" onclick="setOportunidadeDescontoPct(10)" class="flex-1 py-1 text-[10px] font-black rounded-lg bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 transition">10%</button>
+                        <button type="button" onclick="setOportunidadeDescontoPct(15)" class="flex-1 py-1 text-[10px] font-black rounded-lg bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 transition">15%</button>
+                        <button type="button" onclick="setOportunidadeDescontoPct(20)" class="flex-1 py-1 text-[10px] font-black rounded-lg bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 transition">20%</button>
+                        <button type="button" onclick="setOportunidadeDescontoPct(50)" class="flex-1 py-1 text-[10px] font-black rounded-lg bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 transition">50%</button>
+                    </div>
+                </div>
+
+                <div id="oport-desc-val-panel" class="hidden">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Novo valor final</label>
+                    <div class="flex items-center border-2 border-indigo-200 focus-within:border-indigo-500 rounded-xl overflow-hidden transition">
+                        <span class="px-3 py-2.5 bg-indigo-50 text-indigo-600 font-black text-sm border-r border-indigo-200 select-none">R$</span>
+                        <input type="text" id="oport-desc-val-input" placeholder="0,00" inputmode="numeric"
+                            oninput="maskCurrency(this); calcOportunidadeDescontoPreview()"
+                            class="flex-1 py-2.5 px-3 text-lg font-black text-navy-900 outline-none bg-white">
+                    </div>
+                </div>
+
+                <div id="oport-desc-preview" class="hidden bg-gradient-to-br from-slate-50 to-indigo-50 border border-indigo-100 rounded-xl px-4 py-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[10px] font-black text-slate-400 uppercase">Valor final</span>
+                        <span class="text-[10px] font-black text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full" id="oport-desc-preview-pct"></span>
+                    </div>
+                    <span class="text-2xl font-black text-navy-900" id="oport-desc-preview-valor"></span>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Economia de <b class="text-green-600" id="oport-desc-preview-economia"></b></p>
+                </div>
+
+                <label id="oport-desc-cortesia-label" class="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 cursor-pointer select-none">
+                    <input type="checkbox" id="oport-desc-cortesia-check" onchange="toggleOportunidadeCortesia()" class="w-4 h-4 accent-amber-500 rounded">
+                    <div class="flex-1">
+                        <span class="block text-[11px] font-black text-amber-700 uppercase">Cortesia (Gratuita)</span>
+                        <span class="block text-[10px] text-amber-500">Não impacta faturamento nem dashboard</span>
+                    </div>
+                    <i class="fas fa-gift text-amber-400 text-base"></i>
+                </label>
+
+                <div class="flex gap-3 pt-1">
+                    <button type="button" onclick="aplicarOportunidadeDesconto()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 rounded-xl transition text-xs uppercase shadow-sm">Aplicar</button>
+                    <button type="button" onclick="closeOportunidadeDescontoModal()" class="flex-1 border border-slate-200 text-slate-500 font-black py-2.5 rounded-xl hover:bg-slate-50 transition text-xs uppercase">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- ════════════════════════════════════════════════════ -->
 
     <!-- ══════ MODAL APLICAR GRUPO ══════ -->

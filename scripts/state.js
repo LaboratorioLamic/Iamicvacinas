@@ -47,6 +47,10 @@ let _aplicarGrupoPending = null;
 let _aplicarGrupoRemovedIds = new Set();
 let _aplicarGrupoRemovePending = null;
 let _moverGrupoPerdidoPending = null;
+let _editarOportunidadePending = null;
+let _oportunidadeDescontoTarget = null;
+let _oportunidadeDescontoTab = 'pct';
+let _oportNewLineSeq = 0;
 
 // Agenda day selection
 let selectedDayDate = null;

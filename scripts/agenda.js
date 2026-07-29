@@ -1439,6 +1439,8 @@ function renderKanbanGrouped() {
                             title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
                         <button onclick="event.stopPropagation();viewPatientHistory(${patId})" title="Ver prontuário vacinal"
                             class="h-6 w-6 rounded-md flex items-center justify-center transition text-xs shrink-0" style="background:${_dl('#e0e7ff','#1e1b4b')};color:${_dl('#4f46e5','#818cf8')}"><i class="fas fa-clipboard-list"></i></button>
+                        ${(col.key === 'Nova oportunidade' || col.key === 'Em negociação') ? permBtn('agendar', `<button onclick="event.stopPropagation();openEditarOportunidadeModal(${patId},appointments.filter(a=>String(a.patientId)==='${patId}'&&a.status==='${colKeyEsc}'),'${colKeyEsc}')" title="Editar ${col.key === 'Em negociação' ? 'negociação' : 'oportunidades'} do grupo"
+                            class="h-6 w-6 rounded-md flex items-center justify-center transition text-xs shrink-0" style="background:${col.light};color:${col.text}"><i class="fas fa-pencil-alt"></i></button>`) : ''}
                         ${col.key === 'Agendado' ? permBtn('agendar', `<button onclick="event.stopPropagation();openAgendarGrupoModal(${patId},'Agendado',appointments.filter(a=>String(a.patientId)==='${patId}'&&a.status==='Agendado'))" title="Editar agendamentos do grupo"
                             class="h-6 w-6 rounded-md flex items-center justify-center transition text-xs shrink-0" style="background:${_dl('#dbeafe','#1e3a5f')};color:${_dl('#1e3a8a','#93c5fd')}"><i class="fas fa-pencil-alt"></i></button>`) : ''}
                         ${col.key === 'Aplicado' ? permBtn('aplicar', `<button onclick="event.stopPropagation();openAplicarGrupoModal(${patId},'Aplicado',appointments.filter(a=>String(a.patientId)==='${patId}'&&a.status==='Aplicado'))" title="Editar aplicações do grupo"
@@ -1872,6 +1874,627 @@ function closeAgendarGrupoModal() {
     _agendarGrupoPending = null;
     _agendarGrupoRemovedIds = new Set();
     _agendarGrupoRemovePending = null;
+}
+
+// ─── MODAL: EDITAR OPORTUNIDADE (GRUPO) ──────────────────────────────────────
+
+const OPORTUNIDADE_THEMES = {
+    'Nova oportunidade': {
+        title: 'Editar Oportunidade',
+        icon: 'fa-star',
+        header: 'bg-gradient-to-br from-slate-600 to-slate-800 p-5 text-white flex items-center gap-3 shrink-0',
+        subtitle: 'text-[11px] text-slate-200 font-bold truncate mt-0.5',
+        accent: 'h-1 w-full bg-gradient-to-r from-slate-400 via-slate-300 to-transparent shrink-0',
+        infoBox: 'flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5',
+        infoIcon: 'fas fa-info-circle text-slate-500 text-xs shrink-0',
+        infoText: 'text-[11px] text-slate-600 font-bold',
+        btn: 'flex-1 bg-slate-700 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-slate-800 cursor-pointer shadow-md'
+    },
+    'Em negociação': {
+        title: 'Editar Negociação',
+        icon: 'fa-comments',
+        header: 'bg-gradient-to-br from-cyan-600 to-cyan-800 p-5 text-white flex items-center gap-3 shrink-0',
+        subtitle: 'text-[11px] text-cyan-100 font-bold truncate mt-0.5',
+        accent: 'h-1 w-full bg-gradient-to-r from-cyan-400 via-cyan-300 to-transparent shrink-0',
+        infoBox: 'flex items-center gap-2 bg-cyan-50 border border-cyan-200 rounded-xl px-3 py-2.5',
+        infoIcon: 'fas fa-info-circle text-cyan-500 text-xs shrink-0',
+        infoText: 'text-[11px] text-cyan-700 font-bold',
+        btn: 'flex-1 bg-cyan-700 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-cyan-800 cursor-pointer shadow-md'
+    }
+};
+
+function openEditarOportunidadeModal(patId, groupApps, fromStatus) {
+    _editarOportunidadePending = {
+        patId: String(patId),
+        fromStatus: fromStatus || 'Nova oportunidade',
+        apps: groupApps.map(a => ({
+            id: a.id,
+            vaccineId: a.vaccineId,
+            dose: a.doseAtual,
+            data: a.data || '',
+            pedido: a.pedido || a.pedidoNumero || '',
+            valorAplicado: a.valorAplicado || '',
+            _oportCheio: a.valorCheio || '',
+            _oportDescontoAtivo: !!a.descontoPct && !a.cortesia,
+            _oportCortesia: !!a.cortesia
+        }))
+    };
+
+    const theme = OPORTUNIDADE_THEMES[_editarOportunidadePending.fromStatus] || OPORTUNIDADE_THEMES['Nova oportunidade'];
+    const setCls = (id, cls) => { const el = document.getElementById(id); if (el) el.className = cls; };
+    setCls('oport-modal-header', theme.header);
+    setCls('oport-modal-icon', 'fas ' + theme.icon + ' text-white text-base');
+    setCls('oport-grupo-paciente', theme.subtitle);
+    setCls('oport-modal-accent', theme.accent);
+    setCls('oport-info-box', theme.infoBox);
+    setCls('oport-info-icon', theme.infoIcon);
+    setCls('oport-info-text', theme.infoText);
+    setCls('btn-confirm-editar-oportunidade', theme.btn);
+    const titleEl2 = document.getElementById('oport-modal-title');
+    if (titleEl2) titleEl2.textContent = theme.title;
+
+    const pat = patients.find(p => p.id == patId);
+    _editarOportunidadePending.patDtNasc = pat ? pat.dtNasc : '';
+    const titleEl = document.getElementById('oport-grupo-paciente');
+    if (titleEl) titleEl.textContent = pat ? pat.nome : '—';
+
+    const countEl = document.getElementById('oport-grupo-count');
+    if (countEl) countEl.textContent = groupApps.length + ' vacina' + (groupApps.length !== 1 ? 's' : '');
+
+    _renderEditarOportunidadeLines();
+    document.getElementById('modal-editar-grupo-oportunidade').classList.add('active');
+}
+
+function _renderEditarOportunidadeLines() {
+    if (!_editarOportunidadePending) return;
+    const container = document.getElementById('oport-grupo-lines');
+    if (!container) return;
+
+    container.innerHTML = _editarOportunidadePending.apps.map(app => {
+        const vac = vaccines.find(v => v.id == app.vaccineId);
+        const hasDesconto = app._oportDescontoAtivo || app._oportCortesia;
+        const pctLabel = app._oportCortesia ? 'CORTESIA' : (app._oportDescontoAtivo ? formatDescontoPct(app) + '% OFF' : '');
+
+        return `<div class="flex flex-col gap-1.5 px-3 py-2.5 rounded-xl bg-white border ${app._isNew ? 'border-dashed border-indigo-300' : 'border-slate-200 hover:border-slate-300'} transition">
+                <div class="flex items-center gap-2 flex-nowrap">
+                    <div class="w-4 flex items-center justify-center shrink-0" title="${app._isNew ? 'Nova vacina — salva apenas ao confirmar' : 'Vacina já registrada'}">
+                        <i class="fas fa-syringe text-xs ${app._isNew ? 'text-indigo-500' : 'text-slate-400'}"></i>
+                    </div>
+                    <div class="relative flex-1 min-w-0" id="oport-vacina-wrap-${app.id}">
+                        <input type="text" id="oport-vacina-search-${app.id}" value="${vac ? vac.nome : ''}"
+                            oninput="_filterOportVacinaDropdown('${app.id}')" onfocus="_filterOportVacinaDropdown('${app.id}')" onblur="_hideOportVacinaDropdown('${app.id}')"
+                            autocomplete="off" placeholder="Buscar vacina..."
+                            class="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-black text-navy-900 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 uppercase truncate">
+                        <div id="oport-vacina-dropdown-${app.id}" class="hidden absolute z-[400] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
+                    </div>
+                    <select id="oport-dose-${app.id}" onchange="_onOportunidadeDoseChange('${app.id}')"
+                        class="border border-slate-200 rounded-lg py-1.5 px-1.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0 w-[104px]">
+                        ${_buildOportDoseOptionsHtml(vac, _editarOportunidadePending.patDtNasc, app.data, app.dose)}
+                    </select>
+                    <input type="text" id="oport-pedido-${app.id}" value="${app.pedido || ''}" placeholder="Nº pedido"
+                        class="border border-slate-200 rounded-lg py-1.5 px-2 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0 w-[84px]">
+                    <input type="date" id="oport-data-${app.id}" value="${app.data || ''}" onchange="_onOportunidadeDataChange('${app.id}')"
+                        class="border border-slate-200 rounded-lg py-1.5 px-1.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0">
+                    <div class="flex items-stretch rounded-lg overflow-hidden border border-slate-200 bg-slate-50 shrink-0">
+                        <span class="px-1.5 flex items-center bg-slate-100 text-slate-400 font-black text-[10px] border-r border-slate-200 select-none">R$</span>
+                        <input type="text" id="oport-valor-${app.id}" value="${app.valorAplicado || ''}" placeholder="0,00" readonly
+                            class="w-[68px] py-1.5 px-1.5 outline-none text-xs font-black text-navy-900 bg-slate-50 cursor-default select-all">
+                        <button type="button" onclick="openOportunidadeDescontoModal('${app.id}')" title="Aplicar desconto"
+                            class="flex items-center px-2 bg-gradient-to-br from-indigo-600 to-indigo-800 hover:from-indigo-500 hover:to-indigo-700 text-white text-[9px] font-black uppercase shrink-0">
+                            <i class="fas fa-tag text-[9px]"></i>
+                        </button>
+                    </div>
+                    <div class="w-7 shrink-0 flex items-center justify-center">
+                        ${app._isNew ? `<button type="button" onclick="removeOportunidadeLine('${app.id}')" title="Excluir vacina não salva"
+                            class="h-7 w-7 rounded-lg bg-red-50 hover:bg-red-500 text-red-400 hover:text-white flex items-center justify-center transition"><i class="fas fa-trash-alt text-[10px]"></i></button>` : ''}
+                    </div>
+                </div>
+                <div id="oport-desconto-info-${app.id}" class="items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1.5" style="display:${hasDesconto ? 'flex' : 'none'}">
+                    <i class="fas fa-tag text-indigo-400 text-[9px] shrink-0"></i>
+                    <span class="text-[10px] text-slate-500">Cheio: <b class="text-slate-700">R$ ${app._oportCheio}</b></span>
+                    <span class="text-slate-300 text-[10px]">•</span>
+                    <span class="text-[10px] font-black text-indigo-600">${pctLabel}</span>
+                    <button type="button" onclick="removerOportunidadeDesconto('${app.id}')" class="ml-auto text-slate-400 hover:text-red-500 transition" title="Remover desconto"><i class="fas fa-times text-[9px]"></i></button>
+                </div>
+        </div>`;
+    }).join('');
+
+    _recalcEditarOportunidadeTotal();
+}
+
+function _filterOportVacinaDropdown(appId) {
+    const input = document.getElementById(`oport-vacina-search-${appId}`);
+    const dd = document.getElementById(`oport-vacina-dropdown-${appId}`);
+    if (!input || !dd) return;
+    const val = normalizeStr(input.value);
+    const ativos = vaccines.filter(v => v.ativo !== false);
+    const matches = val
+        ? ativos.filter(v => {
+            if (normalizeStr(v.nome).includes(val)) return true;
+            if (v.mnemonico && normalizeStr(v.mnemonico).includes(val)) return true;
+            return vaccineLots.some(l => l.vaccineId == v.id && l.fabricante && normalizeStr(l.fabricante).includes(val));
+        })
+        : ativos;
+    if (!matches.length) { dd.classList.add('hidden'); return; }
+    dd.innerHTML = matches.map(v =>
+        `<div class="px-3 py-2 hover:bg-clinic-50 hover:text-clinic-700 cursor-pointer text-xs font-bold text-navy-900 border-b border-slate-100 last:border-0 transition uppercase"
+              onmousedown="_selectOportVacina('${appId}',${v.id},'${v.nome.replace(/'/g,"\\'")}')">
+            <span>${v.nome}</span>
+            ${v.mnemonico ? `<br><span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case mt-0.5">${v.mnemonico}</span>` : ''}
+        </div>`
+    ).join('');
+    dd.classList.remove('hidden');
+}
+
+function _hideOportVacinaDropdown(appId) {
+    setTimeout(() => { const dd = document.getElementById(`oport-vacina-dropdown-${appId}`); if (dd) dd.classList.add('hidden'); }, 150);
+}
+
+function _selectOportVacina(appId, vId, nome) {
+    if (!_editarOportunidadePending) return;
+    const line = _editarOportunidadePending.apps.find(a => a.id == appId);
+    if (!line) return;
+    const vac = vaccines.find(v => v.id == vId);
+    line.vaccineId = vac ? vac.id : line.vaccineId;
+    line.valorAplicado = vac ? String(vac.valor || '').replace('R$', '').trim() : '';
+    line.dose = '';
+    line._oportCheio = '';
+    line._oportDescontoAtivo = false;
+    line._oportCortesia = false;
+    _renderEditarOportunidadeLines();
+    _warnOportIdade(appId);
+}
+
+// Monta as doses disponíveis respeitando os mesmos critérios do agendamento
+// individual (autoFillVaccine): esquemas compatíveis com a idade do paciente na
+// data de referência, Dose Única, Reforço e Dose Zero.
+function _buildOportDoseOptionsHtml(vac, dtNasc, dataStr, currentDose) {
+    if (!vac) return '<option value="">Selecione a vacina</option>';
+
+    const esqs = (typeof getEsquemasPaciente === 'function') ? getEsquemasPaciente(vac, dtNasc, dataStr) : [];
+    const meetsDoseZero = (typeof _patientMeetsDoseZero === 'function') && _patientMeetsDoseZero(vac, dtNasc, dataStr || undefined);
+    const opt = (val, label) => `<option value="${val}" ${currentDose === val ? 'selected' : ''}>${label || val}</option>`;
+    const keepCurrent = html => (currentDose && !html.includes(`value="${currentDose}"`))
+        ? html + `<option value="${currentDose}" selected>${currentDose} (fora do esquema)</option>`
+        : html;
+
+    // Nenhum esquema compatível com a idade: só Dose Zero é permitida (quando aplicável)
+    if (dtNasc && esqs.length === 0 && vac.esquemas && vac.esquemas.length > 0) {
+        if (meetsDoseZero) return keepCurrent('<option value="">Selecione...</option>' + opt('Dose Zero'));
+        return keepCurrent('<option value="">Sem dose compatível com a idade</option>');
+    }
+
+    let html = '<option value="">Selecione...</option>';
+    const esqsToUse = esqs.length ? esqs : (vac.esquemas && vac.esquemas.length ? [vac.esquemas[0]] : [{ numDoses: vac.numDoses || 1 }]);
+    const doseOptions = new Set();
+    esqsToUse.forEach(e => {
+        const n = e.numDoses || 1;
+        if (n === 1) doseOptions.add('__dose_unica__');
+        else for (let i = 1; i <= n; i++) doseOptions.add(i);
+    });
+    const numeradas = [...doseOptions].filter(d => d !== '__dose_unica__').sort((a, b) => a - b);
+    numeradas.forEach(i => { html += opt(`${i}ª Dose`); });
+    if (doseOptions.has('__dose_unica__')) html += opt('Dose Única');
+    if (vac.reforco) html += opt('Reforço');
+    // Dose Zero só aparece quando o paciente atende ao critério de idade próprio dela
+    if (vac.doseZero && (!dtNasc || meetsDoseZero)) html += opt('Dose Zero');
+    return keepCurrent(html);
+}
+
+// Equivalente a checkAgeConstraint() do formulário individual: avisa na hora em
+// que a vacina/dose/data torna a combinação inválida para a idade do paciente.
+function _warnOportIdade(appId) {
+    if (!_editarOportunidadePending) return;
+    const line = _editarOportunidadePending.apps.find(a => a.id == appId);
+    if (!line) return;
+    const vac = vaccines.find(v => v.id == line.vaccineId);
+    if (!vac) return;
+    const dataEl = document.getElementById(`oport-data-${appId}`);
+    const doseEl = document.getElementById(`oport-dose-${appId}`);
+    const msg = _oportCheckAgeBlocked(vac, _editarOportunidadePending.patDtNasc, dataEl ? dataEl.value : '', doseEl ? doseEl.value : '');
+    if (msg) showNotification(`Restrição de idade (${vac.nome}): ${msg}`, 'error');
+}
+
+function _onOportunidadeDoseChange(appId) {
+    if (!_editarOportunidadePending) return;
+    const line = _editarOportunidadePending.apps.find(a => a.id == appId);
+    const doseEl = document.getElementById(`oport-dose-${appId}`);
+    if (line && doseEl) line.dose = doseEl.value;
+    _warnOportIdade(appId);
+}
+
+function _onOportunidadeDataChange(appId) {
+    if (!_editarOportunidadePending) return;
+    const line = _editarOportunidadePending.apps.find(a => a.id == appId);
+    if (!line) return;
+    const dataEl = document.getElementById(`oport-data-${appId}`);
+    const doseSel = document.getElementById(`oport-dose-${appId}`);
+    const vac = vaccines.find(v => v.id == line.vaccineId);
+    if (dataEl) line.data = dataEl.value;
+    if (doseSel && vac && dataEl) {
+        // A idade muda com a data: recalcula as doses permitidas preservando a seleção
+        doseSel.innerHTML = _buildOportDoseOptionsHtml(vac, _editarOportunidadePending.patDtNasc, dataEl.value, doseSel.value);
+        line.dose = doseSel.value;
+    }
+    _warnOportIdade(appId);
+}
+
+function formatDescontoPct(app) {
+    const cheioNum = parseBRL(app._oportCheio);
+    const valorEl = document.getElementById(`oport-valor-${app.id}`);
+    const atualNum = parseBRL(valorEl ? valorEl.value : app.valorAplicado);
+    if (!cheioNum) return '0,0';
+    return (((cheioNum - atualNum) / cheioNum) * 100).toFixed(1).replace('.', ',');
+}
+
+function _recalcEditarOportunidadeTotal() {
+    if (!_editarOportunidadePending) return;
+    const total = _editarOportunidadePending.apps.reduce((s, app) => {
+        const el = document.getElementById(`oport-valor-${app.id}`);
+        return s + (parseBRL(el ? el.value : app.valorAplicado) || 0);
+    }, 0);
+    const totalEl = document.getElementById('oport-grupo-total');
+    const count = _editarOportunidadePending.apps.length;
+    if (totalEl) totalEl.textContent = `${count} vacina${count !== 1 ? 's' : ''} · ${formatCurrency(total)}`;
+}
+
+function addOportunidadeLine() {
+    if (!_editarOportunidadePending) return;
+    _oportNewLineSeq++;
+    _editarOportunidadePending.apps.push({
+        id: `new_${Date.now()}_${_oportNewLineSeq}`,
+        vaccineId: null,
+        dose: '',
+        data: '',
+        pedido: '',
+        valorAplicado: '',
+        _oportCheio: '',
+        _oportDescontoAtivo: false,
+        _oportCortesia: false,
+        _isNew: true
+    });
+    _renderEditarOportunidadeLines();
+}
+
+function removeOportunidadeLine(appId) {
+    if (!_editarOportunidadePending) return;
+    const line = _editarOportunidadePending.apps.find(a => a.id == appId);
+    if (!line || !line._isNew) return;
+    _editarOportunidadePending.apps = _editarOportunidadePending.apps.filter(a => a.id != appId);
+    _renderEditarOportunidadeLines();
+}
+
+function _oportCheckAgeBlocked(vac, dtNasc, dataStr, doseVal) {
+    if (!vac || !dtNasc) return null;
+    const ageInfo = getAgeInMonths(dtNasc, dataStr || undefined);
+    const totalMeses = ageInfo.years * 12 + ageInfo.months;
+    const patStr = ageInfo.years > 0 && ageInfo.months > 0 ? `${ageInfo.years} ano(s) e ${ageInfo.months} mês(es)`
+        : ageInfo.years > 0 ? `${ageInfo.years} ano(s)` : `${ageInfo.months} mês(es)`;
+
+    if (doseVal === 'Dose Zero') {
+        const minAgeDoseZero = (vac.doseZeroMinAnos || 0) * 12 + (vac.doseZeroMinMeses || 0);
+        if (totalMeses < minAgeDoseZero) {
+            return `paciente possui ${patStr}, abaixo da idade mínima exigida para a Dose Zero.`;
+        }
+        return null;
+    }
+
+    if (vac.esquemas && vac.esquemas.length > 0) {
+        const encaixa = vac.esquemas.some(esq => {
+            if (esq.minAnos == null) return true;
+            const minTotal = (esq.minAnos || 0) * 12 + (esq.minMeses || 0);
+            const hasMax = esq.maxAnos != null || esq.maxMeses != null;
+            const maxTotal = hasMax ? ((esq.maxAnos || 0) * 12 + (esq.maxMeses || 0)) : Infinity;
+            return totalMeses >= minTotal && totalMeses <= maxTotal;
+        });
+        if (!encaixa && !(typeof _patientMeetsDoseZero === 'function' && _patientMeetsDoseZero(vac, dtNasc, dataStr || undefined))) {
+            return `paciente possui ${patStr} e não se enquadra em nenhuma faixa etária cadastrada para esta vacina.`;
+        }
+        return null;
+    }
+
+    const minAgeInMonths = (vac.idadeMinimaAnos || 0) * 12 + (vac.idadeMinimaMeses || 0);
+    if (totalMeses < minAgeInMonths && !(typeof _patientMeetsDoseZero === 'function' && _patientMeetsDoseZero(vac, dtNasc, dataStr || undefined))) {
+        return `paciente possui ${patStr}, abaixo da idade mínima exigida para esta vacina.`;
+    }
+    return null;
+}
+
+function _oportCheckDuplicidade(app, vac, doseVal) {
+    const isDoseUnicaRepetivel = doseVal === 'Dose Única' && vac && vac.esquemas && vac.esquemas.some(e => e.numDoses === 1 && e.repete);
+    const isReforco = doseVal === 'Reforço';
+    if (isDoseUnicaRepetivel || isReforco) return null;
+    const patId = _editarOportunidadePending.patId;
+
+    const duplExterno = appointments.find(x =>
+        String(x.patientId) === String(patId) &&
+        String(x.vaccineId) === String(app.vaccineId) &&
+        x.doseAtual === doseVal &&
+        x.status !== 'Perdido' &&
+        String(x.id) !== String(app.id)
+    );
+    if (duplExterno) return `já existe registro de ${doseVal} da vacina ${vac ? vac.nome : ''} para este paciente.`;
+
+    const duplInterno = _editarOportunidadePending.apps.find(other => {
+        if (other.id === app.id || other.vaccineId != app.vaccineId) return false;
+        const otherDoseEl = document.getElementById(`oport-dose-${other.id}`);
+        return otherDoseEl && otherDoseEl.value === doseVal;
+    });
+    if (duplInterno) return `duas linhas desta edição estão com a mesma vacina e dose (${doseVal}).`;
+
+    return null;
+}
+
+function _oportCheckDoseAnterior(app, doseVal) {
+    if (!doseVal.includes('ª Dose') || doseVal === '1ª Dose') return null;
+    const numAtual = parseInt(doseVal);
+    const prevDoseStr = `${numAtual - 1}ª Dose`;
+    const patId = _editarOportunidadePending.patId;
+
+    const hasPrevExterno = appointments.some(x =>
+        String(x.patientId) === String(patId) && x.vaccineId == app.vaccineId && x.doseAtual === prevDoseStr && String(x.id) !== String(app.id)
+    );
+    if (hasPrevExterno) return null;
+
+    const hasPrevInterno = _editarOportunidadePending.apps.some(other => {
+        if (other.id === app.id || other.vaccineId != app.vaccineId) return false;
+        const otherDoseEl = document.getElementById(`oport-dose-${other.id}`);
+        return otherDoseEl && otherDoseEl.value === prevDoseStr;
+    });
+    if (hasPrevInterno) return null;
+
+    return prevDoseStr;
+}
+
+function confirmEditarOportunidade() {
+    if (!_editarOportunidadePending) return;
+
+    // Vacina e dose são obrigatórias em todas as linhas, além dos mesmos bloqueios
+    // clínicos usados no agendamento individual (idade, duplicidade, dose anterior).
+    for (const app of _editarOportunidadePending.apps) {
+        const vac = vaccines.find(v => v.id == app.vaccineId);
+        const doseEl = document.getElementById(`oport-dose-${app.id}`);
+        const doseVal = doseEl ? doseEl.value : '';
+        const dataEl = document.getElementById(`oport-data-${app.id}`);
+
+        if (!app.vaccineId || !vac) {
+            showNotification('Selecione a vacina em todas as linhas antes de salvar.', 'error');
+            const el = document.getElementById(`oport-vacina-search-${app.id}`);
+            if (el) { el.focus(); el.classList.add('border-red-400', 'ring-2', 'ring-red-200'); }
+            return;
+        }
+        if (!doseVal) {
+            showNotification(`Selecione a dose da vacina ${vac.nome} antes de salvar.`, 'error');
+            if (doseEl) { doseEl.focus(); doseEl.classList.add('border-red-400', 'ring-2', 'ring-red-200'); }
+            return;
+        }
+
+        const ageMsg = _oportCheckAgeBlocked(vac, _editarOportunidadePending.patDtNasc, dataEl ? dataEl.value : '', doseVal);
+        if (ageMsg) {
+            showNotification(`Bloqueado (${vac.nome}): ${ageMsg}`, 'error');
+            return;
+        }
+
+        const duplMsg = _oportCheckDuplicidade(app, vac, doseVal);
+        if (duplMsg) {
+            showNotification(`Bloqueado: ${duplMsg}`, 'error');
+            return;
+        }
+
+        const prevDoseFaltante = _oportCheckDoseAnterior(app, doseVal);
+        if (prevDoseFaltante) {
+            const confirmar = window.confirm(`Não foi encontrado registro da ${prevDoseFaltante} da vacina ${vac.nome} para este paciente.\n\nDeseja registrar a ${doseVal} mesmo assim?`);
+            if (!confirmar) return;
+        }
+    }
+
+    let vendedorNome = '';
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        const _fullUser = appUsers.find(u => u.id === currentUser.id);
+        if (_fullUser) vendedorNome = _fullUser.nome;
+    }
+
+    let novosCount = 0;
+    _editarOportunidadePending.apps.forEach((app, i) => {
+        const doseEl = document.getElementById(`oport-dose-${app.id}`);
+        const pedidoEl = document.getElementById(`oport-pedido-${app.id}`);
+        const dataEl = document.getElementById(`oport-data-${app.id}`);
+        const valorEl = document.getElementById(`oport-valor-${app.id}`);
+        const valor = valorEl ? valorEl.value : app.valorAplicado;
+        const doseVal = doseEl ? doseEl.value : app.dose;
+        const pedidoVal = pedidoEl ? pedidoEl.value.trim() : app.pedido;
+        const dataVal = dataEl ? dataEl.value : app.data;
+        const valorCheio = (app._oportDescontoAtivo || app._oportCortesia) ? app._oportCheio : null;
+        const descontoPct = app._oportDescontoAtivo ? parseFloat(formatDescontoPct(app).replace(',', '.')) : null;
+        const cortesia = app._oportCortesia || false;
+
+        if (app._isNew) {
+            novosCount++;
+            const novoApp = {
+                id: Date.now() + i,
+                patientId: Number(_editarOportunidadePending.patId),
+                vaccineId: Number(app.vaccineId),
+                data: dataVal,
+                hora: '',
+                doseAtual: doseVal,
+                valorAplicado: valor,
+                valorCheio: valorCheio,
+                descontoPct: descontoPct,
+                cortesia: cortesia,
+                status: _editarOportunidadePending.fromStatus,
+                loteId: null,
+                lote: '',
+                motivoCancelamento: '',
+                aplicadaOutroLocal: false,
+                pedido: pedidoVal,
+                vendedor: vendedorNome,
+                aplicador: ''
+            };
+            appointments.push(novoApp);
+            if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(novoApp);
+        } else {
+            const idx = appointments.findIndex(a => a.id == app.id);
+            if (idx === -1) return;
+            appointments[idx].vaccineId = app.vaccineId;
+            appointments[idx].doseAtual = doseVal;
+            appointments[idx].pedido = pedidoVal;
+            appointments[idx].data = dataVal;
+            appointments[idx].valorAplicado = valor;
+            appointments[idx].valorCheio = valorCheio;
+            appointments[idx].descontoPct = descontoPct;
+            appointments[idx].cortesia = cortesia;
+            if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
+        }
+    });
+
+    saveAll(); renderTable(); renderDashboard();
+    if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
+    if (typeof refreshOpenModals === 'function') refreshOpenModals();
+
+    const count = _editarOportunidadePending.apps.length;
+    closeEditarOportunidadeModal();
+    renderKanban();
+    showNotification(`Alterações salvas em ${count} vacina${count !== 1 ? 's' : ''}${novosCount ? ` (${novosCount} nova${novosCount !== 1 ? 's' : ''})` : ''}!`, 'success');
+}
+
+function closeEditarOportunidadeModal() {
+    document.getElementById('modal-editar-grupo-oportunidade').classList.remove('active');
+    _editarOportunidadePending = null;
+}
+
+// ─── DESCONTO NA OPORTUNIDADE (GRUPO) ────────────────────────────────────────
+
+function openOportunidadeDescontoModal(appId) {
+    if (!_editarOportunidadePending) return;
+    const line = _editarOportunidadePending.apps.find(a => a.id == appId);
+    if (!line) return;
+
+    const valorEl = document.getElementById(`oport-valor-${appId}`);
+    const valorAtual = valorEl ? valorEl.value : '';
+    if (!valorAtual || (valorAtual === '0,00' && !line._oportCortesia)) {
+        showNotification('Informe um valor antes de aplicar desconto.', 'error');
+        return;
+    }
+
+    const base = (line._oportDescontoAtivo || line._oportCortesia) ? line._oportCheio : valorAtual;
+    _oportunidadeDescontoTarget = appId;
+    document.getElementById('oport-modal-desc-valor-cheio').textContent = 'R$ ' + base;
+    document.getElementById('oport-desc-pct-input').value = '';
+    document.getElementById('oport-desc-val-input').value = '';
+    document.getElementById('oport-desc-preview').classList.add('hidden');
+    document.getElementById('oport-desc-cortesia-check').checked = line._oportCortesia;
+    toggleOportunidadeCortesia();
+    switchOportunidadeDescontoTab('pct');
+    document.getElementById('modal-desconto-oportunidade').classList.add('active');
+}
+
+function switchOportunidadeDescontoTab(tab) {
+    _oportunidadeDescontoTab = tab;
+    const isPct = tab === 'pct';
+    document.getElementById('oport-desc-pct-panel').classList.toggle('hidden', !isPct);
+    document.getElementById('oport-desc-val-panel').classList.toggle('hidden', isPct);
+    document.getElementById('oport-tab-desc-pct').className = `flex-1 py-2 transition text-[11px] font-black uppercase ${isPct ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400 hover:bg-slate-50'}`;
+    document.getElementById('oport-tab-desc-val').className = `flex-1 py-2 transition text-[11px] font-black uppercase ${!isPct ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400 hover:bg-slate-50'}`;
+    document.getElementById('oport-desc-preview').classList.add('hidden');
+}
+
+function setOportunidadeDescontoPct(pct) {
+    document.getElementById('oport-desc-pct-input').value = pct;
+    calcOportunidadeDescontoPreview();
+}
+
+function calcOportunidadeDescontoPreview() {
+    const line = _editarOportunidadePending && _editarOportunidadePending.apps.find(a => a.id == _oportunidadeDescontoTarget);
+    if (!line) return;
+    const valorEl = document.getElementById(`oport-valor-${_oportunidadeDescontoTarget}`);
+    const base = line._oportDescontoAtivo ? line._oportCheio : (valorEl ? valorEl.value : '');
+    const baseNum = parseBRL(base);
+    if (!baseNum) return;
+
+    let finalNum = 0, pct = 0;
+    if (_oportunidadeDescontoTab === 'pct') {
+        pct = parseFloat(document.getElementById('oport-desc-pct-input').value) || 0;
+        if (pct < 0 || pct > 100) return;
+        finalNum = baseNum * (1 - pct / 100);
+    } else {
+        finalNum = parseBRL(document.getElementById('oport-desc-val-input').value);
+        if (finalNum < 0 || finalNum > baseNum) return;
+        pct = baseNum > 0 ? ((baseNum - finalNum) / baseNum) * 100 : 0;
+    }
+
+    const economia = baseNum - finalNum;
+    document.getElementById('oport-desc-preview-valor').textContent = 'R$ ' + formatBRL(finalNum);
+    document.getElementById('oport-desc-preview-pct').textContent = pct.toFixed(1).replace('.', ',') + '% OFF';
+    document.getElementById('oport-desc-preview-economia').textContent = 'R$ ' + formatBRL(economia);
+    document.getElementById('oport-desc-preview').classList.remove('hidden');
+}
+
+function aplicarOportunidadeDesconto() {
+    const line = _editarOportunidadePending && _editarOportunidadePending.apps.find(a => a.id == _oportunidadeDescontoTarget);
+    if (!line) return;
+    const valorEl = document.getElementById(`oport-valor-${_oportunidadeDescontoTarget}`);
+    const isCortesia = document.getElementById('oport-desc-cortesia-check').checked;
+    const base = (line._oportDescontoAtivo || line._oportCortesia) ? line._oportCheio : valorEl.value;
+    const baseNum = parseBRL(base);
+
+    if (isCortesia) {
+        line._oportCheio = base;
+        line._oportCortesia = true;
+        line._oportDescontoAtivo = false;
+        valorEl.value = '0,00';
+        document.getElementById('modal-desconto-oportunidade').classList.remove('active');
+        _renderEditarOportunidadeLines();
+        showNotification('Vacina marcada como cortesia!', 'success');
+        return;
+    }
+
+    let finalNum = 0, pct = 0;
+    if (_oportunidadeDescontoTab === 'pct') {
+        pct = parseFloat(document.getElementById('oport-desc-pct-input').value) || 0;
+        if (pct <= 0 || pct > 100) { showNotification('Informe um percentual entre 0,1% e 100%.', 'error'); return; }
+        finalNum = baseNum * (1 - pct / 100);
+    } else {
+        finalNum = parseBRL(document.getElementById('oport-desc-val-input').value);
+        if (finalNum <= 0 || finalNum > baseNum) { showNotification('Informe um valor final válido.', 'error'); return; }
+        pct = baseNum > 0 ? ((baseNum - finalNum) / baseNum) * 100 : 0;
+    }
+
+    line._oportCheio = base;
+    line._oportCortesia = false;
+    line._oportDescontoAtivo = true;
+    valorEl.value = formatBRL(finalNum);
+    document.getElementById('modal-desconto-oportunidade').classList.remove('active');
+    _renderEditarOportunidadeLines();
+    showNotification('Desconto aplicado com sucesso!', 'success');
+}
+
+function toggleOportunidadeCortesia() {
+    const isCortesia = document.getElementById('oport-desc-cortesia-check').checked;
+    const tabs = document.getElementById('oport-desc-tabs-container');
+    if (tabs) tabs.classList.toggle('hidden', isCortesia);
+    document.getElementById('oport-desc-preview').classList.add('hidden');
+    if (isCortesia) {
+        document.getElementById('oport-desc-pct-panel').classList.add('hidden');
+        document.getElementById('oport-desc-val-panel').classList.add('hidden');
+    } else {
+        switchOportunidadeDescontoTab(_oportunidadeDescontoTab);
+    }
+}
+
+function removerOportunidadeDesconto(appId) {
+    const line = _editarOportunidadePending && _editarOportunidadePending.apps.find(a => a.id == appId);
+    if (!line || (!line._oportDescontoAtivo && !line._oportCortesia)) return;
+    const valorEl = document.getElementById(`oport-valor-${appId}`);
+    if (valorEl && line._oportCheio) valorEl.value = line._oportCheio;
+    line._oportDescontoAtivo = false;
+    line._oportCortesia = false;
+    line._oportCheio = '';
+    _renderEditarOportunidadeLines();
+}
+
+function closeOportunidadeDescontoModal() {
+    document.getElementById('modal-desconto-oportunidade').classList.remove('active');
+    _oportunidadeDescontoTarget = null;
 }
 
 function openAplicarGrupoModal(patId, fromStatus, groupApps) {
