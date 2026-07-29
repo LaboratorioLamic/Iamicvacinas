@@ -2145,7 +2145,7 @@ function addOportunidadeLine() {
         id: `new_${Date.now()}_${_oportNewLineSeq}`,
         vaccineId: null,
         dose: '',
-        data: '',
+        data: new Date().toISOString().split('T')[0],
         pedido: '',
         valorAplicado: '',
         _oportCheio: '',
