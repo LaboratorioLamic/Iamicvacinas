@@ -70,6 +70,81 @@ function scheduleRender(name, fn) {
     if (_renderFrame === null) _renderFrame = requestAnimationFrame(_flushRenders);
 }
 
+// ─── PAGINAÇÃO ────────────────────────────────────────────────────────────────
+// Fatia uma lista já filtrada/ordenada e devolve a página + os metadados que a
+// barra de controles precisa. `page` é corrigido para caber no total, então
+// remover itens nunca deixa o usuário preso numa página vazia.
+function paginate(items, page, pageSize) {
+    const total = items.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const safePage = Math.min(Math.max(0, page || 0), totalPages - 1);
+    const start = safePage * pageSize;
+    const end = Math.min(start + pageSize, total);
+    return {
+        items: items.slice(start, end),
+        page: safePage, totalPages, total,
+        from: total ? start + 1 : 0,
+        to: end,
+        hasPrev: safePage > 0,
+        hasNext: safePage < totalPages - 1
+    };
+}
+
+// Janela de números de página com elipse: 1 … 4 5 [6] 7 8 … 20
+function _pageWindow(page, totalPages) {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i);
+    const out = [0];
+    let lo = Math.max(1, page - 1), hi = Math.min(totalPages - 2, page + 1);
+    if (page <= 2) hi = 3;
+    if (page >= totalPages - 3) lo = totalPages - 4;
+    if (lo > 1) out.push('…');
+    for (let i = lo; i <= hi; i++) out.push(i);
+    if (hi < totalPages - 2) out.push('…');
+    out.push(totalPages - 1);
+    return out;
+}
+
+// Barra de paginação. `onGo` é o nome de uma função global que recebe o índice
+// da página (0-based), ex.: 'goTablePage'. Devolve '' quando só há uma página.
+function renderPagination(p, onGo, itemLabel = 'itens') {
+    if (p.totalPages <= 1) return '';
+    const _d = document.body.classList.contains('dark-mode');
+    const bg     = _d ? '#1e293b' : '#ffffff';
+    const border = _d ? '#334155' : '#e2e8f0';
+    const txt    = _d ? '#94a3b8' : '#64748b';
+    const strong = _d ? '#f1f5f9' : '#172554';
+    const accent = '#4f46e5';
+
+    const btn = (target, disabled, icon, title) => `
+        <button type="button" onclick="${onGo}(${target})" ${disabled ? 'disabled' : ''} title="${title}"
+            class="h-8 w-8 rounded-lg flex items-center justify-center border transition disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-sm active:scale-90"
+            style="background:${bg};border-color:${border};color:${disabled ? txt : accent}">
+            <i class="fas ${icon} text-[11px]"></i>
+        </button>`;
+
+    const nums = _pageWindow(p.page, p.totalPages).map(i => {
+        if (i === '…') return `<span class="px-1 text-[11px] font-black" style="color:${txt}">…</span>`;
+        const active = i === p.page;
+        return `<button type="button" onclick="${onGo}(${i})"
+            class="h-8 min-w-[32px] px-2 rounded-lg text-[11px] font-black border transition hover:shadow-sm active:scale-90"
+            style="background:${active ? accent : bg};border-color:${active ? accent : border};color:${active ? '#fff' : txt}">${i + 1}</button>`;
+    }).join('');
+
+    return `
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3" style="background:${bg};border-top:1px solid ${border}">
+            <span class="text-[11px] font-bold" style="color:${txt}">
+                <span style="color:${strong}">${p.from}–${p.to}</span> de <span style="color:${strong}">${p.total}</span> ${itemLabel}
+            </span>
+            <div class="flex items-center gap-1.5">
+                ${btn(0, !p.hasPrev, 'fa-angles-left', 'Primeira página')}
+                ${btn(p.page - 1, !p.hasPrev, 'fa-chevron-left', 'Página anterior')}
+                ${nums}
+                ${btn(p.page + 1, !p.hasNext, 'fa-chevron-right', 'Próxima página')}
+                ${btn(p.totalPages - 1, !p.hasNext, 'fa-angles-right', 'Última página')}
+            </div>
+        </div>`;
+}
+
 function getDisplayName(fullName) {
     if (!fullName) return { display: '—', initials: '?' };
     const parts = fullName.trim().split(/\s+/).filter(w => w.length > 0);

@@ -16,7 +16,7 @@ function setSortTable(field) {
             icon.className = 'fas fa-sort text-slate-500';
         }
     });
-    renderTable();
+    renderTableReset();
 }
 
 function toggleTableFilter(wrapId, focusId, isSelect) {
@@ -25,10 +25,10 @@ function toggleTableFilter(wrapId, focusId, isSelect) {
     if (isOpen) {
         wrap.style.maxWidth = '0';
         wrap.style.opacity = '0';
-        if (focusId) { document.getElementById(focusId).value = ''; renderTable(); }
+        if (focusId) { document.getElementById(focusId).value = ''; renderTableReset(); }
         if (isSelect) {
             const sel = wrap.querySelector('select');
-            if (sel) { sel.value = ''; renderTable(); }
+            if (sel) { sel.value = ''; renderTableReset(); }
         }
     } else {
         wrap.style.maxWidth = '240px';
@@ -100,44 +100,55 @@ function renderTable() {
     const tbody = document.getElementById('table-body');
     tbody.innerHTML = '';
 
+    const patIdx = getPatientsIndex();
+    const vacIdx = getVaccinesIndex();
+    const dayValue = document.getElementById('filter-day-agenda')?.value || todayStr;
+
     let filtered = appointments.filter(a => {
-        const pat = patients.find(p=>p.id==a.patientId);
-        const vac = vaccines.find(v=>v.id==a.vaccineId);
-        if(!pat || !vac) return false;
-        const nomeNorm = normalizeStr(pat.nome);
-        const cpfNorm = normalizeStr(pat.cpf);
-        const matchSearch = nomeNorm.includes(search) || cpfNorm.includes(search);
-        const matchStatus = status === '' || a.status === status;
-        const matchVendedor = !filterVendedor || a.vendedor === filterVendedor;
-        const matchAplicador = !filterAplicador || a.aplicador === filterAplicador;
+        // Data e status primeiro: descartam a maioria antes dos lookups e do
+        // normalizeStr(), que é caro (NFD + 2 regex).
         let matchDate = true;
-        if(dateFilter === 'diario' || dateFilter === 'hoje') {
-            const dayValue = document.getElementById('filter-day-agenda')?.value || todayStr;
-            matchDate = a.data === dayValue;
-        } else if(dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= endOfWeek;
+        if(dateFilter === 'diario' || dateFilter === 'hoje') matchDate = a.data === dayValue;
+        else if(dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= endOfWeek;
         else if(dateFilter === 'mes' && monthFilter) matchDate = a.data.startsWith(monthFilter);
-        return matchSearch && matchStatus && matchDate && matchVendedor && matchAplicador;
+        if(!matchDate) return false;
+        if(status !== '' && a.status !== status) return false;
+        if(filterVendedor && a.vendedor !== filterVendedor) return false;
+        if(filterAplicador && a.aplicador !== filterAplicador) return false;
+
+        const pat = patIdx.get(String(a.patientId));
+        const vac = vacIdx.get(String(a.vaccineId));
+        if(!pat || !vac) return false;
+        if(!search) return true;
+        return normalizeStr(pat.nome).includes(search) || normalizeStr(pat.cpf).includes(search);
     }).sort((a, b) => {
         const dir = tableSortDir === 'asc' ? 1 : -1;
         if(tableSortField === 'data') return (new Date(a.data) - new Date(b.data)) * dir;
         if(tableSortField === 'paciente') {
-            const pA = patients.find(p=>p.id==a.patientId)?.nome || '';
-            const pB = patients.find(p=>p.id==b.patientId)?.nome || '';
+            const pA = patIdx.get(String(a.patientId))?.nome || '';
+            const pB = patIdx.get(String(b.patientId))?.nome || '';
             return pA.localeCompare(pB, 'pt-BR') * dir;
         }
         if(tableSortField === 'vacina') {
-            const vA = vaccines.find(v=>v.id==a.vaccineId)?.nome || '';
-            const vB = vaccines.find(v=>v.id==b.vaccineId)?.nome || '';
+            const vA = vacIdx.get(String(a.vaccineId))?.nome || '';
+            const vB = vacIdx.get(String(b.vaccineId))?.nome || '';
             return vA.localeCompare(vB, 'pt-BR') * dir;
         }
         if(tableSortField === 'status') return a.status.localeCompare(b.status, 'pt-BR') * dir;
         return 0;
     });
 
+    // Só as linhas da página vão pro DOM.
+    const pageInfo = paginate(filtered, _tablePage, _TABLE_PAGE_SIZE);
+    _tablePage = pageInfo.page;
+    _renderTablePagination(pageInfo);
+
     const _tblDark = document.body.classList.contains('dark-mode');
-    filtered.forEach(a => {
-        const pat = patients.find(p=>p.id==a.patientId);
-        const vac = vaccines.find(v=>v.id==a.vaccineId);
+    // Acumula e injeta de uma vez: `tbody.innerHTML +=` por linha reparseia toda
+    // a tabela a cada iteração (O(N²)).
+    const rowsHtml = pageInfo.items.map(a => {
+        const pat = patIdx.get(String(a.patientId));
+        const vac = vacIdx.get(String(a.vaccineId));
         const isDelayed = a.data < todayStr && a.status === 'Agendado';
 
         // Badge status — cores dark/light
@@ -156,7 +167,7 @@ function renderTable() {
         // WhatsApp btn
         const waBg  = _tblDark ? 'background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.25)' : 'background:#dcfce7;color:#16a34a';
 
-        tbody.innerHTML += `<tr onclick="viewRecord(${a.id})" class="cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-clinic-50 hover:shadow-md active:translate-y-0 active:bg-clinic-100 group">
+        return `<tr onclick="viewRecord(${a.id})" class="cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-clinic-50 hover:shadow-md active:translate-y-0 active:bg-clinic-100 group">
             <td class="p-4 font-bold text-slate-700 whitespace-nowrap group-hover:text-clinic-700">${a.data.split('-').reverse().join('/')}${a.hora ? ' <span class="text-[10px] text-slate-400 font-bold">'+a.hora+'</span>' : ''} ${isDelayed?'<i class="fas fa-exclamation-triangle text-yellow-500 ml-1" title="Atrasado"></i>':''}</td>
             <td class="p-4">
                 <div class="flex items-center gap-2">
@@ -179,8 +190,41 @@ function renderTable() {
                 </div>
             </td>
         </tr>`;
-    });
+    }).join('');
+
+    tbody.innerHTML = rowsHtml || `<tr><td colspan="5" class="p-10 text-center text-sm font-bold text-slate-400">
+        <i class="fas fa-inbox text-2xl block mb-2 opacity-50"></i>Nenhum registro encontrado
+    </td></tr>`;
+
     if (tableView === 'kanban') renderKanban();
+}
+
+// ─── PAGINAÇÃO DA PLANILHA ────────────────────────────────────────────────────
+function _renderTablePagination(pageInfo) {
+    let bar = document.getElementById('table-pagination');
+    const table = document.getElementById('table-body')?.closest('table');
+    if (!table || !table.parentElement) return;
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'table-pagination';
+        table.parentElement.insertAdjacentElement('afterend', bar);
+    }
+    bar.innerHTML = renderPagination(pageInfo, 'goTablePage', 'registros');
+}
+
+function goTablePage(page) {
+    _tablePage = page;
+    renderTable(); // nunca renderTableReset(): zeraria a página recém-escolhida
+    const wrap = document.getElementById('table-body')?.closest('table')?.parentElement;
+    if (wrap) wrap.scrollTop = 0;
+}
+
+// Usada por todo handler de filtro/ordenação: mudar o conjunto filtrado sem
+// voltar à página 1 deixaria o usuário numa página que já não existe.
+// renderTable() sozinha (ex.: vinda do Firebase) preserva a página atual.
+function renderTableReset() {
+    _tablePage = 0;
+    renderTable();
 }
 
 // ─── FILTROS POPOVER (Período / Status) ───────────────────────────────────────
@@ -322,7 +366,7 @@ function selectDateFilter(val) {
         const pop = document.getElementById('date-filter-pop');
         const btn = document.getElementById('date-filter-btn');
         if (pop && btn) _positionFilterPop(btn, pop);
-        renderTable();
+        renderTableReset();
         return;
     }
     if (val === 'diario' || val === 'hoje') {
@@ -335,7 +379,7 @@ function selectDateFilter(val) {
         const pop = document.getElementById('date-filter-pop');
         const btn = document.getElementById('date-filter-btn');
         if (pop && btn) _positionFilterPop(btn, pop);
-        renderTable();
+        renderTableReset();
         return;
     }
     if (val === 'semana') {
@@ -347,12 +391,12 @@ function selectDateFilter(val) {
         const pop = document.getElementById('date-filter-pop');
         const btn = document.getElementById('date-filter-btn');
         if (pop && btn) _positionFilterPop(btn, pop);
-        renderTable();
+        renderTableReset();
         return;
     }
     _syncDateFilterUI();
     _closeAllFilterPops();
-    renderTable();
+    renderTableReset();
 }
 
 function onDateDayChange() {
@@ -360,7 +404,7 @@ function onDateDayChange() {
     if (dayInput && dayInput.value) {
         document.getElementById('filter-date-agenda').value = 'diario';
         _syncDateFilterUI();
-        renderTable();
+        renderTableReset();
     }
 }
 
@@ -388,7 +432,7 @@ function changeFilterDay(delta) {
     dayInput.value = _formatDateValue(current);
     document.getElementById('filter-date-agenda').value = 'diario';
     _syncDateFilterUI();
-    renderTable();
+    renderTableReset();
 }
 
 function setFilterDayToday() {
@@ -397,7 +441,7 @@ function setFilterDayToday() {
     dayInput.value = _getTodayDateValue();
     document.getElementById('filter-date-agenda').value = 'diario';
     _syncDateFilterUI();
-    renderTable();
+    renderTableReset();
 }
 
 function _getCurrentMonthValue() {
@@ -424,7 +468,7 @@ function changeFilterMonth(delta) {
     monthInput.value = _formatMonthValue(current);
     document.getElementById('filter-date-agenda').value = 'mes';
     _syncDateFilterUI();
-    renderTable();
+    renderTableReset();
 }
 
 function setFilterMonthCurrent() {
@@ -433,13 +477,13 @@ function setFilterMonthCurrent() {
     monthInput.value = _getCurrentMonthValue();
     document.getElementById('filter-date-agenda').value = 'mes';
     _syncDateFilterUI();
-    renderTable();
+    renderTableReset();
 }
 
 function onDateMonthChange() {
     document.getElementById('filter-date-agenda').value = 'mes';
     _syncDateFilterUI();
-    renderTable();
+    renderTableReset();
 }
 
 // ── Status ──
@@ -501,7 +545,7 @@ function selectStatusFilter(val) {
     document.getElementById('filter-status-agenda').value = val;
     _syncStatusFilterUI();
     _closeAllFilterPops();
-    renderTable();
+    renderTableReset();
 }
 
 // ── Vendedor Popover ──
@@ -573,7 +617,7 @@ function selectVendedorFilter(val) {
     _updateVendedorBtn(val);
     _applyVendedorPopoverSearch();
     _closeVendedorPopover();
-    renderTable();
+    renderTableReset();
 }
 
 function _closeVendedorPopover() {

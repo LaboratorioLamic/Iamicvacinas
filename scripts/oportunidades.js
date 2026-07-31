@@ -35,8 +35,45 @@ function _typeIcon(type) {
     return { proxima_dose:'fa-syringe', dose_unica_repetivel:'fa-redo-alt', reforco:'fa-shield-virus' }[type] || 'fa-syringe';
 }
 
+// Contagem de doses aplicadas por paciente. Cacheada porque _sortGroups() chama
+// isto duas vezes por comparação — sem cache é uma varredura completa de
+// `appointments` a cada passo do sort (O(N log N × M)).
+let _appliedCountCache = null;
+let _appliedCountSrc = null;
+let _appliedCountLen = -1;
+
+function _appliedCountMap() {
+    if (_appliedCountSrc !== appointments || _appliedCountLen !== appointments.length) {
+        const m = new Map();
+        for (const a of appointments) {
+            if (a.status !== 'Aplicado') continue;
+            const k = String(a.patientId);
+            m.set(k, (m.get(k) || 0) + 1);
+        }
+        _appliedCountCache = m;
+        _appliedCountSrc = appointments;
+        _appliedCountLen = appointments.length;
+    }
+    return _appliedCountCache;
+}
+
 function _appliedCount(patId) {
-    return appointments.filter(a => a.patientId == patId && a.status === 'Aplicado').length;
+    return _appliedCountMap().get(String(patId)) || 0;
+}
+
+// Agrupa appointments por paciente numa passada só. calcAprazamento() e
+// calcOferta() faziam um appointments.filter() por paciente — O(pacientes ×
+// agendamentos). Construído por render, não cacheado entre renders, porque
+// edições in-place de status não seriam detectadas.
+function _appointmentsByPatient() {
+    const m = new Map();
+    for (const a of appointments) {
+        const k = String(a.patientId);
+        let bucket = m.get(k);
+        if (!bucket) { bucket = []; m.set(k, bucket); }
+        bucket.push(a);
+    }
+    return m;
 }
 
 function _patientFitsVaccine(patient, vac) {
@@ -77,9 +114,11 @@ function calcAprazamento() {
     const dias  = Number(_oppFilter.aprazamento.proxDias) || 30;
     const in30  = new Date(today); in30.setDate(in30.getDate() + dias);
     const byPatient = {};
+    const appsByPat = _appointmentsByPatient();
+    const vacIdx = getVaccinesIndex();
 
     patients.forEach(patient => {
-        const patApps    = appointments.filter(a => a.patientId === patient.id);
+        const patApps    = appsByPat.get(String(patient.id)) || [];
         // "Efetivamente tomada" = Aplicado OU Perdido com aplicadaOutroLocal=true
         const appliedApps = patApps.filter(a =>
             a.status === 'Aplicado' || (a.status === 'Perdido' && a.aplicadaOutroLocal)
@@ -97,7 +136,7 @@ function calcAprazamento() {
         const opps = [];
 
         Object.keys(byVac).forEach(vacId => {
-            const vac = vaccines.find(v => v.id == vacId);
+            const vac = vacIdx.get(String(vacId));
             if (!vac || vac.ativo === false) return;
 
             const applied   = byVac[vacId]; // apenas Aplicado
@@ -199,16 +238,17 @@ function calcAprazamento() {
 
 function calcOferta() {
     const byPatient = {};
+    const appsByPat = _appointmentsByPatient();
+    // Vacinas ativas são as mesmas para todos os pacientes — filtra uma vez só.
+    const activeVaccines = vaccines.filter(v => v.ativo !== false);
 
     patients.forEach(patient => {
         const usedVacIds = new Set(
-            appointments
-                .filter(a => a.patientId == patient.id)
-                .map(a => Number(a.vaccineId))
+            (appsByPat.get(String(patient.id)) || []).map(a => Number(a.vaccineId))
         );
 
-        const offers = vaccines
-            .filter(v => v.ativo !== false && !usedVacIds.has(Number(v.id)) && _patientFitsVaccine(patient, v))
+        const offers = activeVaccines
+            .filter(v => !usedVacIds.has(Number(v.id)) && _patientFitsVaccine(patient, v))
             .map(v => ({
                 type: 'oferta',
                 vaccine: v,
@@ -269,7 +309,7 @@ function switchOppSubTab(tab) {
     });
     closeTicketPopover();
     populateOppVacinaFilter();
-    renderOportunidades();
+    renderOportunidadesReset();
 }
 
 // ── Ticket Popover ────────────────────────────────────────────────────────────
@@ -310,7 +350,7 @@ function applyTicketFilter() {
     _oppFilter[_ticketAnchorTab].ticketMax = maxVal;
     closeTicketPopover();
     _updateTicketBadge(_ticketAnchorTab);
-    renderOportunidades();
+    renderOportunidadesReset();
 }
 
 function clearTicketFilter() {
@@ -320,7 +360,7 @@ function clearTicketFilter() {
     document.getElementById('opp-ticket-max').value = '';
     closeTicketPopover();
     _updateTicketBadge(_ticketAnchorTab);
-    renderOportunidades();
+    renderOportunidadesReset();
 }
 
 function _updateTicketBadge(tab) {
@@ -356,6 +396,11 @@ function _passTicket(revenue, tab) {
 // ── Render principal ──────────────────────────────────────────────────────────
 
 function renderOportunidades() {
+    // Status muda in-place (Agendado → Aplicado), o que não altera identidade nem
+    // tamanho do array — o cache precisa ser descartado explicitamente a cada
+    // render. Dentro de um render ele ainda evita as N log N varreduras do sort.
+    _appliedCountSrc = null;
+    _appliedCountLen = -1;
     if (_oppSubTab === 'aprazamento') _renderAprazamento();
     else _renderOferta();
 }
@@ -463,11 +508,50 @@ function _renderCards(groups, tab) {
 
     if (!groups.length) {
         container.innerHTML = '';
+        _renderOppPagination(null);
         if (emptyEl) emptyEl.classList.remove('hidden');
         return;
     }
     if (emptyEl) emptyEl.classList.add('hidden');
-    container.innerHTML = groups.map(pg => _renderPatientCard(pg, tab)).join('');
+
+    // Só os cards da página são montados: cada card gera um micro-card por
+    // oportunidade, então renderizar todos os pacientes de uma vez é o gargalo.
+    const pageInfo = paginate(groups, _oppPage[tab], _OPP_PAGE_SIZE);
+    _oppPage[tab] = pageInfo.page;
+    container.innerHTML = pageInfo.items.map(pg => _renderPatientCard(pg, tab)).join('');
+    _renderOppPagination(pageInfo);
+}
+
+// ── Paginação ─────────────────────────────────────────────────────────────────
+function _renderOppPagination(pageInfo) {
+    const container = document.getElementById('oport-cards-container');
+    if (!container) return;
+    let bar = document.getElementById('oport-pagination');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'oport-pagination';
+        bar.className = 'mt-4 rounded-2xl border overflow-hidden';
+        container.insertAdjacentElement('afterend', bar);
+    }
+    if (!pageInfo) { bar.innerHTML = ''; bar.classList.add('hidden'); return; }
+    const html = renderPagination(pageInfo, 'goOppPage', 'pacientes');
+    bar.innerHTML = html;
+    bar.classList.toggle('hidden', !html);
+    bar.style.borderColor = document.body.classList.contains('dark-mode') ? '#334155' : '#e2e8f0';
+}
+
+function goOppPage(page) {
+    _oppPage[_oppSubTab] = page;
+    renderOportunidades();
+    const container = document.getElementById('oport-cards-container');
+    if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Todo handler de filtro passa por aqui: trocar o conjunto filtrado sem voltar
+// à página 1 deixaria o usuário numa página que já não existe.
+function renderOportunidadesReset() {
+    _oppPage[_oppSubTab] = 0;
+    renderOportunidades();
 }
 
 // ── Cards ─────────────────────────────────────────────────────────────────────
@@ -764,9 +848,9 @@ function populateOppVacinaFilter() {
 
 // ── Handlers de filtro ────────────────────────────────────────────────────────
 
-function oppFilterSearch(val, tab) { _oppFilter[tab].search = val; renderOportunidades(); }
-function oppFilterVacina(val, tab) { _oppFilter[tab].vacina = val; renderOportunidades(); }
-function oppFilterUrgencia(val)    { _oppFilter.aprazamento.urgencia = val; renderOportunidades(); }
+function oppFilterSearch(val, tab) { _oppFilter[tab].search = val; renderOportunidadesReset(); }
+function oppFilterVacina(val, tab) { _oppFilter[tab].vacina = val; renderOportunidadesReset(); }
+function oppFilterUrgencia(val)    { _oppFilter.aprazamento.urgencia = val; renderOportunidadesReset(); }
 
 // ── Popover Multi-Vacina genérico ─────────────────────────────────────────────
 
@@ -866,7 +950,7 @@ function closeOfertaVacinaPopover() {
     if (pop) pop.classList.add('hidden');
     if (_ofertaVacinaOutside) { document.removeEventListener('click', _ofertaVacinaOutside); _ofertaVacinaOutside = null; }
     _updateOfertaVacinaBadge();
-    renderOportunidades();
+    renderOportunidadesReset();
 }
 
 function filterOfertaVacinaList(val) {
@@ -886,7 +970,7 @@ function clearOfertaVacinas() {
     _oppFilter.oferta.vacinaIds.clear();
     filterOfertaVacinaList(document.getElementById('ofe-vacina-search')?.value || '');
     _updateOfertaVacinaBadge();
-    renderOportunidades();
+    renderOportunidadesReset();
 }
 
 function _updateOfertaVacinaBadge() {
@@ -923,7 +1007,7 @@ function closeAprVacinaPopover() {
     if (pop) pop.classList.add('hidden');
     if (_aprVacinaOutside) { document.removeEventListener('click', _aprVacinaOutside); _aprVacinaOutside = null; }
     _updateAprVacinaBadge();
-    renderOportunidades();
+    renderOportunidadesReset();
 }
 
 function filterAprVacinaList(val) {
@@ -943,7 +1027,7 @@ function clearAprVacinas() {
     _oppFilter.aprazamento.vacinaIds.clear();
     filterAprVacinaList(document.getElementById('apr-vacina-search')?.value || '');
     _updateAprVacinaBadge();
-    renderOportunidades();
+    renderOportunidadesReset();
 }
 
 function _updateAprVacinaBadge() {
@@ -1007,13 +1091,13 @@ function selectAprPrazo(val) {
     _oppFilter.aprazamento.urgencia = val;
     _renderAprPrazoSelection();
     _updateAprPrazoBadge();
-    renderOportunidades();
+    renderOportunidadesReset();
 }
 
 function onAprPrazoDiasChange() {
     const val = parseInt(document.getElementById('apr-prazo-dias')?.value) || 30;
     _oppFilter.aprazamento.proxDias = Math.max(1, val);
-    if (_oppFilter.aprazamento.urgencia === 'proxima') renderOportunidades();
+    if (_oppFilter.aprazamento.urgencia === 'proxima') renderOportunidadesReset();
 }
 
 function clearAprPrazo() {
@@ -1024,7 +1108,7 @@ function clearAprPrazo() {
     _renderAprPrazoSelection();
     _updateAprPrazoBadge();
     closeAprPrazoPopover();
-    renderOportunidades();
+    renderOportunidadesReset();
 }
 
 function _updateAprPrazoBadge() {
@@ -1132,7 +1216,7 @@ function applyOfertaFilter(type, value) {
         _closeOfertaPop('fidelidade');
     }
     _updateOfertaFilterBadges();
-    renderOportunidades();
+    renderOportunidadesReset();
 }
 
 function clearOfertaFilter(type) {
@@ -1153,7 +1237,7 @@ function clearOfertaFilter(type) {
         _closeOfertaPop('fidelidade');
     }
     _updateOfertaFilterBadges();
-    renderOportunidades();
+    renderOportunidadesReset();
 }
 
 function _updateOfertaFilterBadges() {

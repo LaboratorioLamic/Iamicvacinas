@@ -27,6 +27,12 @@ let dashView = 'analitico';
 // Table state
 let tableSortField = 'data', tableSortDir = 'asc';
 let tableView = 'planilhas';
+let _tablePage = 0;
+const _TABLE_PAGE_SIZE = 10;
+
+// Oportunidades pagination — página por sub-aba (aprazamento | oferta)
+let _oppPage = { aprazamento: 0, oferta: 0 };
+const _OPP_PAGE_SIZE = 15;
 
 // User filter state
 let userStatusFilter = 'ativos';
