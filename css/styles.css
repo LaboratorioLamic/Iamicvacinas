@@ -857,3 +857,13 @@ body.dark-mode .dash-month-cell { background: #0f172a; border-color: #334155; co
 body.dark-mode .dash-month-cell:hover { border-color: #3b82f6; background: #1e3a5f; }
 body.dark-mode .dash-month-cell.in-range { background: #1e3a5f; border-color: #2563eb; color: #93c5fd; }
 body.dark-mode .dash-range-summary { background: #0f172a; color: #94a3b8; }
+
+/* ─── Agenda semanal (timeline estilo Google Agenda) ─────────────────────── */
+#weekly-board .wk-scroll { scrollbar-width: thin; }
+#weekly-board .wk-scroll::-webkit-scrollbar { width: 8px; }
+#weekly-board .wk-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+body.dark-mode #weekly-board .wk-scroll::-webkit-scrollbar-thumb { background: #334155; }
+#weekly-board .wk-event { transition: box-shadow .15s, transform .15s; z-index: 2; }
+#weekly-board .wk-event:hover { box-shadow: 0 4px 12px rgba(15,23,42,.18) !important; transform: translateY(-1px); z-index: 3; }
+#weekly-board .wk-event:active { cursor: grabbing; }
+#weekly-board .wk-slot { z-index: 1; transition: background .1s; }

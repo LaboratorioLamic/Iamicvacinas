@@ -1,4 +1,4 @@
-﻿// ─── CALENDAR & KANBAN (from index.html lines ~3133-3967) ────────────────────
+// ─── CALENDAR & KANBAN (from index.html lines ~3133-3967) ────────────────────
 
 let _calView = 'mensal'; // 'mensal' | 'semanal'
 let _weekStart = null; // Date do domingo da semana atual
@@ -201,6 +201,156 @@ function goToCurrentFilterWeek() {
     if (typeof renderKanban === 'function') renderKanban();
 }
 
+// ─── SEMANAL: TIMELINE (estilo Google Agenda) ────────────────────────────────
+const WK_START_HOUR = 7;      // primeira hora exibida
+const WK_END_HOUR   = 19;     // última hora exibida (exclusiva)
+const WK_SLOT_MIN   = 30;     // granularidade de drop
+const WK_SLOT_PX    = 28;     // altura de um slot de 30min
+const WK_CARD_MIN   = 60;     // duração visual do card de grupo
+const WK_CAPACITY   = { 0: 0, 1: 24, 2: 24, 3: 24, 4: 24, 5: 24, 6: 12 }; // vagas por dia da semana (0=dom)
+
+const _wkPxPerMin = () => WK_SLOT_PX / WK_SLOT_MIN;
+function _wkMinutes(hhmm) {
+    if (!hhmm) return null;
+    const m = /^(\d{1,2}):(\d{2})/.exec(hhmm.trim());
+    if (!m) return null;
+    return Number(m[1]) * 60 + Number(m[2]);
+}
+function _wkHHMM(min) {
+    const h = Math.floor(min / 60), m = min % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+function _wkFmtDate(d) { return d.split('-').reverse().join('/'); }
+
+// Horário representativo de um grupo (menor hora entre as vacinas)
+function _wkGroupTime(apps) {
+    const mins = apps.map(a => _wkMinutes(a.hora)).filter(v => v != null);
+    return mins.length ? Math.min(...mins) : null;
+}
+
+// ─── Validações de movimentação (data + hora) ────────────────────────────────
+// Retorna null se permitido, ou string com o motivo do bloqueio.
+function _wkValidateMove(a, dateStr) {
+    const pat = patients.find(p => String(p.id) === String(a.patientId));
+    const v   = vaccines.find(x => String(x.id) === String(a.vaccineId));
+    const vNome = v ? v.nome : 'vacina';
+
+    // 1) Data válida
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr) || isNaN(new Date(dateStr + 'T00:00:00'))) {
+        return 'Data de destino inválida.';
+    }
+    // 2) Dia sem expediente
+    const dow = new Date(dateStr + 'T00:00:00').getDay();
+    if (!WK_CAPACITY[dow]) {
+        return `Bloqueado: ${_wkFmtDate(dateStr)} está fechado (sem expediente).`;
+    }
+    // 3) Data anterior ao nascimento do paciente
+    if (pat && pat.dtNasc && dateStr < pat.dtNasc) {
+        return `Bloqueado: ${_wkFmtDate(dateStr)} é anterior ao nascimento de ${pat.nome}.`;
+    }
+    // 4) Lote vencido na data destino
+    if (a.loteId) {
+        const lote = vaccineLots.find(l => String(l.id) === String(a.loteId));
+        if (lote && lote.validade && new Date(lote.validade + 'T00:00:00') < new Date(dateStr + 'T00:00:00')) {
+            return `Bloqueado: lote ${lote.numero} da ${vNome} vence em ${_wkFmtDate(lote.validade)} — anterior à data destino.`;
+        }
+    }
+    // 5) Restrição de idade da vacina na nova data
+    if (v && pat && pat.dtNasc) {
+        const ageErr = _wkValidateAge(v, pat, a.doseAtual, dateStr);
+        if (ageErr) return ageErr;
+    }
+    // 6) Aprazamento: intervalo mínimo desde a dose anterior
+    if (a.doseAtual && a.doseAtual.includes('ª Dose') && a.doseAtual !== '1ª Dose' && v) {
+        const doseNum = Number((a.doseAtual.match(/(\d+)/) || [])[1] || 2);
+        const esq  = (typeof getEsquemaPaciente === 'function') ? getEsquemaPaciente(v, pat ? pat.dtNasc : null) : null;
+        const ints = (esq && esq.intervalos && esq.intervalos.length)
+            ? esq.intervalos
+            : (v.intervalos && v.intervalos.length ? v.intervalos : (v.intervaloDias > 0 ? [v.intervaloDias] : []));
+        let intervalo = ints.length
+            ? (ints[doseNum - 2] != null ? ints[doseNum - 2] : ints[ints.length - 1])
+            : 0;
+        if (!intervalo || intervalo <= 0) intervalo = 30;
+        const prevApp = appointments.filter(x =>
+            String(x.patientId) === String(a.patientId) &&
+            String(x.vaccineId) === String(a.vaccineId) &&
+            String(x.id) !== String(a.id) &&
+            x.doseAtual === `${doseNum - 1}ª Dose`
+        ).sort((x, y) => new Date(y.data) - new Date(x.data))[0];
+        if (prevApp) {
+            const minDate = new Date(prevApp.data + 'T00:00:00');
+            minDate.setDate(minDate.getDate() + intervalo);
+            const minIso = minDate.toISOString().split('T')[0];
+            if (dateStr < minIso) {
+                return `Bloqueado: data mínima para ${a.doseAtual} de ${vNome} é ${_wkFmtDate(minIso)} (${intervalo} dias após a dose anterior de ${_wkFmtDate(prevApp.data)}).`;
+            }
+        }
+    }
+    return null;
+}
+
+// Idade do paciente na data destino vs. faixas etárias da vacina
+function _wkValidateAge(v, pat, doseAtual, dateStr) {
+    if (typeof getAgeInMonths !== 'function') return null;
+    const ageInfo = getAgeInMonths(pat.dtNasc, dateStr);
+    const totalMeses = ageInfo.years * 12 + ageInfo.months;
+    const patStr = ageInfo.years > 0
+        ? `${ageInfo.years} ano(s) e ${ageInfo.months} mês(es)`
+        : `${ageInfo.months} mês(es)`;
+
+    if (doseAtual === 'Dose Zero') {
+        const minDZ = (v.doseZeroMinAnos || 0) * 12 + (v.doseZeroMinMeses || 0);
+        if (totalMeses < minDZ) {
+            return `Bloqueado: em ${_wkFmtDate(dateStr)} ${pat.nome} terá ${patStr}, abaixo da idade mínima da Dose Zero de ${v.nome}.`;
+        }
+        return null;
+    }
+
+    const meetsDZ = v.doseZero
+        && totalMeses >= ((v.doseZeroMinAnos || 0) * 12 + (v.doseZeroMinMeses || 0));
+
+    if (v.esquemas && v.esquemas.length) {
+        const encaixa = v.esquemas.some(esq => {
+            if (esq.minAnos == null) return true;
+            const minTotal = (esq.minAnos || 0) * 12 + (esq.minMeses || 0);
+            const hasMax = esq.maxAnos != null || esq.maxMeses != null;
+            const maxTotal = hasMax ? ((esq.maxAnos || 0) * 12 + (esq.maxMeses || 0)) : Infinity;
+            return totalMeses >= minTotal && totalMeses <= maxTotal;
+        });
+        if (!encaixa && !meetsDZ) {
+            const faixas = v.esquemas.filter(e => e.minAnos != null)
+                .map(e => (typeof formatFaixaEtaria === 'function' ? formatFaixaEtaria(e) : '')).filter(Boolean).join('; ');
+            return `Bloqueado: em ${_wkFmtDate(dateStr)} ${pat.nome} terá ${patStr} e não se enquadra nas faixas etárias de ${v.nome}${faixas ? ` (${faixas})` : ''}.`;
+        }
+        return null;
+    }
+
+    const minAge = (v.idadeMinimaAnos || 0) * 12 + (v.idadeMinimaMeses || 0);
+    if (totalMeses < minAge && !meetsDZ) {
+        return `Bloqueado: em ${_wkFmtDate(dateStr)} ${pat.nome} terá ${patStr}, abaixo da idade mínima de ${v.nome}.`;
+    }
+    return null;
+}
+
+// Distribui grupos sobrepostos em colunas (lanes) dentro do dia
+function _wkLayoutLanes(groups) {
+    let cluster = [], clusterEnd = -1;
+    const flush = () => {
+        cluster.forEach(g => { g.lanes = cluster.length ? Math.max(...cluster.map(x => x.lane)) + 1 : 1; });
+        cluster = [];
+    };
+    groups.forEach(g => {
+        const start = g.min, end = g.min + WK_CARD_MIN;
+        if (cluster.length && start >= clusterEnd) flush();
+        const taken = new Set(cluster.filter(x => x.min + WK_CARD_MIN > start).map(x => x.lane));
+        let lane = 0; while (taken.has(lane)) lane++;
+        g.lane = lane;
+        cluster.push(g);
+        clusterEnd = Math.max(clusterEnd, end);
+    });
+    flush();
+}
+
 function renderWeekly() {
     const board = document.getElementById('weekly-board');
     if (!board) return;
@@ -209,247 +359,299 @@ function renderWeekly() {
     const filterVendedorCal = _rawVendCal === '__mine__'
         ? (typeof currentUser !== 'undefined' && currentUser ? currentUser.nome : '')
         : _rawVendCal;
-    const DAY_NAMES = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    const DAY_NAMES = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
     const _isDark = document.body.classList.contains('dark-mode');
-    const _gray = _isDark
-        ? { grad: 'from-slate-800 to-slate-900', light: '#0f172a', border: '#334155', text: '#94a3b8', header: '#94a3b8' }
-        : { grad: 'from-slate-100 to-gray-100', light: '#f8fafc', border: '#e2e8f0', text: '#64748b', header: '#475569' };
-    const _blue = _isDark
-        ? { grad: 'from-slate-800 to-slate-900', light: '#0f172a', border: '#334155', text: '#60a5fa', header: '#93c5fd' }
-        : { grad: 'from-blue-50 to-slate-100', light: '#f8fafc', border: '#e2e8f0', text: '#2563eb', header: '#1d4ed8' };
-    const DAY_COLORS = _isDark ? [
-        { grad: 'from-slate-800 to-slate-900', light: '#0f172a', border: '#4c1d28', text: '#f87171', header: '#fca5a5' }, // domingo
-        _blue, _blue, _blue, _blue, _blue, _blue,
-    ] : [
-        { grad: 'from-rose-100 to-red-100', light: '#fff5f5', border: '#fecdd3', text: '#e11d48', header: '#be123c' }, // domingo
-        _blue, _blue, _blue, _blue, _blue, _blue, // seg–sáb
-    ];
+    const C = _isDark
+        ? { bg:'#0f172a', head:'#0f172a', line:'#1e293b', lineStrong:'#334155', text:'#e2e8f0', muted:'#64748b', gutter:'#0b1220', closed:'#111827' }
+        : { bg:'#ffffff', head:'#ffffff', line:'#f1f5f9', lineStrong:'#e2e8f0', text:'#0f172a', muted:'#94a3b8', gutter:'#ffffff', closed:'#f8fafc' };
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // Atualiza label do cabeçalho
     const sunday = new Date(_weekStart);
     const saturday = new Date(_weekStart); saturday.setDate(saturday.getDate() + 6);
-    const fmt = d => {
+    const fmtLbl = d => {
         const parts = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }).split(' de ');
         return parts.length === 2 ? `${parts[0]}/${parts[1]}` : parts.join('/');
     };
     const lbl = document.getElementById('current-month-label');
-    if (lbl) lbl.textContent = `${fmt(sunday)} – ${fmt(saturday)}`;
+    if (lbl) lbl.textContent = `${fmtLbl(sunday)} – ${fmtLbl(saturday)}`;
 
-    board.innerHTML = Array.from({ length: 7 }, (_, i) => {
+    const totalMin  = (WK_END_HOUR - WK_START_HOUR) * 60;
+    const gridH     = totalMin * _wkPxPerMin();
+    const slotCount = totalMin / WK_SLOT_MIN;
+
+    // Dados por dia
+    const days = Array.from({ length: 7 }, (_, i) => {
         const day = new Date(_weekStart); day.setDate(day.getDate() + i);
         const dateStr = day.toISOString().split('T')[0];
-        const isToday = dateStr === todayStr;
-        const col = DAY_COLORS[i];
-        const dayApps = appointments.filter(a => a.data === dateStr && a.status !== 'Perdido' && (!filterVendedorCal || a.vendedor === filterVendedorCal));
+        const apps = appointments.filter(a => a.data === dateStr && a.status !== 'Perdido'
+            && (!filterVendedorCal || a.vendedor === filterVendedorCal));
+        const byPat = {};
+        apps.forEach(a => { (byPat[a.patientId] = byPat[a.patientId] || []).push(a); });
+        const groups = Object.entries(byPat).map(([patId, gApps]) => {
+            gApps.sort((x, y) => (_wkMinutes(x.hora) ?? 1e9) - (_wkMinutes(y.hora) ?? 1e9));
+            return { patId, apps: gApps, min: _wkGroupTime(gApps) };
+        }).sort((g1, g2) => (g1.min ?? 1e9) - (g2.min ?? 1e9));
+        _wkLayoutLanes(groups.filter(g => g.min != null));
+        return { i, day, dateStr, apps, groups, isToday: dateStr === todayStr, closed: !WK_CAPACITY[day.getDay()] };
+    });
 
-        // Agrupa por paciente, ordena grupos pelo horário do primeiro card
-        const _wkApptTime = a => { const t = a.hora ? a.hora.trim() : '00:00'; return new Date(`${a.data}T${t}`); };
-        const byPatWk = {};
-        dayApps.forEach(a => { if (!byPatWk[a.patientId]) byPatWk[a.patientId] = []; byPatWk[a.patientId].push(a); });
-        const groupsWk = Object.entries(byPatWk).sort(([, appsA], [, appsB]) => {
-            const tA = Math.min(...appsA.map(a => _wkApptTime(a).getTime()));
-            const tB = Math.min(...appsB.map(a => _wkApptTime(a).getTime()));
-            return tA - tB;
-        });
+    // ── Cabeçalho de um dia
+    const headHtml = d => {
+        const cap = WK_CAPACITY[d.day.getDay()];
+        const used = d.groups.length;
+        const over = cap && used > cap;
+        const capLbl = d.closed ? 'Fechado' : `${used}/${cap} vagas`;
+        const capColor = d.closed ? '#f43f5e' : over ? '#f59e0b' : C.muted;
+        return `<div class="flex flex-col items-center justify-center py-2 rounded-xl ${d.isToday ? 'wk-today-head' : ''}"
+            style="${d.isToday ? `background:${_isDark ? 'rgba(37,99,235,.16)' : '#eff6ff'};border:1px solid ${_isDark ? '#1d4ed8' : '#bfdbfe'};` : ''}">
+            <span class="text-[9px] font-black uppercase tracking-widest" style="color:${d.closed ? '#fb7185' : d.isToday ? '#2563eb' : C.muted}">${DAY_NAMES[d.i]}</span>
+            <span class="font-black text-xl leading-none mt-0.5" style="color:${d.closed ? '#f43f5e' : d.isToday ? '#2563eb' : C.text}">${d.day.getDate()}</span>
+            <span class="text-[9px] font-black uppercase tracking-wider mt-0.5" style="color:${capColor}">${capLbl}</span>
+        </div>`;
+    };
 
-        const cardsHtml = groupsWk.map(([patId, apps]) => {
-            const pat = patients.find(p => p.id == patId);
+    // ── Card de grupo posicionado na timeline
+    const groupCardHtml = (d, g) => {
+        const pat = patients.find(p => String(p.id) === String(g.patId));
+        if (!pat) return '';
+        const apps = g.apps;
+        const hasDelayed = apps.some(a => a.status === 'Agendado' && a.data < todayStr);
+        const dominant = apps.every(a => a.status === 'Aplicado') ? 'Aplicado'
+            : apps.some(a => a.status === 'Agendado') ? 'Agendado'
+            : apps.some(a => a.status === 'Em negociação') ? 'Em negociação'
+            : apps.some(a => a.status === 'Nova oportunidade') ? 'Nova oportunidade'
+            : apps[0].status;
+        const accent = hasDelayed ? '#f59e0b'
+            : dominant === 'Aplicado' ? '#16a34a'
+            : dominant === 'Agendado' ? '#2563eb'
+            : dominant === 'Em negociação' ? '#0891b2'
+            : '#64748b';
+        const tint = _isDark ? 'rgba(148,163,184,.10)' : `${accent}14`;
+
+        const startMin = Math.max(g.min, WK_START_HOUR * 60);
+        const top = (startMin - WK_START_HOUR * 60) * _wkPxPerMin();
+        const height = Math.max(WK_SLOT_PX, Math.min(WK_CARD_MIN * _wkPxPerMin(), gridH - top));
+        const endMin = Math.min(startMin + WK_CARD_MIN, WK_END_HOUR * 60);
+        const ageInfo = pat.dtNasc && typeof getAgeInMonths === 'function' ? getAgeInMonths(pat.dtNasc, d.dateStr) : null;
+        const ageLbl = ageInfo ? (ageInfo.years >= 1 ? `${ageInfo.years} ano${ageInfo.years > 1 ? 's' : ''}` : `${ageInfo.months} m`) : '';
+        const sub = `${apps.length} vacina${apps.length > 1 ? 's' : ''}${ageLbl ? ' · ' + ageLbl : ''}`;
+
+        const lanes = g.lanes || 1, lane = g.lane || 0;
+        const widthPct = 100 / lanes;
+        return `<div class="wk-event absolute rounded-lg overflow-hidden cursor-grab select-none"
+            draggable="true"
+            ondragstart="weeklyGroupDragStart(event,'${d.dateStr}','${g.patId}')"
+            ondragend="weeklyDragEnd(event)"
+            ondragover="weeklyDragOver(event)" ondragleave="weeklyDragLeave(event)"
+            ondrop="weeklyDrop(event,'${d.dateStr}','${_wkHHMM(startMin)}')"
+            onclick="openWeeklyGroup('${d.dateStr}','${g.patId}')"
+            title="${String(pat.nome).replace(/"/g, '&quot;')} — ${_wkHHMM(startMin)}"
+            style="top:${top}px;height:${height}px;left:calc(${lane * widthPct}% + 2px);width:calc(${widthPct}% - 4px);background:${tint};border-left:3px solid ${accent};box-shadow:0 1px 2px rgba(15,23,42,.08);">
+            <div class="px-1.5 py-1 h-full flex flex-col justify-center min-w-0">
+                <p class="text-[9px] font-black leading-none truncate" style="color:${accent}">
+                    ${_wkHHMM(startMin)} – ${_wkHHMM(endMin)}${hasDelayed ? ' <i class="fas fa-exclamation-triangle"></i>' : ''}
+                </p>
+                <p class="text-[10px] font-black leading-tight truncate mt-0.5" style="color:${C.text}">${pat.nome}</p>
+                <p class="text-[9px] leading-none truncate" style="color:${C.muted}">${sub}</p>
+            </div>
+        </div>`;
+    };
+
+    // ── Faixa "sem horário" (all-day)
+    const noTimeHtml = d => {
+        const gs = d.groups.filter(g => g.min == null);
+        if (!gs.length) return '';
+        return gs.map(g => {
+            const pat = patients.find(p => String(p.id) === String(g.patId));
             if (!pat) return '';
-            apps.sort((a, b) => _wkApptTime(a) - _wkApptTime(b));
-            const hasDelayed = apps.some(a => a.status === 'Agendado' && a.data < todayStr);
-            const dominantStatus = apps.every(a => a.status === 'Aplicado') ? 'Aplicado'
-                : apps.some(a => a.status === 'Agendado') ? 'Agendado'
-                : apps.some(a => a.status === 'Em negociação') ? 'Em negociação'
-                : apps.some(a => a.status === 'Nova oportunidade') ? 'Nova oportunidade'
-                : apps[0].status;
-            const groupAccent = hasDelayed ? '#f59e0b'
-                : dominantStatus === 'Aplicado' ? '#16a34a'
-                : dominantStatus === 'Agendado' ? '#2563eb'
-                : dominantStatus === 'Em negociação' ? '#0891b2'
-                : '#64748b';
-            const groupHeaderBg = _isDark ? '#1e293b' : (hasDelayed ? '#fffbeb' : '#f8fafc');
-            const groupHeaderBorder = _isDark ? '#334155' : (hasDelayed ? '#fde68a' : '#e2e8f0');
-            const firstHora = apps[0].hora || '';
-
-            const miniHtml = apps.map(a => {
-                const vac = vaccines.find(v => v.id == a.vaccineId);
-                if (!vac) return '';
-                const isDelayed = a.status === 'Agendado' && a.data < todayStr;
-                const stColor = a.status === 'Aplicado' ? '#16a34a' : isDelayed ? '#f59e0b' : a.status === 'Agendado' ? '#2563eb' : a.status === 'Em negociação' ? '#0891b2' : '#64748b';
-                const stBg = a.status === 'Aplicado' ? '#dcfce7' : isDelayed ? '#fffbeb' : a.status === 'Agendado' ? '#dbeafe' : a.status === 'Em negociação' ? '#cffafe' : '#f1f5f9';
-                const btnAgendar = (a.status === 'Em negociação' || a.status === 'Nova oportunidade')
-                    ? permBtn('criar_agendamento', `<button onclick="event.stopPropagation();openAgendarModal(${a.id})" class="h-5 w-5 rounded flex items-center justify-center bg-blue-500 text-white hover:bg-blue-600 transition shrink-0" title="Agendar"><i class="fas fa-calendar-check text-[8px]"></i></button>`)
-                    : '';
-                const btnAplicar = a.status === 'Agendado'
-                    ? permBtn('aplicar', `<button onclick="event.stopPropagation();openConcluirModal(${a.id})" class="h-5 w-5 rounded flex items-center justify-center bg-green-500 text-white hover:bg-green-600 transition shrink-0" title="Aplicar"><i class="fas fa-syringe text-[8px]"></i></button>`)
-                    : '';
-                return `<div draggable="true"
-                    ondragstart="weeklyDragStart(event,${a.id})"
-                    ondragend="weeklyDragEnd(event)"
-                    onclick="event.stopPropagation();viewRecord(${a.id})"
-                    class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 border cursor-pointer hover:shadow-sm transition-all select-none"
-                    style="background:${_isDark?'#0f172a':'#fff'};border-left:3px solid ${stColor};border-color:${_isDark?'#334155':'#e2e8f0'};border-left-color:${stColor};">
-                    <i class="fas fa-syringe text-[8px] shrink-0" style="color:${stColor}"></i>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-[10px] font-black truncate leading-tight" style="color:${_isDark?'#f1f5f9':'#172554'}">${vac.nome}</p>
-                        <p class="text-[9px]" style="color:${_isDark?'#64748b':'#94a3b8'}">${a.doseAtual}${a.hora ? ' · '+a.hora : ''}</p>
-                    </div>
-                    <span class="text-[8px] font-black px-1 py-0.5 rounded-full leading-none shrink-0 whitespace-nowrap" style="background:${stBg};color:${stColor};">${isDelayed ? '!' : a.status.slice(0,3)}</span>
-                    ${btnAgendar || btnAplicar ? `<div class="flex gap-0.5 shrink-0">${btnAgendar}${btnAplicar}</div>` : ''}
-                </div>`;
-            }).join('');
-
-                const wkGroupId = `wk-group-${dateStr}-${patId}`;
-            return `<div class="rounded-xl overflow-hidden border shadow-sm transition hover:shadow-md select-none" style="border-left:3px solid ${groupAccent};border-color:${groupHeaderBorder};border-left-color:${groupAccent};">
-                <div class="px-2 py-1.5 flex items-center gap-1.5" style="background:${groupHeaderBg};border-bottom:1px solid ${groupHeaderBorder};">
-                    <div class="h-5 w-5 rounded flex items-center justify-center shrink-0 text-[9px] font-black text-white" style="background:${groupAccent};">${(pat.nome||'?')[0].toUpperCase()}</div>
-                    <div class="flex-1 min-w-0" onclick="event.stopPropagation()">
-                        <p class="font-black text-[10px] truncate" style="color:${_isDark?'#f1f5f9':'#172554'}">${pat.nome}</p>
-                        <p class="text-[8px]" style="color:${_isDark?'#64748b':'#94a3b8'}">${firstHora ? firstHora+' · ' : ''}${apps.length}vac</p>
-                    </div>
-                    ${hasDelayed ? `<i class="fas fa-exclamation-triangle text-[9px] text-amber-500 shrink-0"></i>` : ''}
-                    <button onclick="event.stopPropagation();weeklyToggleGroup('${wkGroupId}')" class="h-5 w-5 rounded flex items-center justify-center shrink-0 transition hover:bg-black/10" title="Mostrar/ocultar vacinas">
-                        <i class="fas fa-chevron-up text-[8px]" id="${wkGroupId}-chevron" style="color:${_isDark?'#64748b':'#94a3b8'}"></i>
-                    </button>
-                </div>
-                <div class="p-1.5 flex flex-col gap-1" id="${wkGroupId}" style="background:${_isDark?'#1e293b':'#f8fafc'}">${miniHtml}</div>
+            return `<div class="rounded-md px-1.5 py-1 mb-1 cursor-grab select-none"
+                draggable="true"
+                ondragstart="weeklyGroupDragStart(event,'${d.dateStr}','${g.patId}')"
+                ondragend="weeklyDragEnd(event)"
+                onclick="openWeeklyGroup('${d.dateStr}','${g.patId}')"
+                style="background:${_isDark ? '#1e293b' : '#f1f5f9'};border-left:3px solid #94a3b8;">
+                <p class="text-[10px] font-black truncate" style="color:${C.text}">${pat.nome}</p>
+                <p class="text-[8px] truncate" style="color:${C.muted}">${g.apps.length} vacina(s) · sem horário</p>
             </div>`;
         }).join('');
+    };
 
-        const emptyHtml = `<div class="flex flex-col items-center justify-center py-6 opacity-40">
-            <i class="fas fa-calendar-day text-2xl mb-1" style="color:${col.text};"></i>
-            <p class="text-[10px] font-black uppercase" style="color:${col.text};">Sem registros</p>
-        </div>`;
+    const hoursCol = Array.from({ length: WK_END_HOUR - WK_START_HOUR }, (_, h) =>
+        `<div class="relative" style="height:${60 * _wkPxPerMin()}px;">
+            <span class="absolute -top-1.5 right-1.5 text-[9px] font-bold" style="color:${C.muted}">${String(WK_START_HOUR + h).padStart(2,'0')}:00</span>
+        </div>`).join('');
 
-        return `<div class="flex flex-col rounded-2xl overflow-hidden border shadow-md transition-all duration-200 flex-1 min-w-[130px]"
-            style="border-color:${col.border};${isToday ? 'box-shadow:0 0 0 2px #2563eb,0 4px 16px rgba(37,99,235,.15);' : ''}"
-            ondragover="weeklyDragOver(event)"
-            ondragleave="weeklyDragLeave(event)"
-            ondrop="weeklyDrop(event,'${dateStr}')"
-            data-date="${dateStr}">
-            <div class="px-3 py-2.5 shrink-0 bg-gradient-to-br ${col.grad} flex flex-col items-center border-b" style="border-color:${col.border};">
-                <span class="text-[9px] font-black uppercase tracking-widest" style="color:${col.header};opacity:0.7;">${DAY_NAMES[i]}</span>
-                <span class="font-black text-xl leading-none" style="color:${col.header};">${day.getDate()}</span>
-                ${isToday ? `<span class="text-[8px] font-black px-1.5 py-0.5 rounded-full mt-1 uppercase tracking-wider" style="background:${col.border};color:${col.header};">Hoje</span>` : ''}
-                ${dayApps.length ? `<span class="text-[9px] font-black px-2 py-0.5 rounded-full mt-1" style="background:${col.border};color:${col.header};">${dayApps.length}</span>` : ''}
-            </div>
-            <div class="flex-1 overflow-y-auto p-2 space-y-2 bg-white/80" style="background:${col.light};">
-                ${dayApps.length ? cardsHtml : emptyHtml}
-            </div>
-        </div>`;
+    const gridLines = Array.from({ length: slotCount }, (_, s) =>
+        `<div style="height:${WK_SLOT_PX}px;border-bottom:1px ${s % 2 === 1 ? 'solid' : 'dashed'} ${s % 2 === 1 ? C.lineStrong : C.line};"></div>`).join('');
+
+    const dropZones = d => d.closed ? '' : Array.from({ length: slotCount }, (_, s) => {
+        const min = WK_START_HOUR * 60 + s * WK_SLOT_MIN;
+        return `<div class="wk-slot absolute left-0 right-0" style="top:${s * WK_SLOT_PX}px;height:${WK_SLOT_PX}px;"
+            ondragover="weeklyDragOver(event)" ondragleave="weeklyDragLeave(event)"
+            ondrop="weeklyDrop(event,'${d.dateStr}','${_wkHHMM(min)}')"
+            ondblclick="weeklySlotDblClick('${d.dateStr}','${_wkHHMM(min)}')"></div>`;
     }).join('');
+
+    // Linha "agora"
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+    const showNow = nowMin >= WK_START_HOUR * 60 && nowMin <= WK_END_HOUR * 60;
+    const nowTop = (nowMin - WK_START_HOUR * 60) * _wkPxPerMin();
+
+    board.innerHTML = `
+    <div class="wk-wrap flex flex-col w-full rounded-2xl border overflow-hidden" style="border-color:${C.lineStrong};background:${C.bg};">
+        <div class="wk-head grid shrink-0" style="grid-template-columns:56px repeat(7,minmax(0,1fr));background:${C.head};border-bottom:1px solid ${C.lineStrong};">
+            <div></div>
+            ${days.map(d => `<div class="px-1 py-1">${headHtml(d)}</div>`).join('')}
+        </div>
+        <div class="wk-allday grid shrink-0" style="grid-template-columns:56px repeat(7,minmax(0,1fr));border-bottom:1px solid ${C.lineStrong};background:${_isDark ? '#0b1220' : '#fcfcfd'};">
+            <div class="flex items-start justify-end pr-1.5 pt-1.5">
+                <span class="text-[8px] font-black uppercase tracking-wider" style="color:${C.muted}">Sem hora</span>
+            </div>
+            ${days.map(d => `<div class="p-1 min-h-[34px]" style="border-left:1px solid ${C.line};"
+                ondragover="${d.closed ? '' : 'weeklyDragOver(event)'}" ondragleave="weeklyDragLeave(event)"
+                ondrop="${d.closed ? '' : `weeklyDrop(event,'${d.dateStr}','')`}">${noTimeHtml(d)}</div>`).join('')}
+        </div>
+        <div class="wk-scroll flex-1 overflow-y-auto">
+            <div class="grid relative" style="grid-template-columns:56px repeat(7,minmax(0,1fr));">
+                <div class="relative" style="height:${gridH}px;background:${C.gutter};">${hoursCol}</div>
+                ${days.map(d => `<div class="relative" style="height:${gridH}px;border-left:1px solid ${C.line};${d.closed ? `background:repeating-linear-gradient(45deg,${C.closed},${C.closed} 6px,transparent 6px,transparent 12px);` : ''}">
+                    <div class="absolute inset-0">${gridLines}</div>
+                    ${dropZones(d)}
+                    ${d.groups.filter(g => g.min != null).map(g => groupCardHtml(d, g)).join('')}
+                    ${d.isToday && showNow ? `<div class="absolute left-0 right-0 pointer-events-none" style="top:${nowTop}px;border-top:2px solid #ef4444;">
+                        <span class="absolute -left-1 -top-1 h-2 w-2 rounded-full" style="background:#ef4444;"></span>
+                    </div>` : ''}
+                </div>`).join('')}
+            </div>
+        </div>
+    </div>`;
 
     const _setWeeklyHeight = () => {
         const rect = board.getBoundingClientRect();
         if (rect.top > 0) board.style.height = `${window.innerHeight - rect.top - 16}px`;
+        const wrap = board.querySelector('.wk-wrap');
+        if (wrap) wrap.style.height = '100%';
     };
     _setWeeklyHeight();
     window._weeklyResizeHandler && window.removeEventListener('resize', window._weeklyResizeHandler);
     window._weeklyResizeHandler = _setWeeklyHeight;
     window.addEventListener('resize', window._weeklyResizeHandler);
+
+    // Rola até a primeira ocorrência (ou hora atual)
+    const scroller = board.querySelector('.wk-scroll');
+    if (scroller) {
+        const firstMin = Math.min(...days.flatMap(d => d.groups.map(g => g.min).filter(v => v != null)), showNow ? nowMin : Infinity);
+        if (isFinite(firstMin)) {
+            scroller.scrollTop = Math.max(0, (firstMin - WK_START_HOUR * 60) * _wkPxPerMin() - WK_SLOT_PX * 2);
+        }
+    }
 }
 
-// Drag & Drop semanal
-let _weeklyDragId = null;
-function weeklyDragStart(e, id) { _weeklyDragId = id; e.dataTransfer.effectAllowed = 'move'; e.currentTarget.style.opacity = '0.5'; }
-function weeklyDragEnd(e) { e.currentTarget.style.opacity = ''; document.querySelectorAll('#weekly-board > div').forEach(c => c.style.outline = ''); }
-function weeklyDragOver(e) { e.preventDefault(); e.currentTarget.style.outline = '2px solid #2563eb'; }
-function weeklyDragLeave(e) { e.currentTarget.style.outline = ''; }
-let _weeklyPendingDrop = null; // { appointmentId, targetDate }
+// ─── Drag & Drop semanal ─────────────────────────────────────────────────────
+let _weeklyDragId = null;      // arrasto de vacina individual (painel do grupo)
+let _weeklyDragGroup = null;   // { dateStr, patId } arrasto do grupo inteiro
 
-function weeklyDrop(e, dateStr) {
-    e.preventDefault(); e.currentTarget.style.outline = '';
-    if (!_weeklyDragId) return;
-    const a = appointments.find(x => x.id == _weeklyDragId);
-    _weeklyDragId = null;
-    if (!a) return;
+function weeklyDragStart(e, id) {
+    _weeklyDragId = id; _weeklyDragGroup = null;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(id));
+    e.currentTarget.style.opacity = '0.5';
+    e.stopPropagation();
+    // O painel do grupo cobre a grade — fecha (após iniciar o drag) para permitir soltar em outro horário
+    setTimeout(closeWeeklyGroup, 0);
+}
+function weeklyGroupDragStart(e, dateStr, patId) {
+    _weeklyDragGroup = { dateStr, patId }; _weeklyDragId = null;
+    e.dataTransfer.effectAllowed = 'move';
+    e.currentTarget.style.opacity = '0.5';
+}
+function weeklyDragEnd(e) {
+    e.currentTarget.style.opacity = '';
+    document.querySelectorAll('.wk-slot,.wk-allday > div').forEach(c => c.style.background = '');
+}
+function weeklyDragOver(e) {
+    e.preventDefault();
+    e.currentTarget.style.background = 'rgba(37,99,235,.18)';
+}
+function weeklyDragLeave(e) { e.currentTarget.style.background = ''; }
 
-    // Mesmo dia — sem ação
-    if (a.data === dateStr) return;
+let _weeklyPendingDrop = null; // { ids:[], targetDate, targetHora, label }
 
-    // Bloqueio: lote vinculado vencido na data destino
-    if (a.loteId) {
-        const lote = vaccineLots.find(l => l.id == a.loteId);
-        if (lote && lote.validade) {
-            const exp  = new Date(lote.validade + 'T00:00:00');
-            const dest = new Date(dateStr + 'T00:00:00');
-            if (exp < dest) {
-                const vac = vaccines.find(v => v.id == a.vaccineId);
-                showNotification(
-                    `Bloqueado: lote ${lote.numero} da ${vac ? vac.nome : 'vacina'} vence em ${lote.validade.split('-').reverse().join('/')} — anterior à data destino.`,
-                    'error'
-                );
-                renderWeekly();
-                return;
-            }
+function weeklyDrop(e, dateStr, hora) {
+    e.preventDefault(); e.stopPropagation();
+    e.currentTarget.style.background = '';
+
+    let movingApps = [];
+    let label = '';
+    if (_weeklyDragGroup) {
+        const { dateStr: fromDate, patId } = _weeklyDragGroup;
+        movingApps = appointments.filter(a => a.data === fromDate && String(a.patientId) === String(patId) && a.status !== 'Perdido');
+        const pat = patients.find(p => String(p.id) === String(patId));
+        label = pat ? `${pat.nome} · ${movingApps.length} vacina(s)` : '';
+    } else if (_weeklyDragId) {
+        const a = appointments.find(x => String(x.id) === String(_weeklyDragId));
+        if (a) {
+            movingApps = [a];
+            const pat = patients.find(p => String(p.id) === String(a.patientId));
+            const vac = vaccines.find(v => String(v.id) === String(a.vaccineId));
+            label = `${pat ? pat.nome : ''} · ${vac ? vac.nome : ''} ${a.doseAtual || ''}`;
+        }
+    }
+    _weeklyDragGroup = null; _weeklyDragId = null;
+    if (!movingApps.length) return;
+
+    const fromDate = movingApps[0].data;
+    const fromHora = movingApps[0].hora || '';
+    if (fromDate === dateStr && (fromHora || '') === (hora || '')) return;
+
+    // Capacidade do dia destino (contada por atendimento/paciente)
+    if (fromDate !== dateStr) {
+        const dow = new Date(dateStr + 'T00:00:00').getDay();
+        const cap = WK_CAPACITY[dow] || 0;
+        const patIds = new Set(appointments
+            .filter(a => a.data === dateStr && a.status !== 'Perdido')
+            .map(a => String(a.patientId)));
+        if (cap && !patIds.has(String(movingApps[0].patientId)) && patIds.size >= cap) {
+            showNotification(`Bloqueado: ${_wkFmtDate(dateStr)} já atingiu o limite de ${cap} vagas.`, 'error');
+            renderWeekly(); return;
         }
     }
 
-    // Bloqueio de aprazamento: data destino inferior à data mínima da dose
-    if (a.doseAtual && a.doseAtual.includes('ª Dose') && a.doseAtual !== '1ª Dose') {
-        const doseNum = Number((a.doseAtual.match(/(\d+)/) || [])[1] || 2);
-        const v       = vaccines.find(x => String(x.id) === String(a.vaccineId));
-        if (v && doseNum >= 2) {
-            const pat2   = patients.find(p => String(p.id) === String(a.patientId));
-            const esq    = (typeof getEsquemaPaciente === 'function') ? getEsquemaPaciente(v, pat2 ? pat2.dtNasc : null) : null;
-            const ints   = (esq && esq.intervalos && esq.intervalos.length)
-                ? esq.intervalos
-                : (v.intervalos && v.intervalos.length ? v.intervalos : (v.intervaloDias > 0 ? [v.intervaloDias] : []));
-            let intervalo = ints.length
-                ? (ints[doseNum - 2] != null ? ints[doseNum - 2] : ints[ints.length - 1])
-                : 0;
-            if (!intervalo || intervalo <= 0) intervalo = 30;
-            {
-                const prevDoseStr = `${doseNum - 1}ª Dose`;
-                const prevApp = appointments.filter(x =>
-                    String(x.patientId) === String(a.patientId) &&
-                    String(x.vaccineId) === String(a.vaccineId) &&
-                    String(x.id) !== String(a.id) &&
-                    x.doseAtual === prevDoseStr
-                ).sort((x, y) => new Date(y.data) - new Date(x.data))[0];
-                if (prevApp) {
-                    const minDate = new Date(prevApp.data + 'T00:00:00');
-                    minDate.setDate(minDate.getDate() + intervalo);
-                    const minIso = minDate.toISOString().split('T')[0];
-                    if (dateStr < minIso) {
-                        showNotification(
-                            `Bloqueado: data mínima para ${a.doseAtual} é ${minIso.split('-').reverse().join('/')} (${intervalo} dias após a dose anterior de ${prevApp.data.split('-').reverse().join('/')}).`,
-                            'error'
-                        );
-                        renderWeekly();
-                        return;
-                    }
-                }
-            }
-        }
+    // Valida TODAS as vacinas movidas — qualquer bloqueio cancela o movimento
+    for (const a of movingApps) {
+        const err = _wkValidateMove(a, dateStr);
+        if (err) { showNotification(err, 'error'); renderWeekly(); return; }
     }
 
-    // Abre modal de confirmação
-    const pat = patients.find(p => p.id == a.patientId);
-    const vac = vaccines.find(v => v.id == a.vaccineId);
-    const fmtDate = d => d.split('-').reverse().join('/');
-    document.getElementById('wdrop-from').textContent = fmtDate(a.data);
-    document.getElementById('wdrop-to').textContent   = fmtDate(dateStr);
+    const pat = patients.find(p => String(p.id) === String(movingApps[0].patientId));
+    const horaLbl = h => h ? h : 'sem horário';
+    document.getElementById('wdrop-from').textContent = `${_wkFmtDate(fromDate)} · ${horaLbl(fromHora)}`;
+    document.getElementById('wdrop-to').textContent   = `${_wkFmtDate(dateStr)} · ${horaLbl(hora)}`;
     document.getElementById('wdrop-patient').textContent = pat ? pat.nome : '—';
-    document.getElementById('wdrop-vaccine').textContent = vac ? `${vac.nome} · ${a.doseAtual}` : '—';
-    _weeklyPendingDrop = { appointmentId: a.id, targetDate: dateStr };
+    document.getElementById('wdrop-vaccine').textContent = label || '—';
+    _weeklyPendingDrop = { ids: movingApps.map(a => a.id), targetDate: dateStr, targetHora: hora || '' };
     document.getElementById('modal-weekly-drop').classList.add('active');
 }
 
 function confirmWeeklyDrop() {
     if (!_weeklyPendingDrop) return;
-    const { appointmentId, targetDate } = _weeklyPendingDrop;
+    const { ids, targetDate, targetHora } = _weeklyPendingDrop;
     _weeklyPendingDrop = null;
     document.getElementById('modal-weekly-drop').classList.remove('active');
-    const idx = appointments.findIndex(a => a.id == appointmentId);
-    if (idx > -1) {
+    let moved = 0;
+    ids.forEach(id => {
+        const idx = appointments.findIndex(a => String(a.id) === String(id));
+        if (idx < 0) return;
         appointments[idx].data = targetDate;
+        appointments[idx].hora = targetHora;
         if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
+        moved++;
+    });
+    if (moved) {
         saveAll();
         renderWeekly();
         if (typeof renderCalendar === 'function') renderCalendar();
-        showNotification('Agendamento movido com sucesso!', 'success');
+        showNotification(moved > 1 ? `${moved} agendamentos movidos com sucesso!` : 'Agendamento movido com sucesso!', 'success');
     }
 }
 
@@ -457,6 +659,61 @@ function cancelWeeklyDrop() {
     _weeklyPendingDrop = null;
     document.getElementById('modal-weekly-drop').classList.remove('active');
     renderWeekly();
+}
+
+// ─── Painel do grupo: detalhe/arraste individual ──────────────────────────────
+function openWeeklyGroup(dateStr, patId) {
+    const pat = patients.find(p => String(p.id) === String(patId));
+    const apps = appointments.filter(a => a.data === dateStr && String(a.patientId) === String(patId) && a.status !== 'Perdido')
+        .sort((x, y) => (_wkMinutes(x.hora) ?? 1e9) - (_wkMinutes(y.hora) ?? 1e9));
+    if (!pat || !apps.length) return;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const _isDark = document.body.classList.contains('dark-mode');
+
+    document.getElementById('wkgroup-title').textContent = pat.nome;
+    document.getElementById('wkgroup-sub').textContent =
+        `${_wkFmtDate(dateStr)} · ${apps.length} vacina(s)${apps[0].hora ? ' · ' + apps[0].hora : ' · sem horário'}`;
+
+    document.getElementById('wkgroup-list').innerHTML = apps.map(a => {
+        const vac = vaccines.find(v => String(v.id) === String(a.vaccineId));
+        const isDelayed = a.status === 'Agendado' && a.data < todayStr;
+        const stColor = a.status === 'Aplicado' ? '#16a34a' : isDelayed ? '#f59e0b'
+            : a.status === 'Agendado' ? '#2563eb' : a.status === 'Em negociação' ? '#0891b2' : '#64748b';
+        const btnAgendar = (a.status === 'Em negociação' || a.status === 'Nova oportunidade')
+            ? permBtn('criar_agendamento', `<button onclick="event.stopPropagation();closeWeeklyGroup();openAgendarModal(${a.id})" class="h-6 w-6 rounded flex items-center justify-center bg-blue-500 text-white hover:bg-blue-600 transition shrink-0" title="Agendar"><i class="fas fa-calendar-check text-[9px]"></i></button>`)
+            : '';
+        const btnAplicar = a.status === 'Agendado'
+            ? permBtn('aplicar', `<button onclick="event.stopPropagation();closeWeeklyGroup();openConcluirModal(${a.id})" class="h-6 w-6 rounded flex items-center justify-center bg-green-500 text-white hover:bg-green-600 transition shrink-0" title="Aplicar"><i class="fas fa-syringe text-[9px]"></i></button>`)
+            : '';
+        return `<div draggable="true"
+            ondragstart="weeklyDragStart(event,${a.id})" ondragend="weeklyDragEnd(event)"
+            onclick="closeWeeklyGroup();viewRecord(${a.id})"
+            class="flex items-center gap-2 rounded-xl px-2.5 py-2 border cursor-grab hover:shadow-sm transition"
+            style="background:${_isDark ? '#0f172a' : '#fff'};border-color:${_isDark ? '#334155' : '#e2e8f0'};border-left:3px solid ${stColor};">
+            <i class="fas fa-syringe text-[10px] shrink-0" style="color:${stColor}"></i>
+            <div class="flex-1 min-w-0">
+                <p class="text-[11px] font-black truncate" style="color:${_isDark ? '#f1f5f9' : '#172554'}">${vac ? vac.nome : '—'}</p>
+                <p class="text-[9px]" style="color:${_isDark ? '#64748b' : '#94a3b8'}">${a.doseAtual || ''}${a.hora ? ' · ' + a.hora : ''} · ${a.status}</p>
+            </div>
+            ${btnAgendar}${btnAplicar}
+            <i class="fas fa-grip-vertical text-[9px] shrink-0" style="color:${_isDark ? '#475569' : '#cbd5e1'}"></i>
+        </div>`;
+    }).join('');
+
+    document.getElementById('modal-weekly-group').classList.add('active');
+}
+
+function closeWeeklyGroup() {
+    document.getElementById('modal-weekly-group').classList.remove('active');
+}
+
+// Duplo clique em slot vazio → novo agendamento naquela data/hora
+function weeklySlotDblClick(dateStr, hora) {
+    if (typeof openRecordModal !== 'function') return;
+    openRecordModal();
+    const dEl = document.getElementById('reg-data');
+    if (dEl) { dEl.value = dateStr; dEl.dispatchEvent(new Event('change')); }
+    const hEl = document.getElementById('reg-hora'); if (hEl) hEl.value = hora;
 }
 
 function changeMonth(dir) { currentDate.setMonth(currentDate.getMonth() + dir); renderCalendar(); }
