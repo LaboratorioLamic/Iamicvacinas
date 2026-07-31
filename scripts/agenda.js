@@ -447,6 +447,9 @@ function renderWeekly() {
             onclick="openWeeklyGroup('${d.dateStr}','${g.patId}')"
             title="${String(pat.nome).replace(/"/g, '&quot;')} — ${_wkHHMM(startMin)}"
             style="top:${top}px;height:${height}px;left:calc(${lane * widthPct}% + 2px);width:calc(${widthPct}% - 4px);background:${tint};border-left:3px solid ${accent};box-shadow:0 1px 2px rgba(15,23,42,.08);">
+            <button class="wk-add wk-add-on-event" title="Adicionar vacina a ${String(pat.nome).replace(/"/g, '&quot;')} às ${_wkHHMM(startMin)}"
+                onclick="event.stopPropagation();addVacinaToWeeklyGroup('${d.dateStr}','${g.patId}','${_wkHHMM(startMin)}','${String(apps.find(a => a.vendedor)?.vendedor || '').replace(/'/g, "\\'")}')"
+                style="color:${accent};"><i class="fas fa-plus"></i></button>
             <div class="px-1.5 py-1 h-full flex flex-col justify-center min-w-0">
                 <p class="text-[9px] font-black leading-none truncate" style="color:${accent}">
                     ${_wkHHMM(startMin)} – ${_wkHHMM(endMin)}${hasDelayed ? ' <i class="fas fa-exclamation-triangle"></i>' : ''}
@@ -486,10 +489,13 @@ function renderWeekly() {
 
     const dropZones = d => d.closed ? '' : Array.from({ length: slotCount }, (_, s) => {
         const min = WK_START_HOUR * 60 + s * WK_SLOT_MIN;
-        return `<div class="wk-slot absolute left-0 right-0" style="top:${s * WK_SLOT_PX}px;height:${WK_SLOT_PX}px;"
+        return `<div class="wk-slot absolute left-0 right-0 flex items-center justify-center" style="top:${s * WK_SLOT_PX}px;height:${WK_SLOT_PX}px;"
             ondragover="weeklyDragOver(event)" ondragleave="weeklyDragLeave(event)"
             ondrop="weeklyDrop(event,'${d.dateStr}','${_wkHHMM(min)}')"
-            ondblclick="weeklySlotDblClick('${d.dateStr}','${_wkHHMM(min)}')"></div>`;
+            ondblclick="weeklySlotDblClick('${d.dateStr}','${_wkHHMM(min)}')">
+            <button class="wk-add" onclick="event.stopPropagation();weeklySlotDblClick('${d.dateStr}','${_wkHHMM(min)}')"
+                title="Agendar às ${_wkHHMM(min)}"><i class="fas fa-plus"></i></button>
+        </div>`;
     }).join('');
 
     // Linha "agora"
@@ -653,11 +659,23 @@ function confirmWeeklyDrop() {
         if (typeof renderCalendar === 'function') renderCalendar();
         showNotification(moved > 1 ? `${moved} agendamentos movidos com sucesso!` : 'Agendamento movido com sucesso!', 'success');
     }
+    // Arraste vindo do mensal: fecha o modal do dia de origem (o dia mudou)
+    if (_monthPendingReturn) {
+        _monthPendingReturn = null;
+        _monthDayModalHide(false);
+        document.getElementById('modal-day-details').classList.remove('active');
+    }
 }
 
 function cancelWeeklyDrop() {
     _weeklyPendingDrop = null;
     document.getElementById('modal-weekly-drop').classList.remove('active');
+    // Arraste vindo do mensal: devolve o modal do dia como estava
+    if (_monthPendingReturn) {
+        _monthPendingReturn = null;
+        _monthDayModalHide(false);
+        return;
+    }
     renderWeekly();
 }
 
@@ -673,6 +691,26 @@ function openWeeklyGroup(dateStr, patId) {
     document.getElementById('wkgroup-title').textContent = pat.nome;
     document.getElementById('wkgroup-sub').textContent =
         `${_wkFmtDate(dateStr)} · ${apps.length} vacina(s)${apps[0].hora ? ' · ' + apps[0].hora : ' · sem horário'}`;
+
+    // Ações em lote do grupo
+    const appsParaAplicar = apps.filter(a => a.status === 'Agendado');
+    const appsParaAgendar = apps.filter(a => a.status === 'Em negociação' || a.status === 'Nova oportunidade');
+    const grupoHora = apps.find(a => a.hora)?.hora || '';
+    const grupoVendedor = (apps.find(a => a.vendedor)?.vendedor || '').replace(/'/g, "\\'");
+    const btnCls = 'h-9 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition flex items-center justify-center gap-1.5 flex-1';
+
+    document.getElementById('wkgroup-actions').innerHTML = [
+        appsParaAgendar.length
+            ? permBtn('criar_agendamento', `<button onclick="closeWeeklyGroup();openAgendarGrupoModal(${patId},'Em negociação',appointments.filter(a=>String(a.patientId)==='${patId}'&&a.data==='${dateStr}'&&(a.status==='Em negociação'||a.status==='Nova oportunidade')))"
+                class="${btnCls} bg-blue-500 text-white hover:bg-blue-600"><i class="fas fa-calendar-check text-[9px]"></i>Agendar todos (${appsParaAgendar.length})</button>`)
+            : '',
+        appsParaAplicar.length
+            ? permBtn('aplicar', `<button onclick="closeWeeklyGroup();openAplicarGrupoModal(${patId},'Agendado',appointments.filter(a=>String(a.patientId)==='${patId}'&&a.data==='${dateStr}'&&a.status==='Agendado'))"
+                class="${btnCls} bg-green-500 text-white hover:bg-green-600"><i class="fas fa-syringe text-[9px]"></i>Aplicar todos (${appsParaAplicar.length})</button>`)
+            : '',
+        permBtn('criar_agendamento', `<button onclick="addVacinaToWeeklyGroup('${dateStr}','${patId}','${grupoHora}','${grupoVendedor}')"
+            class="${btnCls} bg-indigo-600 text-white hover:bg-indigo-700"><i class="fas fa-plus text-[9px]"></i>Adicionar vacina</button>`)
+    ].filter(Boolean).join('');
 
     document.getElementById('wkgroup-list').innerHTML = apps.map(a => {
         const vac = vaccines.find(v => String(v.id) === String(a.vaccineId));
@@ -705,6 +743,31 @@ function openWeeklyGroup(dateStr, patId) {
 
 function closeWeeklyGroup() {
     document.getElementById('modal-weekly-group').classList.remove('active');
+}
+
+// Novo agendamento já preenchido com paciente, data, hora e vendedor do grupo
+function addVacinaToWeeklyGroup(dateStr, patId, hora, vendedor) {
+    if (!checkPerm('criar_agendamento')) return;
+    closeWeeklyGroup();
+    const p = patients.find(x => String(x.id) === String(patId));
+    openRecordModal();
+    const dEl = document.getElementById('reg-data');
+    if (dEl) dEl.value = dateStr;
+    const hEl = document.getElementById('reg-hora');
+    if (hEl) hEl.value = hora || '';
+    const vEl = document.getElementById('reg-vendedor');
+    if (vEl && vendedor) vEl.value = vendedor;
+    if (p) {
+        setTimeout(() => {
+            document.getElementById('reg-patient-search').value = `${p.cpf} - ${p.nome}`;
+            autoFillPatient();
+            // autoFillPatient pode reescrever a data — reaplica os dados do grupo
+            if (dEl) dEl.value = dateStr;
+            if (hEl) hEl.value = hora || '';
+            if (vEl && vendedor) vEl.value = vendedor;
+            if (typeof updateIdadeField === 'function') updateIdadeField();
+        }, 50);
+    }
 }
 
 // Duplo clique em slot vazio → novo agendamento naquela data/hora
@@ -888,6 +951,10 @@ function renderCalendar() {
         } else {
             cell.className = `min-h-[100px] rounded-lg border p-1.5 bg-white hover:border-clinic-400 hover:shadow-md transition cursor-pointer flex flex-col relative ${dateStr === todayStr ? 'border-clinic-500 ring-2 ring-clinic-300' : 'border-slate-200'}`;
             cell.onclick = () => openDayModal(dateStr, d, month, year);
+            cell.dataset.date = dateStr;
+            cell.ondragover  = e => monthCellDragOver(e);
+            cell.ondragleave = e => monthCellDragLeave(e);
+            cell.ondrop      = e => monthCellDrop(e, dateStr);
 
             if (isHoliday) {
                 cell.innerHTML = `<div class="text-right text-xs font-black mb-1 ${dateStr===todayStr?'text-clinic-600':'text-slate-400'}">${d}</div><div class="text-[9px] font-black text-red-500 bg-red-50 text-center rounded py-1 mt-auto border border-red-200 shadow-sm">FERIADO</div>`;
@@ -910,6 +977,108 @@ function renderCalendar() {
     }
     if (_calView === 'semanal') renderWeekly();
 }
+
+// ─── Drag & Drop no calendário mensal (a partir do modal do dia) ─────────────
+let _monthDragActive = null;   // { type:'group'|'single', dateStr, patId, id }
+
+function _monthDayModalHide(hide) {
+    const modal = document.getElementById('modal-day-details');
+    if (!modal) return;
+    modal.style.opacity = hide ? '0' : '';
+    modal.style.pointerEvents = hide ? 'none' : '';
+}
+
+function _monthShowDragGhost(show, label) {
+    let ghost = document.getElementById('month-drag-ghost');
+    if (!show) { if (ghost) ghost.remove(); document.removeEventListener('dragover', _monthGhostFollow); return; }
+    if (!ghost) {
+        ghost = document.createElement('div');
+        ghost.id = 'month-drag-ghost';
+        ghost.className = 'fixed z-[400] pointer-events-none rounded-xl px-3 py-2 shadow-2xl';
+        ghost.style.cssText += 'background:#2563eb;color:#fff;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.04em;transform:translate(12px,12px);';
+        document.body.appendChild(ghost);
+    }
+    ghost.innerHTML = `<i class="fas fa-hand-rock mr-1.5"></i>${label} <span class="opacity-70">— solte em um dia</span>`;
+    document.addEventListener('dragover', _monthGhostFollow);
+}
+
+function _monthGhostFollow(e) {
+    const ghost = document.getElementById('month-drag-ghost');
+    if (!ghost) return;
+    ghost.style.left = e.clientX + 'px';
+    ghost.style.top  = e.clientY + 'px';
+}
+
+function monthGroupDragStart(e, dateStr, patId) {
+    e.stopPropagation();
+    const pat = patients.find(p => String(p.id) === String(patId));
+    const n = appointments.filter(a => a.data === dateStr && String(a.patientId) === String(patId) && a.status !== 'Perdido').length;
+    _monthDragActive = { type: 'group', dateStr, patId };
+    _weeklyDragGroup = { dateStr, patId }; _weeklyDragId = null;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', `group:${patId}`);
+    _monthShowDragGhost(true, `${pat ? pat.nome : 'Atendimento'} · ${n} vacina(s)`);
+    _monthArmCalendarDrop(true);
+    setTimeout(() => _monthDayModalHide(true), 0);
+}
+
+function monthDragStart(e, id) {
+    e.stopPropagation();
+    const a = appointments.find(x => String(x.id) === String(id));
+    const vac = a ? vaccines.find(v => String(v.id) === String(a.vaccineId)) : null;
+    _monthDragActive = { type: 'single', id };
+    _weeklyDragId = id; _weeklyDragGroup = null;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(id));
+    _monthShowDragGhost(true, vac ? `${vac.nome} · ${a.doseAtual || ''}` : 'Vacina');
+    _monthArmCalendarDrop(true);
+    setTimeout(() => _monthDayModalHide(true), 0);
+}
+
+function monthDragEnd() {
+    _monthShowDragGhost(false);
+    _monthArmCalendarDrop(false);
+    // Se não houve drop válido, reexibe o modal do dia
+    if (_monthDragActive && !_weeklyPendingDrop) _monthDayModalHide(false);
+    _monthDragActive = null;
+    _weeklyDragGroup = null; _weeklyDragId = null;
+}
+
+// Ativa/desativa as células do calendário como alvos de soltura
+function _monthArmCalendarDrop(on) {
+    const body = document.getElementById('calendar-body');
+    if (!body) return;
+    body.querySelectorAll('[data-date]').forEach(cell => {
+        cell.classList.toggle('month-drop-armed', on);
+        if (!on) cell.style.outline = '';
+    });
+}
+
+function monthCellDragOver(e) {
+    if (!_monthDragActive) return;
+    e.preventDefault();
+    e.currentTarget.style.outline = '2px solid #2563eb';
+    e.currentTarget.style.outlineOffset = '-2px';
+}
+function monthCellDragLeave(e) { e.currentTarget.style.outline = ''; }
+
+function monthCellDrop(e, dateStr) {
+    if (!_monthDragActive) return;
+    e.currentTarget.style.outline = '';
+    _monthShowDragGhost(false);
+    _monthArmCalendarDrop(false);
+    _monthPendingReturn = _monthDragActive;
+    _monthDragActive = null;
+    // Mantém o horário atual: reusa a validação/confirmação do semanal
+    const keepHora = _weeklyDragGroup
+        ? (appointments.find(a => a.data === _weeklyDragGroup.dateStr && String(a.patientId) === String(_weeklyDragGroup.patId) && a.hora) || {}).hora || ''
+        : (appointments.find(a => String(a.id) === String(_weeklyDragId)) || {}).hora || '';
+    weeklyDrop(e, dateStr, keepHora);
+    // Nenhum modal de confirmação aberto ⇒ movimento bloqueado: devolve o modal do dia
+    if (!_weeklyPendingDrop) { _monthPendingReturn = null; _monthDayModalHide(false); }
+}
+
+let _monthPendingReturn = null; // origem do arraste no mensal, para reabrir o modal do dia
 
 // ─── MODAL DO DIA & FERIADOS ──────────────────────────────────────────────────
 function openDayModal(dateStr, d, month, year) {
@@ -998,9 +1167,12 @@ function openDayModal(dateStr, d, month, year) {
                     const stColor = a.status === 'Aplicado' ? (_dmIsDark?'#4ade80':'#16a34a') : isDelayed ? (_dmIsDark?'#fbbf24':'#d97706') : a.status === 'Agendado' ? (_dmIsDark?'#60a5fa':'#2563eb') : a.status === 'Em negociação' ? (_dmIsDark?'#22d3ee':'#0891b2') : (_dmIsDark?'#94a3b8':'#64748b');
                     const stBg = a.status === 'Aplicado' ? (_dmIsDark?'rgba(74,222,128,0.15)':'#dcfce7') : isDelayed ? (_dmIsDark?'rgba(251,191,36,0.15)':'#fffbeb') : a.status === 'Agendado' ? (_dmIsDark?'rgba(96,165,250,0.15)':'#dbeafe') : a.status === 'Em negociação' ? (_dmIsDark?'rgba(34,211,238,0.15)':'#cffafe') : (_dmIsDark?'rgba(148,163,184,0.15)':'#f1f5f9');
                     const stLabel = isDelayed ? 'Atrasado' : a.status;
-                    return `<div class="flex items-center gap-2 px-3 py-2 rounded-lg border hover:shadow-sm transition cursor-pointer"
+                    return `<div class="flex items-center gap-2 px-3 py-2 rounded-lg border hover:shadow-sm transition cursor-grab"
                         style="background:${miniCardBg};border-color:${miniCardBorder};border-left:3px solid ${stColor};border-left-color:${stColor};"
-                        onclick="viewRecord(${a.id})">
+                        draggable="true"
+                        ondragstart="monthDragStart(event,${a.id})"
+                        ondragend="monthDragEnd(event)"
+                        onclick="viewRecord(${a.id})"
                         <i class="fas fa-syringe text-[10px] shrink-0" style="color:${stColor}"></i>
                         <div class="flex-1 min-w-0">
                             <p class="text-[11px] font-black truncate" style="color:${patNameColor}">${vac.nome}</p>
@@ -1026,7 +1198,11 @@ function openDayModal(dateStr, d, month, year) {
                     : '';
 
                 return `<div class="rounded-xl border shadow-sm overflow-hidden transition hover:shadow-md" style="border-left:4px solid ${headerAccent};border-color:${headerBorderColor};">
-                    <div class="px-3 py-2.5 flex items-center gap-2 border-b" style="background:${headerBgColor};border-color:${headerBorderColor};">
+                    <div class="px-3 py-2.5 flex items-center gap-2 border-b cursor-grab" style="background:${headerBgColor};border-color:${headerBorderColor};"
+                        draggable="true"
+                        ondragstart="monthGroupDragStart(event,'${dateStr}','${patId}')"
+                        ondragend="monthDragEnd(event)"
+                        title="Arraste para mover o atendimento para outro dia">
                         <button onclick="event.stopPropagation();dayModalToggleGroup('${dmGroupId}')" class="h-7 w-7 rounded-lg flex items-center justify-center transition shrink-0" style="background:${_dmDl('rgba(255,255,255,0.7)','rgba(0,0,0,0.2)')};color:${metaColor};" title="Mostrar/ocultar vacinas">
                             <i class="fas fa-chevron-up text-[10px]" id="${dmGroupId}-chevron"></i>
                         </button>
