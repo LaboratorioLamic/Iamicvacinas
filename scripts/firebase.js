@@ -1,29 +1,43 @@
 // ─── FIREBASE SYNC FUNCTIONS (from index.html lines 2057-2171) ───────────────
 
 function setupRealtimeSync() {
+    // Renders passam por scheduleRender(): snapshots em rajada colapsam num único
+    // render por frame em vez de re-renderizar a tela inteira por evento.
+    const _scheduleOportunidades = () => {
+        const el = document.getElementById('agendaview-oportunidades');
+        if (el && !el.classList.contains('hidden') && typeof renderOportunidades === 'function') {
+            scheduleRender('renderOportunidades', renderOportunidades);
+        }
+    };
+
     db.ref('patients').on('value', snap => {
         patients = _fbToArr(snap.val());
         if (_appReady) {
-            renderPatients(); populateDashDropdowns();
-            const _oppElPat = document.getElementById('agendaview-oportunidades');
-            if (_oppElPat && !_oppElPat.classList.contains('hidden') && typeof renderOportunidades === 'function') renderOportunidades();
+            scheduleRender('renderPatients', renderPatients);
+            scheduleRender('populateDashDropdowns', populateDashDropdowns);
+            _scheduleOportunidades();
         }
     });
     db.ref('vaccines').on('value', snap => {
         vaccines = _fbToArr(snap.val());
         if (_appReady) {
-            renderVaccines(); populateVaccineSelects(); updateExpiryBadge(); populateDashDropdowns();
-            const _oppElVac = document.getElementById('agendaview-oportunidades');
-            if (_oppElVac && !_oppElVac.classList.contains('hidden') && typeof renderOportunidades === 'function') renderOportunidades();
+            scheduleRender('renderVaccines', renderVaccines);
+            scheduleRender('populateVaccineSelects', populateVaccineSelects);
+            scheduleRender('updateExpiryBadge', updateExpiryBadge);
+            scheduleRender('populateDashDropdowns', populateDashDropdowns);
+            _scheduleOportunidades();
         }
     });
     db.ref('appointments').on('value', snap => {
         appointments = _fbToArr(snap.val());
         if (_appReady) {
-            renderCalendar(); renderTable(); renderPatients();
-            if (document.getElementById('tab-dashboard').classList.contains('active')) renderDashboard();
-            const _oppEl = document.getElementById('agendaview-oportunidades');
-            if (_oppEl && !_oppEl.classList.contains('hidden') && typeof renderOportunidades === 'function') renderOportunidades();
+            scheduleRender('renderCalendar', renderCalendar);
+            scheduleRender('renderTable', renderTable);
+            scheduleRender('renderPatients', renderPatients);
+            if (document.getElementById('tab-dashboard').classList.contains('active')) {
+                scheduleRender('renderDashboard', renderDashboard);
+            }
+            _scheduleOportunidades();
         }
     });
     db.ref('cancelReasons').on('value', snap => {
@@ -50,7 +64,7 @@ function setupRealtimeSync() {
         patientContacts = _fbToArr(snap.val());
         if (_appReady) {
             updateContactsBadge();
-            if (typeof renderKanban === 'function') renderKanban();
+            if (typeof renderKanban === 'function') scheduleRender('renderKanban', renderKanban);
             const modal = document.getElementById('modal-patient-history');
             if (modal && modal.classList.contains('active') && _prontuarioTab === 'contato') {
                 renderContatoTab(modal.dataset.patientId);

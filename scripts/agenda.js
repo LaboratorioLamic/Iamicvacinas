@@ -412,7 +412,7 @@ function renderWeekly() {
 
     // ── Card de grupo posicionado na timeline
     const groupCardHtml = (d, g) => {
-        const pat = patients.find(p => String(p.id) === String(g.patId));
+        const pat = getPatientById(g.patId);
         if (!pat) return '';
         const apps = g.apps;
         const hasDelayed = apps.some(a => a.status === 'Agendado' && a.data < todayStr);
@@ -465,7 +465,7 @@ function renderWeekly() {
         const gs = d.groups.filter(g => g.min == null);
         if (!gs.length) return '';
         return gs.map(g => {
-            const pat = patients.find(p => String(p.id) === String(g.patId));
+            const pat = getPatientById(g.patId);
             if (!pat) return '';
             return `<div class="rounded-md px-1.5 py-1 mb-1 cursor-grab select-none"
                 draggable="true"
@@ -713,7 +713,7 @@ function openWeeklyGroup(dateStr, patId) {
     ].filter(Boolean).join('');
 
     document.getElementById('wkgroup-list').innerHTML = apps.map(a => {
-        const vac = vaccines.find(v => String(v.id) === String(a.vaccineId));
+        const vac = getVaccineById(a.vaccineId);
         const isDelayed = a.status === 'Agendado' && a.data < todayStr;
         const stColor = a.status === 'Aplicado' ? '#16a34a' : isDelayed ? '#f59e0b'
             : a.status === 'Agendado' ? '#2563eb' : a.status === 'Em negociação' ? '#0891b2' : '#64748b';
@@ -936,12 +936,23 @@ function renderCalendar() {
     body.innerHTML = '';
     for (let i = 0; i < first; i++) body.appendChild(Object.assign(document.createElement('div'), {className: 'min-h-[100px]'}));
 
+    // Agrupa por data numa única passada, em vez de um appointments.filter() por
+    // célula do mês (31 varreduras completas do array a cada render).
+    const appsByDate = new Map();
+    for (const a of appointments) {
+        if (filterVendedorCal && a.vendedor !== filterVendedorCal) continue;
+        let bucket = appsByDate.get(a.data);
+        if (!bucket) { bucket = []; appsByDate.set(a.data, bucket); }
+        bucket.push(a);
+    }
+    const holidaySet = new Set(holidays);
+
     for (let d = 1; d <= days; d++) {
         const dateObj = new Date(year, month, d);
         const isSunday = dateObj.getDay() === 0;
         const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        const isHoliday = holidays.includes(dateStr);
-        const dayApps = appointments.filter(a => a.data === dateStr && (!filterVendedorCal || a.vendedor === filterVendedorCal));
+        const isHoliday = holidaySet.has(dateStr);
+        const dayApps = appsByDate.get(dateStr) || [];
 
         const cell = document.createElement('div');
 
@@ -1121,7 +1132,7 @@ function openDayModal(dateStr, d, month, year) {
             });
 
             list.innerHTML = groupsDM.map(([patId, apps]) => {
-                const pat = patients.find(p => p.id == patId);
+                const pat = getPatientById(patId);
                 if (!pat) return '';
 
                 // Ordena vacinas do grupo por horário
@@ -1161,7 +1172,7 @@ function openDayModal(dateStr, d, month, year) {
                 const bodyBg = _dmDl('#f8fafc', '#0f172a');
 
                 const minicardsHtml = apps.map(a => {
-                    const vac = vaccines.find(v => v.id == a.vaccineId);
+                    const vac = getVaccineById(a.vaccineId);
                     if (!vac) return '';
                     const isDelayed = dateStr < todayStrDM && a.status === 'Agendado';
                     const stColor = a.status === 'Aplicado' ? (_dmIsDark?'#4ade80':'#16a34a') : isDelayed ? (_dmIsDark?'#fbbf24':'#d97706') : a.status === 'Agendado' ? (_dmIsDark?'#60a5fa':'#2563eb') : a.status === 'Em negociação' ? (_dmIsDark?'#22d3ee':'#0891b2') : (_dmIsDark?'#94a3b8':'#64748b');
@@ -1555,20 +1566,29 @@ function _getKanbanFiltered() {
     const startOfWeek = weekStart.toISOString().split('T')[0];
     const endOfWeek = new Date(new Date(startOfWeek).setDate(new Date(startOfWeek).getDate()+6)).toISOString().split('T')[0];
 
+    const patIdx = getPatientsIndex();
+    const vacIdx = getVaccinesIndex();
+    // Lido uma vez: dentro do filter isso era um getElementById por agendamento.
+    const dayValue = document.getElementById('filter-day-agenda')?.value || todayStr;
+
     return appointments.filter(a => {
-        const pat = patients.find(p=>p.id==a.patientId);
-        const vac = vaccines.find(v=>v.id==a.vaccineId);
-        if (!pat || !vac) return false;
-        const matchSearch = normalizeStr(pat.nome).includes(search) || normalizeStr(pat.cpf).includes(search);
-        const matchVendedor = !filterVendedor || a.vendedor === filterVendedor;
-        const matchAplicador = !filterAplicador || a.aplicador === filterAplicador;
+        // Filtra por data ANTES do lookup: descarta a maior parte sem tocar nos Maps.
         let matchDate = true;
         if (dateFilter === 'diario' || dateFilter === 'hoje') {
-            const dayValue = document.getElementById('filter-day-agenda')?.value || todayStr;
             matchDate = a.data === dayValue;
         } else if (dateFilter === 'semana') matchDate = a.data >= startOfWeek && a.data <= endOfWeek;
         else if (dateFilter === 'mes' && monthFilter) matchDate = a.data.startsWith(monthFilter);
-        return matchSearch && matchDate && matchVendedor && matchAplicador;
+        if (!matchDate) return false;
+
+        const pat = patIdx.get(String(a.patientId));
+        const vac = vacIdx.get(String(a.vaccineId));
+        if (!pat || !vac) return false;
+        // Vendedor/aplicador antes da busca: comparação de string simples é bem mais
+        // barata que o normalizeStr() (NFD + 2 regex) exigido pelo matchSearch.
+        if (filterVendedor && a.vendedor !== filterVendedor) return false;
+        if (filterAplicador && a.aplicador !== filterAplicador) return false;
+        if (!search) return true;
+        return normalizeStr(pat.nome).includes(search) || normalizeStr(pat.cpf).includes(search);
     });
 }
 
@@ -1774,8 +1794,8 @@ function renderKanbanGrouped() {
                 const firstB = appsB.reduce((minApp, app) => _kanbanApptDateTime(app) < _kanbanApptDateTime(minApp) ? app : minApp, appsB[0]);
                 const diff = _kanbanApptDateTime(firstA) - _kanbanApptDateTime(firstB);
                 if (diff !== 0) return diff;
-                const patA = patients.find(p => p.id == appsA[0].patientId);
-                const patB = patients.find(p => p.id == appsB[0].patientId);
+                const patA = getPatientById(appsA[0].patientId);
+                const patB = getPatientById(appsB[0].patientId);
                 const nameA = patA ? String(patA.nome || '') : '';
                 const nameB = patB ? String(patB.nome || '') : '';
                 return nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
@@ -1799,7 +1819,7 @@ function renderKanbanGrouped() {
             : { color: '#7c3aed', border: '#ddd6fe', light: '#faf5ff', text: '#6d28d9' };
 
         const groupsHtml = pageGroups.map(([patId, apps]) => {
-            const pat = patients.find(p => p.id == patId);
+            const pat = getPatientById(patId);
             if (!pat) return '';
             const totalVal = apps.reduce((s, a) => s + (parseBRL(String(a.valorAplicado || '0')) || 0), 0);
             const age = pat.dtNasc ? getAgeDisplay(pat.dtNasc) : '';
@@ -1812,7 +1832,7 @@ function renderKanbanGrouped() {
             const groupCol = allOutroLocal ? PURPLE : col;
 
             const minicardsHtml = apps.map(a => {
-                const vac = vaccines.find(v => v.id == a.vaccineId);
+                const vac = getVaccineById(a.vaccineId);
                 if (!vac) return '';
                 const isDelayed = a.data < todayStr && a.status === 'Agendado';
                 const isToday = a.data === todayStr && a.status === 'Agendado';

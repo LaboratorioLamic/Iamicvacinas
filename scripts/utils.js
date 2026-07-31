@@ -5,6 +5,71 @@ function normalizeStr(str) {
     return str.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
 }
 
+// ─── LOOKUP INDEXES ───────────────────────────────────────────────────────────
+// Substituem patients.find()/vaccines.find() dentro de laços (O(N×M) → O(N)).
+// O cache é auto-invalidante: guarda a referência do array e seu tamanho, então
+// reatribuições (`patients = ...`) e push/filter/map disparam rebuild sozinhos.
+// Mutação in-place de um item (ex.: patients[i].nome = x) não altera identidade
+// nem tamanho — e não precisa invalidar, pois o Map guarda o mesmo objeto.
+const _idxCache = { pat: null, patSrc: null, patLen: -1, vac: null, vacSrc: null, vacLen: -1 };
+
+function _buildIdIndex(arr) {
+    const m = new Map();
+    for (const item of arr) m.set(String(item.id), item);
+    return m;
+}
+
+function getPatientsIndex() {
+    if (_idxCache.patSrc !== patients || _idxCache.patLen !== patients.length) {
+        _idxCache.pat = _buildIdIndex(patients);
+        _idxCache.patSrc = patients;
+        _idxCache.patLen = patients.length;
+    }
+    return _idxCache.pat;
+}
+
+function getVaccinesIndex() {
+    if (_idxCache.vacSrc !== vaccines || _idxCache.vacLen !== vaccines.length) {
+        _idxCache.vac = _buildIdIndex(vaccines);
+        _idxCache.vacSrc = vaccines;
+        _idxCache.vacLen = vaccines.length;
+    }
+    return _idxCache.vac;
+}
+
+// Força rebuild no próximo acesso. Chamar após edições in-place que troquem `id`.
+function invalidateLookupIndexes() {
+    _idxCache.patSrc = null; _idxCache.patLen = -1;
+    _idxCache.vacSrc = null; _idxCache.vacLen = -1;
+}
+
+function getPatientById(id) { return getPatientsIndex().get(String(id)); }
+function getVaccineById(id) { return getVaccinesIndex().get(String(id)); }
+
+// ─── RENDER SCHEDULER ─────────────────────────────────────────────────────────
+// Um snapshot do Firebase costuma disparar renderCalendar + renderTable +
+// renderPatients + renderDashboard de uma vez, e vários snapshots podem chegar
+// em sequência. scheduleRender() agrupa as chamadas do mesmo frame: cada render
+// roda no máximo uma vez por frame, na ordem em que foi pedido.
+const _pendingRenders = new Map();
+let _renderFrame = null;
+
+function _flushRenders() {
+    _renderFrame = null;
+    const jobs = [..._pendingRenders.values()];
+    _pendingRenders.clear();
+    for (const fn of jobs) {
+        try { fn(); } catch (err) { console.error('[render]', err); }
+    }
+}
+
+function scheduleRender(name, fn) {
+    const job = fn || (typeof window[name] === 'function' ? window[name] : null);
+    if (!job) return;
+    _pendingRenders.set(name, job);
+    if (_renderFrame === null) _renderFrame = requestAnimationFrame(_flushRenders);
+}
+
 function getDisplayName(fullName) {
     if (!fullName) return { display: '—', initials: '?' };
     const parts = fullName.trim().split(/\s+/).filter(w => w.length > 0);
