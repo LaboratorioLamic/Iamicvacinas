@@ -971,12 +971,15 @@ function renderCalendar() {
                 cell.innerHTML = `<div class="text-right text-xs font-black mb-1 ${dateStr===todayStr?'text-clinic-600':'text-slate-400'}">${d}</div><div class="text-[9px] font-black text-red-500 bg-red-50 text-center rounded py-1 mt-auto border border-red-200 shadow-sm">FERIADO</div>`;
             } else {
                 const emAndamento = dayApps.filter(a => a.status === 'Em negociação').length;
-                const agendados = dayApps.filter(a => a.status === 'Agendado').length;
+                const agendadosTodos = dayApps.filter(a => a.status === 'Agendado');
+                const atrasados = dateStr < todayStr ? agendadosTodos.length : 0;
+                const agendados = agendadosTodos.length - atrasados;
                 const aplicados = dayApps.filter(a => a.status === 'Aplicado').length;
                 const cancelados = dayApps.filter(a => a.status === 'Perdido').length;
 
                 let summary = '';
                 if(emAndamento) summary += `<div class="text-[9px] font-black text-cyan-700 bg-cyan-50 border border-cyan-100 rounded px-1 mb-0.5 truncate shadow-sm">${emAndamento} NEGOCIANDO</div>`;
+                if(atrasados)   summary += `<div class="text-[9px] font-black text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 mb-0.5 truncate shadow-sm"><i class="fas fa-exclamation-triangle"></i> ${atrasados} ATRASADO(S)</div>`;
                 if(agendados)   summary += `<div class="text-[9px] font-black text-blue-700 bg-blue-50 border border-blue-100 rounded px-1 mb-0.5 truncate shadow-sm">${agendados} AGENDADO(S)</div>`;
                 if(aplicados)   summary += `<div class="text-[9px] font-black text-green-700 bg-green-50 border border-green-100 rounded px-1 mb-0.5 truncate shadow-sm">${aplicados} APLICADO(S)</div>`;
                 if(cancelados)  summary += `<div class="text-[9px] font-black text-red-700 bg-red-50 border border-red-100 rounded px-1 mb-0.5 truncate shadow-sm">${cancelados} PERDIDO(S)</div>`;
@@ -1539,6 +1542,7 @@ function switchTableView(view) {
         if (vPlan) vPlan.classList.add('hidden');
         if (vKan)  { vKan.style.display = 'flex'; vKan.style.flexDirection = 'column'; }
         if (statusSel) statusSel.style.display = 'none';
+        document.getElementById('table-pagination')?.remove();
         _kanbanPage = {};
         renderKanban();
     } else {

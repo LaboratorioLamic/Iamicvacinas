@@ -202,6 +202,12 @@ function renderTable() {
 // ─── PAGINAÇÃO DA PLANILHA ────────────────────────────────────────────────────
 function _renderTablePagination(pageInfo) {
     let bar = document.getElementById('table-pagination');
+    // A paginação da planilha só faz sentido na própria planilha — no kanban,
+    // cada coluna tem sua própria paginação (kanbanPageGo).
+    if (typeof tableView !== 'undefined' && tableView === 'kanban') {
+        if (bar) bar.remove();
+        return;
+    }
     const table = document.getElementById('table-body')?.closest('table');
     if (!table || !table.parentElement) return;
     if (!bar) {
