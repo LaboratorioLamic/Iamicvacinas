@@ -52,7 +52,81 @@ function initAuth() {
 
     document.getElementById('login-card').classList.remove('hidden');
     document.getElementById('first-admin-card').classList.add('hidden');
+    document.getElementById('register-card').classList.add('hidden');
+    updateSelfRegisterUI();
     screen.style.display = 'flex';
+}
+
+function showRegisterCard() {
+    document.getElementById('login-card').classList.add('hidden');
+    document.getElementById('register-card').classList.remove('hidden');
+    document.getElementById('register-form').reset();
+    document.getElementById('register-error').classList.add('hidden');
+    document.getElementById('reg-pwd-match-msg').classList.add('hidden');
+}
+
+function hideRegisterCard() {
+    document.getElementById('register-card').classList.add('hidden');
+    document.getElementById('login-card').classList.remove('hidden');
+}
+
+function checkRegisterPwdMatch() {
+    const senha  = document.getElementById('reg-user-senha').value;
+    const senha2 = document.getElementById('reg-user-senha2').value;
+    const msgEl  = document.getElementById('reg-pwd-match-msg');
+    const btn    = document.getElementById('register-submit-btn');
+    if (!senha2) { msgEl.classList.add('hidden'); btn.disabled = false; return; }
+    msgEl.classList.remove('hidden');
+    if (senha === senha2) {
+        msgEl.className = 'text-[10px] font-black mt-1 text-emerald-600';
+        msgEl.innerHTML = '<i class="fas fa-check-circle mr-1"></i>As senhas conferem.';
+        btn.disabled = false;
+    } else {
+        msgEl.className = 'text-[10px] font-black mt-1 text-red-600';
+        msgEl.innerHTML = '<i class="fas fa-times-circle mr-1"></i>As senhas não conferem.';
+        btn.disabled = true;
+    }
+}
+
+function doRegister(e) {
+    e.preventDefault();
+    const errEl = document.getElementById('register-error');
+    const msgEl = document.getElementById('register-error-msg');
+    errEl.classList.add('hidden');
+
+    if (!appSettings.allowSelfRegister) { msgEl.textContent = 'Autocadastro desativado. Contate um administrador.'; errEl.classList.remove('hidden'); return; }
+    if (!appSettings.defaultGroupId || !appGroups.some(g => g.id == appSettings.defaultGroupId)) {
+        msgEl.textContent = 'Nenhum grupo padrão configurado. Contate um administrador.'; errEl.classList.remove('hidden'); return;
+    }
+
+    const nome   = document.getElementById('reg-user-nome').value.trim().toUpperCase();
+    const cpf    = document.getElementById('reg-user-cpf').value.trim();
+    const login  = document.getElementById('reg-user-login').value.trim();
+    const senha  = document.getElementById('reg-user-senha').value;
+    const senha2 = document.getElementById('reg-user-senha2').value;
+
+    if (!nome) { msgEl.textContent = 'Informe o nome completo.'; errEl.classList.remove('hidden'); return; }
+    if (!/^[a-z0-9]+$/.test(login)) { msgEl.textContent = 'O login deve conter apenas letras minúsculas e números, sem espaços ou caracteres especiais.'; errEl.classList.remove('hidden'); return; }
+    if (appUsers.some(u => u.login === login)) { msgEl.textContent = 'Este login já está em uso.'; errEl.classList.remove('hidden'); return; }
+    if (appUsers.some(u => u.nome === nome)) { msgEl.textContent = 'Já existe um usuário cadastrado com este nome completo.'; errEl.classList.remove('hidden'); return; }
+    const cpfDigits = cpf.replace(/\D/g, '');
+    if (cpfDigits && appUsers.some(u => (u.cpf || '').replace(/\D/g, '') === cpfDigits)) { msgEl.textContent = 'Já existe um usuário cadastrado com este CPF.'; errEl.classList.remove('hidden'); return; }
+    if (senha.length < 6) { msgEl.textContent = 'A senha deve ter ao menos 6 caracteres.'; errEl.classList.remove('hidden'); return; }
+    if (senha !== senha2) { msgEl.textContent = 'As senhas não conferem.'; errEl.classList.remove('hidden'); return; }
+
+    const newUser = { id: Date.now(), nome, cpf, login, senhaHash: hashPwd(senha), grupoId: appSettings.defaultGroupId, isAdmin: false, ativo: true };
+    appUsers.push(newUser);
+    saveUsersData();
+    logAudit('Criado', 'usuario', newUser.id, nome, `Autocadastro · Login: ${login}`);
+
+    currentUser = { id: newUser.id, login: newUser.login, nome: newUser.nome };
+    localStorage.setItem('ig_session', JSON.stringify(currentUser));
+    document.getElementById('login-screen').style.display = 'none';
+    updateUserUI();
+    if (typeof updateContactsBadge === 'function') updateContactsBadge();
+    const firstTab = getFirstAllowedTab();
+    if (firstTab) switchTab(firstTab);
+    showNotification(`Bem-vindo, ${newUser.nome.split(' ')[0]}!`, 'success');
 }
 
 function toggleLoginPwd() {
@@ -74,6 +148,10 @@ function createFirstAdmin(e) {
     errEl.classList.add('hidden');
 
     if (!/^[a-z0-9]+$/.test(login)) { msgEl.textContent = 'O login deve conter apenas letras minúsculas e números, sem espaços ou caracteres especiais.'; errEl.classList.remove('hidden'); return; }
+    if (appUsers.some(u => u.login === login)) { msgEl.textContent = 'Este login já está em uso.'; errEl.classList.remove('hidden'); return; }
+    if (appUsers.some(u => u.nome === nome)) { msgEl.textContent = 'Já existe um usuário cadastrado com este nome completo.'; errEl.classList.remove('hidden'); return; }
+    const cpfDigitsAdmin = cpf.replace(/\D/g, '');
+    if (cpfDigitsAdmin && appUsers.some(u => (u.cpf || '').replace(/\D/g, '') === cpfDigitsAdmin)) { msgEl.textContent = 'Já existe um usuário cadastrado com este CPF.'; errEl.classList.remove('hidden'); return; }
     if (senha !== senha2) { msgEl.textContent = 'As senhas não conferem.'; errEl.classList.remove('hidden'); return; }
     if (senha.length < 6) { msgEl.textContent = 'A senha deve ter ao menos 6 caracteres.'; errEl.classList.remove('hidden'); return; }
 
@@ -117,6 +195,9 @@ function doLogout() {
     document.getElementById('login-input').value = '';
     document.getElementById('senha-input').value = '';
     document.getElementById('login-error').classList.add('hidden');
+    document.getElementById('login-card').classList.remove('hidden');
+    document.getElementById('register-card').classList.add('hidden');
+    updateSelfRegisterUI();
     document.getElementById('login-screen').style.display = 'flex';
     if (typeof updateContactsBadge === 'function') updateContactsBadge();
 }

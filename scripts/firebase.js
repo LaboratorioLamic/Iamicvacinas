@@ -79,6 +79,10 @@ function setupRealtimeSync() {
         appGroups = _fbToArr(snap.val());
         if (_appReady) { renderGroupsList(); populateGroupSelect(); }
     });
+    db.ref('appSettings').on('value', snap => {
+        appSettings = Object.assign({ allowSelfRegister: false, defaultGroupId: null }, snap.val() || {});
+        if (_appReady) { renderGroupsList(); if (typeof updateSelfRegisterUI === 'function') updateSelfRegisterUI(); }
+    });
 }
 
 function initFromFirebase() {
@@ -96,6 +100,7 @@ function initFromFirebase() {
         auditLog      = _fbToArr(data.auditLog).sort((a, b) => new Date(b.ts) - new Date(a.ts));
         appUsers      = _fbToArr(data.appUsers);
         appGroups     = _fbToArr(data.appGroups);
+        appSettings   = Object.assign({ allowSelfRegister: false, defaultGroupId: null }, data.appSettings || {});
         if (patients.length === 0 && vaccines.length === 0) {
             patients = [
                 {id:1, nome:'JOÃO DA SILVA', cpf:'111.111.111-11', dtNasc:'1990-05-15', contato:'88999999999', responsavel:''},
@@ -136,4 +141,8 @@ function saveUsersData() {
         appUsers:  _arrToFbObj(appUsers),
         appGroups: _arrToFbObj(appGroups)
     }).catch(err => console.error('[FB] saveUsersData:', err));
+}
+
+function saveAppSettings() {
+    db.ref('appSettings').set(appSettings).catch(err => console.error('[FB] saveAppSettings:', err));
 }

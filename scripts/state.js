@@ -67,6 +67,9 @@ let appGroups = [];
 localStorage.removeItem('ig_session');
 let currentUser = null;
 
+// System settings (autocadastro / grupo padrão)
+let appSettings = { allowSelfRegister: false, defaultGroupId: null };
+
 // Audit state
 let _auditCtx = { entityType: null, entityId: null, entityName: null };
 let _auditFilterMonth = null; // { year, month } ou null

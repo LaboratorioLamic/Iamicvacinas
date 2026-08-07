@@ -186,6 +186,15 @@ function saveUser(e) {
     const loginExists = appUsers.find(u => u.login === login && String(u.id) !== String(id));
     if (loginExists) { showNotification('Este login já está em uso por outro usuário.', 'error'); return; }
 
+    const nomeExists = appUsers.find(u => u.nome === nome && String(u.id) !== String(id));
+    if (nomeExists) { showNotification('Já existe um usuário cadastrado com este nome completo.', 'error'); return; }
+
+    const cpfDigits = cpf.replace(/\D/g, '');
+    if (cpfDigits) {
+        const cpfExists = appUsers.find(u => (u.cpf || '').replace(/\D/g, '') === cpfDigits && String(u.id) !== String(id));
+        if (cpfExists) { showNotification('Já existe um usuário cadastrado com este CPF.', 'error'); return; }
+    }
+
     if (senha && senha !== senha2) { showNotification('As senhas não conferem.', 'error'); return; }
     if (!id && !senha) { showNotification('Informe uma senha para o novo usuário.', 'error'); return; }
 
@@ -306,6 +315,7 @@ function renderGroupsList() {
     const canEditGroups = isCurrentUserAdmin() || hasPerm('criar_editar_grupos');
     el.innerHTML = appGroups.map(g => {
         const usersCount = appUsers.filter(u => u.grupoId == g.id).length;
+        const isDefault = appSettings.defaultGroupId == g.id;
         const perms = g.permissions || [];
         const permsHtml = perms.length
             ? perms.map(p => {
@@ -321,7 +331,10 @@ function renderGroupsList() {
                         <span class="text-white font-black text-xs">${initials}</span>
                     </div>
                     <div class="min-w-0">
-                        <h5 class="font-black text-navy-900 text-sm truncate">${g.nome}</h5>
+                        <h5 class="font-black text-navy-900 text-sm truncate flex items-center gap-1.5">
+                            ${g.nome}
+                            ${isDefault ? '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-black rounded-full uppercase"><i class="fas fa-star text-[8px]"></i>Padrão</span>' : ''}
+                        </h5>
                         <p class="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
                             <i class="fas fa-user text-[9px]"></i>
                             ${usersCount} usuário${usersCount !== 1 ? 's' : ''}
@@ -332,6 +345,7 @@ function renderGroupsList() {
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <div class="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        ${canEditGroups ? `<button onclick="setDefaultGroup(${g.id})" class="h-8 w-8 ${isDefault ? 'bg-amber-100 text-amber-500' : 'bg-slate-100 text-slate-400'} hover:bg-amber-500 hover:text-white rounded-xl transition text-xs flex items-center justify-center shadow-sm" title="${isDefault ? 'Grupo padrão do autocadastro' : 'Definir como grupo padrão do autocadastro'}"><i class="fas fa-star text-[10px]"></i></button>` : ''}
                         ${canEditGroups ? `<button onclick="editGroup(${g.id})" class="h-8 w-8 bg-slate-100 text-slate-500 hover:bg-blue-500 hover:text-white rounded-xl transition text-xs flex items-center justify-center shadow-sm" title="Editar grupo"><i class="fas fa-pen text-[10px]"></i></button>` : ''}
                         ${canEditGroups && usersCount === 0 ? `<button onclick="deleteGroup(${g.id})" class="h-8 w-8 bg-slate-100 text-slate-500 hover:bg-red-500 hover:text-white rounded-xl transition text-xs flex items-center justify-center shadow-sm" title="Excluir grupo"><i class="fas fa-trash text-[10px]"></i></button>` : ''}
                     </div>
@@ -488,8 +502,58 @@ function deleteGroup(id) {
     if (inUse) { showNotification('Não é possível excluir: grupo possui usuários vinculados.', 'error'); return; }
     showConfirmDanger('Excluir este grupo definitivamente?', () => {
         appGroups = appGroups.filter(g => String(g.id) !== String(id));
+        if (appSettings.defaultGroupId == id) {
+            appSettings.defaultGroupId = null;
+            saveAppSettings();
+        }
         saveUsersData();
         renderGroupsList();
         showNotification('Grupo excluído.', 'success');
     });
+}
+
+// ─── AUTOCADASTRO ─────────────────────────────────────────────────────────────
+
+function setDefaultGroup(id) {
+    if (!isCurrentUserAdmin() && !hasPerm('criar_editar_grupos')) {
+        showNotification('Acesso negado: você não tem permissão para configurar grupos.', 'error');
+        return;
+    }
+    appSettings.defaultGroupId = (appSettings.defaultGroupId == id) ? null : id;
+    saveAppSettings();
+    renderGroupsList();
+    const g = appGroups.find(x => x.id == id);
+    if (appSettings.defaultGroupId) {
+        showNotification(`"${g.nome}" definido como grupo padrão do autocadastro.`, 'success');
+    } else {
+        showNotification('Grupo padrão removido.', 'warning');
+    }
+}
+
+function toggleSelfRegister() {
+    if (!isCurrentUserAdmin() && !hasPerm('criar_editar_grupos')) {
+        showNotification('Acesso negado: você não tem permissão para esta ação.', 'error');
+        return;
+    }
+    if (!appSettings.allowSelfRegister && !appSettings.defaultGroupId) {
+        showNotification('Defina um grupo padrão (ícone de estrela) antes de ativar o autocadastro.', 'error');
+        return;
+    }
+    appSettings.allowSelfRegister = !appSettings.allowSelfRegister;
+    saveAppSettings();
+    updateSelfRegisterUI();
+    showNotification(`Autocadastro ${appSettings.allowSelfRegister ? 'ativado' : 'desativado'}.`, appSettings.allowSelfRegister ? 'success' : 'warning');
+}
+
+function updateSelfRegisterUI() {
+    const btn   = document.getElementById('btn-toggle-self-register');
+    const thumb = document.getElementById('thumb-toggle-self-register');
+    if (btn && thumb) {
+        const on = !!appSettings.allowSelfRegister;
+        btn.classList.toggle('bg-emerald-500', on);
+        btn.classList.toggle('bg-slate-300', !on);
+        thumb.style.transform = on ? 'translateX(28px)' : 'translateX(0)';
+    }
+    const link = document.getElementById('link-show-register');
+    if (link) link.classList.toggle('hidden', !appSettings.allowSelfRegister);
 }

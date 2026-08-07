@@ -253,6 +253,7 @@ function openSettings() {
     renderUsersList();
     renderGroupsList();
     populateGroupSelect();
+    updateSelfRegisterUI();
     // Controla visibilidade das sub-tabs conforme permissão
     const canU = isCurrentUserAdmin() || hasPerm('criar_editar_usuarios');
     const canG = isCurrentUserAdmin() || hasPerm('criar_editar_grupos');
