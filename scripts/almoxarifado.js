@@ -584,7 +584,11 @@ function hideFabLoteDropdown() {
 
 function filterFabLoteVaccines(q) {
     const norm = normalizeStr(q);
-    const filtered = norm ? _fabLoteVaccines.filter(v => normalizeStr(v.nome).includes(norm)) : _fabLoteVaccines;
+    const filtered = norm ? _fabLoteVaccines.filter(v =>
+        normalizeStr(v.nome).includes(norm) ||
+        (v.mnemonico && normalizeStr(v.mnemonico).includes(norm)) ||
+        vaccineLots.some(l => l.vaccineId == v.id && l.fabricante && normalizeStr(l.fabricante).includes(norm))
+    ) : _fabLoteVaccines;
     document.getElementById('fab-lote-vaccine').value = '';
     _renderFabLoteDropdown(filtered);
 }
