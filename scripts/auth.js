@@ -114,7 +114,7 @@ function doRegister(e) {
     if (senha.length < 6) { msgEl.textContent = 'A senha deve ter ao menos 6 caracteres.'; errEl.classList.remove('hidden'); return; }
     if (senha !== senha2) { msgEl.textContent = 'As senhas não conferem.'; errEl.classList.remove('hidden'); return; }
 
-    const newUser = { id: Date.now(), nome, cpf, login, senhaHash: hashPwd(senha), grupoId: appSettings.defaultGroupId, isAdmin: false, ativo: true };
+    const newUser = { id: Date.now(), nome, cpf, login, senhaHash: hashPwd(senha), grupoId: appSettings.defaultGroupId, isAdmin: false, ativo: true, isVendedor: true };
     appUsers.push(newUser);
     saveUsersData();
     logAudit('Criado', 'usuario', newUser.id, nome, `Autocadastro · Login: ${login}`);
