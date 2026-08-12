@@ -1858,7 +1858,9 @@ function renderKanbanGrouped() {
                         <p class="text-[10px] font-black truncate leading-tight" style="color:${_dl('#172554','#f1f5f9')}">${vac.nome}</p>
                         <p class="text-[9px] font-bold" style="color:${_dl('#94a3b8','#475569')}">${a.doseAtual} · ${dateLabel}${a.hora ? ' ' + a.hora : ''}</p>
                     </div>
-                     ${a.valorAplicado ? `<span class="text-[9px] font-black shrink-0 whitespace-nowrap" style="color:${_dl('#059669','#34d399')}">R$ ${a.valorAplicado}</span>` : ''}
+                     ${a.importedCPNI
+                        ? `<span title="Importado do CPNI" class="text-[9px] font-black shrink-0 whitespace-nowrap inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full" style="color:${_dl('#059669','#34d399')};background:${_dl('#d1fae5','#052e1c')};border:1px solid ${_dl('#a7f3d0','#065f46')}"><i class="fas fa-file-import"></i></span>`
+                        : (a.valorAplicado ? `<span class="text-[9px] font-black shrink-0 whitespace-nowrap" style="color:${_dl('#059669','#34d399')}">R$ ${a.valorAplicado}</span>` : '')}
                     ${isDelayed ? `<span class="text-[8px] font-black px-1 py-0.5 rounded-full shrink-0" style="color:${_dl('#991b1b','#fca5a5')};background:${_dl('#fee2e2','#450a0a')};border:1px solid ${_dl('#fecaca','#7f1d1d')}">!</span>` : ''}
                     ${isToday ? `<span class="text-[8px] font-black px-1 py-0.5 rounded-full shrink-0" style="color:${_dl('#92400e','#fbbf24')};background:${_dl('#fffbeb','#1c1500')};border:1px solid ${_dl('#fde68a','#78350f')}">Hoje</span>` : ''}
                 </div>`;
@@ -2038,7 +2040,8 @@ function kanbanMiniInGroupClick(event, id) {
 
 function _handleGroupDrop(patId, fromStatus, targetStatus) {
     if (!patId || fromStatus === targetStatus) return;
-    const groupApps = appointments.filter(a => a.patientId == patId && a.status === fromStatus);
+    // Registros importados do CPNI são somente-leitura e sempre "Aplicado": nunca participam de ações de grupo/drag.
+    const groupApps = appointments.filter(a => a.patientId == patId && a.status === fromStatus && !a.importedCPNI);
     if (!groupApps.length) return;
 
     if (targetStatus === 'Aplicado') {
@@ -2074,6 +2077,7 @@ function _handleGroupDrop(patId, fromStatus, targetStatus) {
 // ─── MODAL: AGENDAR GRUPO ─────────────────────────────────────────────────────
 
 function openAgendarGrupoModal(patId, fromStatus, groupApps) {
+    groupApps = groupApps.filter(a => !a.importedCPNI); // registros importados do CPNI não entram em ações de grupo
     _agendarGrupoPending = {
         patId: String(patId),
         fromStatus,
@@ -2955,6 +2959,7 @@ function closeOportunidadeDescontoModal() {
 }
 
 function openAplicarGrupoModal(patId, fromStatus, groupApps) {
+    groupApps = groupApps.filter(a => !a.importedCPNI); // registros importados do CPNI não entram em ações de grupo
     if (!checkPerm('aplicar')) return;
     if (!isCurrentUserAdmin() && !hasPerm('aplicar')) {
         showNotification('Apenas usuários com permissão de aplicador podem registrar aplicações.', 'error');
@@ -3300,6 +3305,7 @@ function closeAplicarGrupoModal() {
 // ─── MODAL: MOVER GRUPO PARA PERDIDO ─────────────────────────────────────────
 
 function openMoverGrupoPerdidoModal(patId, fromStatus, groupApps) {
+    groupApps = groupApps.filter(a => !a.importedCPNI); // registros importados do CPNI não entram em ações de grupo
     _moverGrupoPerdidoPending = { patId: String(patId), fromStatus, apps: groupApps };
 
     const pat = patients.find(p => p.id == patId);

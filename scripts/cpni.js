@@ -441,13 +441,17 @@ function finishCpniImportModal() {
     _cpniResetState();
 }
 
-// ─── VISUALIZAÇÃO SOMENTE-LEITURA DE REGISTRO IMPORTADO ─────────────────────
+// ─── VISUALIZAÇÃO / EDIÇÃO (vacina associada + lote) DE REGISTRO IMPORTADO ──
+// Somente-leitura por padrão. Quem tem permissão de aplicar vacinas pode reassociar
+// a vacina do catálogo e corrigir o texto do lote — nunca o status, data, paciente
+// ou dose, e nunca toca em loteId/estoque (continua null, fora do almoxarifado).
 
 function viewCpniRecord(id) {
     const a = appointments.find(x => x.id == id);
     if (!a) return;
     const pat = patients.find(x => x.id == a.patientId);
     const vac = vaccines.find(x => x.id == a.vaccineId);
+    window._cvrCurrentId = id;
 
     document.getElementById('cvr-avatar').textContent = pat ? (pat.nome || '?')[0].toUpperCase() : '?';
     document.getElementById('cvr-patient-name').textContent = pat ? pat.nome : '—';
@@ -455,18 +459,125 @@ function viewCpniRecord(id) {
     document.getElementById('cvr-patient-meta').textContent = [pat?.cpf, age].filter(Boolean).join(' · ');
     document.getElementById('cvr-vaccine-name').textContent = vac ? vac.nome : '—';
     document.getElementById('cvr-dose').textContent = a.doseAtual || '—';
+    document.getElementById('cvr-dose-edit').textContent = a.doseAtual || '—';
     document.getElementById('cvr-data').textContent = a.data ? a.data.split('-').reverse().join('/') : '—';
     document.getElementById('cvr-lote').textContent = a.lote || '—';
     document.getElementById('cvr-importado-em').textContent = a.importedAt
         ? new Date(a.importedAt).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
         : '—';
 
+    // Campos de edição (ficam prontos por baixo, mas ocultos até entrar no modo edição)
+    document.getElementById('cvr-vaccine-search').value = vac ? vac.nome : '';
+    document.getElementById('cvr-vaccine-value').value = vac ? vac.id : '';
+    document.getElementById('cvr-lote-input').value = a.lote || '';
+
     const prontuarioBtn = document.getElementById('cvr-btn-prontuario');
     prontuarioBtn.onclick = (e) => { e.stopPropagation(); closeCpniViewRecord(); if (typeof viewPatientHistory === 'function') viewPatientHistory(a.patientId); };
+
+    const canEdit = (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) || (typeof hasPerm === 'function' && hasPerm('aplicar'));
+    document.getElementById('cvr-btn-editar').classList.toggle('hidden', !canEdit);
+    _cvrSetEditMode(false);
 
     document.getElementById('modal-view-cpni-record').classList.add('active');
 }
 
+function _cvrSetEditMode(editing) {
+    document.getElementById('cvr-vaccine-card-view').classList.toggle('hidden', editing);
+    document.getElementById('cvr-vaccine-card-edit').classList.toggle('hidden', !editing);
+    document.getElementById('cvr-lote-cell-view').classList.toggle('hidden', editing);
+    document.getElementById('cvr-lote-cell-edit').classList.toggle('hidden', !editing);
+    document.getElementById('cvr-info-box').classList.toggle('hidden', editing);
+    document.getElementById('cvr-btn-save-edit').classList.toggle('hidden', !editing);
+    document.getElementById('cvr-btn-cancel-edit').textContent = editing ? 'Cancelar' : 'Fechar';
+}
+
+function toggleCpniEditMode() {
+    const editing = !document.getElementById('cvr-vaccine-card-edit').classList.contains('hidden');
+    if (editing) {
+        // Cancelar: restaura os campos de edição ao valor atual do registro e sai do modo edição
+        const a = appointments.find(x => x.id == window._cvrCurrentId);
+        const vac = a ? vaccines.find(v => v.id == a.vaccineId) : null;
+        document.getElementById('cvr-vaccine-search').value = vac ? vac.nome : '';
+        document.getElementById('cvr-vaccine-value').value = vac ? vac.id : '';
+        document.getElementById('cvr-lote-input').value = a ? (a.lote || '') : '';
+        _cvrSetEditMode(false);
+    } else {
+        _cvrSetEditMode(true);
+    }
+}
+
+function _cvrFilterVaccineDropdown() {
+    const input = document.getElementById('cvr-vaccine-search');
+    const dd = document.getElementById('cvr-vaccine-dropdown');
+    if (!input || !dd) return;
+    const val = normalizeStr(input.value);
+    const ativos = vaccines.filter(v => v.ativo !== false);
+    const matches = (val ? ativos.filter(v => {
+        if (normalizeStr(v.nome).includes(val)) return true;
+        if (v.mnemonico && normalizeStr(v.mnemonico).includes(val)) return true;
+        return vaccineLots.some(l => l.vaccineId == v.id && l.fabricante && normalizeStr(l.fabricante).includes(val));
+    }) : ativos).sort((a,b) => a.nome.localeCompare(b.nome,'pt-BR'));
+
+    if (!matches.length) { dd.innerHTML = '<div class="px-3 py-2 text-xs text-slate-400 font-bold">Nenhuma vacina encontrada</div>'; dd.classList.remove('hidden'); return; }
+    dd.innerHTML = matches.map(v =>
+        `<div class="px-3 py-2 hover:bg-clinic-50 hover:text-clinic-700 cursor-pointer text-sm font-bold text-navy-900 border-b border-slate-100 last:border-0 transition uppercase"
+              onmousedown="_cvrSelectVaccine(${v.id},'${v.nome.replace(/'/g,"\\'")}')">
+            <span>${v.nome}</span>
+            ${v.mnemonico ? `<br><span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case mt-0.5">${v.mnemonico}</span>` : ''}
+        </div>`
+    ).join('');
+    dd.classList.remove('hidden');
+}
+
+function _cvrHideVaccineDropdown() {
+    setTimeout(() => { const dd = document.getElementById('cvr-vaccine-dropdown'); if (dd) dd.classList.add('hidden'); }, 150);
+}
+
+function _cvrSelectVaccine(vaccineId, nome) {
+    document.getElementById('cvr-vaccine-search').value = nome;
+    document.getElementById('cvr-vaccine-value').value = vaccineId;
+    document.getElementById('cvr-vaccine-dropdown').classList.add('hidden');
+}
+
+function saveCpniRecordEdit() {
+    const canEdit = (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) || (typeof hasPerm === 'function' && hasPerm('aplicar'));
+    if (!canEdit) { showNotification('Apenas usuários com permissão de aplicador podem editar registros do CPNI.', 'error'); return; }
+
+    const id = window._cvrCurrentId;
+    const idx = appointments.findIndex(x => x.id == id);
+    if (idx < 0) return;
+
+    const newVaccineId = Number(document.getElementById('cvr-vaccine-value').value) || null;
+    if (!newVaccineId || !vaccines.find(v => v.id == newVaccineId)) {
+        showNotification('Selecione uma vacina válida da lista.', 'error');
+        return;
+    }
+    const newLote = document.getElementById('cvr-lote-input').value.trim().toUpperCase();
+
+    const old = appointments[idx];
+    const oldVac = vaccines.find(v => v.id == old.vaccineId);
+    const newVac = vaccines.find(v => v.id == newVaccineId);
+
+    // Só troca vaccineId/lote — status, data, dose, paciente e loteId (estoque) permanecem intocados.
+    appointments[idx] = { ...old, vaccineId: newVaccineId, lote: newLote };
+
+    logAudit('Editado', 'importacao_cpni', old.id,
+        `${(patients.find(p=>p.id==old.patientId)||{}).nome || '—'} | Registro CPNI`,
+        null,
+        [
+            { field: 'Vacina', de: oldVac ? oldVac.nome : '—', para: newVac ? newVac.nome : '—' },
+            { field: 'Lote', de: old.lote || '—', para: newLote || '—' }
+        ]
+    );
+
+    saveAll();
+    renderPatients(); renderCalendar(); renderTable(); renderDashboard();
+    if (typeof refreshOpenModals === 'function') refreshOpenModals();
+    showNotification('Registro CPNI atualizado com sucesso!', 'success');
+    viewCpniRecord(id); // recarrega o modal em modo leitura com os novos dados
+}
+
 function closeCpniViewRecord() {
     document.getElementById('modal-view-cpni-record').classList.remove('active');
+    window._cvrCurrentId = null;
 }

@@ -4751,6 +4751,9 @@
                     <span class="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full" style="background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.3);">Aplicado</span>
                     <span class="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200"><i class="fas fa-file-import mr-1"></i>Importado CPNI</span>
                     <div class="flex-1"></div>
+                    <button id="cvr-btn-editar" onclick="toggleCpniEditMode()" title="Editar vacina/lote" class="hidden h-8 w-8 rounded-xl flex items-center justify-center transition vr-pron-btn">
+                        <i class="fas fa-pencil-alt text-sm"></i>
+                    </button>
                     <button id="cvr-btn-prontuario" title="Prontuário vacinal" class="h-8 w-8 rounded-xl flex items-center justify-center transition vr-pron-btn">
                         <i class="fas fa-clipboard-list text-sm"></i>
                     </button>
@@ -4771,7 +4774,7 @@
 
             <!-- Body -->
             <div class="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4 vr-body">
-                <div class="rounded-2xl p-4 flex items-center gap-4 vr-vaccine-card">
+                <div class="rounded-2xl p-4 flex items-center gap-4 vr-vaccine-card" id="cvr-vaccine-card-view">
                     <div class="h-11 w-11 rounded-xl flex items-center justify-center shrink-0" style="background:linear-gradient(135deg,#22c55e,#15803d);box-shadow:0 4px 14px rgba(34,197,94,0.3);">
                         <i class="fas fa-syringe text-white text-base"></i>
                     </div>
@@ -4781,14 +4784,32 @@
                     </div>
                 </div>
 
+                <!-- Modo edição: associar vacina (busca) — oculto por padrão -->
+                <div id="cvr-vaccine-card-edit" class="hidden rounded-2xl p-4 vr-vaccine-card">
+                    <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5 mb-1.5"><i class="fas fa-syringe vr-label-icon"></i>Vacina associada</span>
+                    <div class="relative" id="cvr-vaccine-search-wrap">
+                        <input type="text" id="cvr-vaccine-search" autocomplete="off"
+                            oninput="_cvrFilterVaccineDropdown()" onfocus="_cvrFilterVaccineDropdown()" onblur="_cvrHideVaccineDropdown()"
+                            placeholder="Pesquisar por nome, mnemônico ou fabricante..."
+                            class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm font-bold uppercase focus:ring-2 focus:ring-clinic-500 outline-none">
+                        <input type="hidden" id="cvr-vaccine-value">
+                        <div id="cvr-vaccine-dropdown" class="hidden absolute z-[10] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
+                    </div>
+                    <p id="cvr-dose-edit" class="text-[11px] font-bold mt-2" style="color:#15803d"></p>
+                </div>
+
                 <div class="grid grid-cols-2 gap-3">
                     <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
                         <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-calendar-day vr-label-icon"></i>Data de Aplicação</span>
                         <span id="cvr-data" class="text-sm font-black vr-value"></span>
                     </div>
-                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
+                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell" id="cvr-lote-cell-view">
                         <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-barcode vr-label-icon"></i>Lote</span>
                         <span id="cvr-lote" class="text-sm font-black font-mono vr-value"></span>
+                    </div>
+                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell hidden" id="cvr-lote-cell-edit">
+                        <label for="cvr-lote-input" class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-barcode vr-label-icon"></i>Lote</label>
+                        <input type="text" id="cvr-lote-input" class="w-full border-0 p-0 bg-transparent text-sm font-black font-mono vr-value outline-none focus:ring-0" placeholder="—">
                     </div>
                 </div>
 
@@ -4797,7 +4818,7 @@
                     <span id="cvr-importado-em" class="text-sm font-black vr-value"></span>
                 </div>
 
-                <div class="flex items-start gap-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                <div id="cvr-info-box" class="flex items-start gap-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
                     <i class="fas fa-circle-info text-slate-400 text-xs mt-0.5 shrink-0"></i>
                     <p class="text-[11px] text-slate-500 font-bold leading-relaxed">Registro importado do CPNI. Não afeta o estoque e não pode ser editado — apenas visualizado ou excluído.</p>
                 </div>
@@ -4805,8 +4826,13 @@
 
             <!-- Footer -->
             <div class="px-6 pb-6 pt-3 flex gap-3 shrink-0 vr-footer">
-                <button onclick="closeCpniViewRecord()" class="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition vr-cancel-btn">
+                <button id="cvr-btn-cancel-edit" onclick="closeCpniViewRecord()" class="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition vr-cancel-btn">
                     Fechar
+                </button>
+                <button id="cvr-btn-save-edit" onclick="saveCpniRecordEdit()"
+                    class="hidden flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-wider text-white flex items-center justify-center gap-2 transition hover:opacity-90 shadow-lg"
+                    style="background:linear-gradient(135deg,#22c55e,#15803d);box-shadow:0 4px 20px rgba(34,197,94,0.35);">
+                    <i class="fas fa-check text-[11px]"></i> Salvar
                 </button>
             </div>
         </div>

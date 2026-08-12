@@ -27,7 +27,9 @@ function renderPatients(resetPage = true) {
 
         grid.innerHTML += `<div class="bg-white border border-slate-200 p-3 rounded-xl shadow-sm hover:shadow-md transition relative flex flex-col gap-2 group">
             <div class="absolute top-2 right-2 flex items-center gap-1">
-                ${p.dadosIncompletos ? `<span title="Dados incompletos — cadastre o responsável" class="h-6 w-6 rounded-md flex items-center justify-center text-xs shrink-0 animate-pulse" style="background:#fee2e2;color:#dc2626"><i class="fas fa-triangle-exclamation"></i></span>` : ''}
+                ${p.dadosIncompletos
+                    ? `<span title="Dados incompletos — cadastre o responsável" class="h-6 w-6 rounded-md flex items-center justify-center text-xs shrink-0 animate-pulse" style="background:#fee2e2;color:#dc2626"><i class="fas fa-triangle-exclamation"></i></span>`
+                    : (!p.contato ? `<span title="Sem número de WhatsApp cadastrado" class="h-6 w-6 rounded-md flex items-center justify-center text-xs shrink-0" style="background:#fef3c7;color:#d97706"><i class="fas fa-triangle-exclamation"></i></span>` : '')}
                 ${permBtn('editar_paciente', `<button onclick="editPatient(${p.id})" class="text-slate-300 hover:text-clinic-600 transition text-xs" title="Editar"><i class="fas fa-pen"></i></button>`)}
                 ${!hasAppointments ? permBtn('excluir_paciente', `<button onclick="deletePatient(${p.id})" class="text-slate-300 hover:text-red-500 transition text-xs" title="Excluir"><i class="fas fa-trash"></i></button>`) : ''}
             </div>
@@ -329,15 +331,21 @@ function renderHistCard(a) {
     const outroBadge  = isOutroLocal
         ? `<span class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-violet-100 text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full ml-2"><i class="fas fa-map-marker-alt text-[8px]"></i> Outro local</span>`
         : '';
+    const cpniBadge = a.importedCPNI
+        ? `<span title="Importado do CPNI" class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full ml-2"><i class="fas fa-file-import text-[8px]"></i> CPNI</span>`
+        : '';
 
     return `
     <button onclick="viewRecord(${a.id})" class="w-full text-left ${bgClass} p-4 rounded-xl border ${borderClass} shadow-sm hover:shadow-md transition flex flex-col md:flex-row justify-between items-start md:items-center mb-3 group">
         <div class="flex items-center gap-4 mb-2 md:mb-0">
-            <div class="h-10 w-10 bg-white rounded-full flex justify-center items-center shadow-sm text-lg border border-slate-100 group-hover:scale-110 transition duration-300"><i class="fas ${iconClass}"></i></div>
+            <div class="h-10 w-10 bg-white rounded-full flex justify-center items-center shadow-sm text-lg border border-slate-100 group-hover:scale-110 transition duration-300 relative">
+                <i class="fas ${iconClass}"></i>
+                ${a.importedCPNI ? `<span title="Importado do CPNI" class="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-emerald-500 text-white flex items-center justify-center border-2 border-white text-[7px]"><i class="fas fa-file-import"></i></span>` : ''}
+            </div>
             <div>
                 <p class="font-black text-navy-900 text-[15px] uppercase tracking-tight">${vac.nome}</p>
                 <p class="text-[11px] text-slate-500 font-bold flex items-center flex-wrap gap-1">
-                    ${a.doseAtual} <span class="mx-1">•</span> <span class="${stTextClass} uppercase tracking-wider">${statusLabel}</span>${outroBadge}
+                    ${a.doseAtual} <span class="mx-1">•</span> <span class="${stTextClass} uppercase tracking-wider">${statusLabel}</span>${outroBadge}${cpniBadge}
                 </p>
             </div>
         </div>
@@ -431,19 +439,8 @@ async function downloadVaccineCalendarPDF() {
     const light   = [238, 242, 247];     // #eef2f7
     const border  = [226, 232, 240];    // slate-200
 
-    // ── Fundo ──────────────────────────────────────────────────────────────────
-    doc.setFillColor(...light);
-    doc.rect(0, 0, W, H, 'F');
-
-    // ── Header block ───────────────────────────────────────────────────────────
-    doc.setFillColor(...navy);
-    doc.rect(0, 0, W, 42, 'F');
-
-    // Barra accent lateral esquerda no header
-    doc.setFillColor(...accent);
-    doc.rect(0, 0, 6, 42, 'F');
-
-    // Logo (carregada via base64 via canvas)
+    // ── Logo do header (carregada uma vez, reaproveitada em toda página) ────────
+    let headerLogo = null; // { dataUrl, lW, lH }
     try {
         const logoUrl = 'https://i.imgur.com/EIxKgPF.png';
         const img = await new Promise((res, rej) => {
@@ -454,50 +451,85 @@ async function downloadVaccineCalendarPDF() {
         const canvas = document.createElement('canvas');
         canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
         canvas.getContext('2d').drawImage(img, 0, 0);
-        const dataUrl = canvas.toDataURL('image/png');
-        // logo no canto direito do header, proporcional, altura ~24 mm
         const ratio = img.naturalWidth / img.naturalHeight;
         const lH = 24, lW = lH * ratio;
-        doc.addImage(dataUrl, 'PNG', W - lW - 14, (42 - lH) / 2 - 3, lW, lH);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(6);
-        doc.setTextColor(...white);
-        const endY = (42 - lH) / 2 - 3 + lH + 3.5;
-        doc.text('Rua Padre Cícero, 759 - Centro - Juazeiro do Norte - CE', W - lW - 14 + lW / 2, endY, { align: 'center' });
+        headerLogo = { dataUrl: canvas.toDataURL('image/png'), lW, lH };
     } catch(e) { /* logo opcional */ }
 
-    // Título no header
-    doc.setTextColor(...white);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text('CALENDÁRIO DE VACINAÇÃO', 14, 18);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(...accent);
-    doc.text('IMUNOGEST  •  REGISTRO VACINAL DO PACIENTE', 14, 25);
-
-    // Linha separadora decorativa
-    doc.setFillColor(...accent);
-    doc.rect(14, 30, 60, 0.8, 'F');
-
-    // Data de emissão
-    doc.setTextColor(...white);
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
     const hoje = new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'});
-    doc.text(`Emitido em: ${hoje}`, 14, 38);
+
+    // Desenha o fundo da página + o header (faixa navy, logo, título, data) — chamado
+    // na primeira página e novamente a cada doc.addPage(), pra repetir em todas.
+    function drawPageHeader() {
+        // ── Fundo ──────────────────────────────────────────────────────────────
+        doc.setFillColor(...light);
+        doc.rect(0, 0, W, H, 'F');
+
+        // ── Header block ──────────────────────────────────────────────────────
+        doc.setFillColor(...navy);
+        doc.rect(0, 0, W, 42, 'F');
+
+        // Barra accent lateral esquerda no header
+        doc.setFillColor(...accent);
+        doc.rect(0, 0, 6, 42, 'F');
+
+        // Logo
+        if (headerLogo) {
+            const { dataUrl, lW, lH } = headerLogo;
+            doc.addImage(dataUrl, 'PNG', W - lW - 14, (42 - lH) / 2 - 3, lW, lH);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(6);
+            doc.setTextColor(...white);
+            const endY = (42 - lH) / 2 - 3 + lH + 3.5;
+            doc.text('Rua Padre Cícero, 759 - Centro - Juazeiro do Norte - CE', W - lW - 14 + lW / 2, endY, { align: 'center' });
+        }
+
+        // Título no header
+        doc.setTextColor(...white);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.text('CALENDÁRIO DE VACINAÇÃO', 14, 18);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(...accent);
+        doc.text('IMUNOGEST  •  REGISTRO VACINAL DO PACIENTE', 14, 25);
+
+        // Linha separadora decorativa
+        doc.setFillColor(...accent);
+        doc.rect(14, 30, 60, 0.8, 'F');
+
+        // Data de emissão
+        doc.setTextColor(...white);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Emitido em: ${hoje}`, 14, 38);
+    }
+
+    drawPageHeader();
 
     // ── Card de dados do paciente ──────────────────────────────────────────────
     const cardY = 50;
+    const col1x = 22, col2x = 115;
+    const cardRightEdge = W - 16;
+
+    // Nome do responsável pode ser longo — quebra em várias linhas dentro da largura da coluna 2
+    // e cresce a altura do card conforme necessário, pra nunca estourar a borda.
+    const respColW = cardRightEdge - col2x;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    const parentescoStr = p.responsavelParentesco ? ` (${p.responsavelParentesco})` : '';
+    const responsavelLines = p.responsavel ? doc.splitTextToSize(p.responsavel, respColW) : [];
+    const extraLinesResp = Math.max(0, responsavelLines.length - 1);
+    const cardH = 48 + extraLinesResp * 4.2;
+
     doc.setFillColor(...white);
-    doc.roundedRect(12, cardY, W - 24, 48, 4, 4, 'F');
+    doc.roundedRect(12, cardY, W - 24, cardH, 4, 4, 'F');
     doc.setDrawColor(...border);
     doc.setLineWidth(0.3);
-    doc.roundedRect(12, cardY, W - 24, 48, 4, 4, 'S');
+    doc.roundedRect(12, cardY, W - 24, cardH, 4, 4, 'S');
 
     // Barra lateral esquerda accent no card
     doc.setFillColor(...navyMid);
-    doc.roundedRect(12, cardY, 4, 48, 2, 2, 'F');
+    doc.roundedRect(12, cardY, 4, cardH, 2, 2, 'F');
 
     // Nome do paciente (grande)
     doc.setTextColor(...navy);
@@ -508,14 +540,13 @@ async function downloadVaccineCalendarPDF() {
     // Linha divisória fina
     doc.setDrawColor(...border);
     doc.setLineWidth(0.2);
-    doc.line(22, cardY + 17, W - 16, cardY + 17);
+    doc.line(22, cardY + 17, cardRightEdge, cardY + 17);
 
     // Dados em duas colunas
     const idade = getAgeDisplay(p.dtNasc);
     const dtFormatada = p.dtNasc ? p.dtNasc.split('-').reverse().join('/') : '—';
     const cpfFormatado = p.cpf ? p.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—';
 
-    const col1x = 22, col2x = 115;
     const rowY1 = cardY + 26, rowY2 = cardY + 38;
 
     const label = (txt, x, y) => {
@@ -531,9 +562,9 @@ async function downloadVaccineCalendarPDF() {
     label('Data de Nascimento', col2x, rowY1); value(dtFormatada, col2x, rowY1);
     label('CPF', col1x, rowY2);           value(cpfFormatado, col1x, rowY2);
     if (p.responsavel) {
-        const parentescoStr = p.responsavelParentesco ? ` (${p.responsavelParentesco})` : '';
         label(`Responsável${parentescoStr}`, col2x, rowY2);
-        value(p.responsavel, col2x, rowY2);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...navy);
+        doc.text(responsavelLines, col2x, rowY2 + 5, { maxWidth: respColW, lineHeightFactor: 1.15 });
     }
 
     // ── Tabela de Vacinas ──────────────────────────────────────────────────────
@@ -565,7 +596,7 @@ async function downloadVaccineCalendarPDF() {
         });
     });
 
-    const tableStartY = cardY + 56;
+    const tableStartY = cardY + cardH + 8;
 
     // Título da seção
     doc.setFillColor(...navyMid);
@@ -599,13 +630,16 @@ async function downloadVaccineCalendarPDF() {
         });
 
         // Linhas da tabela
+        // Reserva a faixa do rodapé (imagem da assinatura + linha + nome + rodapé preto) em TODAS as páginas —
+        // a assinatura é desenhada depois, por cima de cada página, então a tabela precisa parar bem antes dela.
+        // sigLineY = H-27; o topo da imagem da assinatura fica em sigLineY - 9 - 5 = H-41.
+        const FOOTER_RESERVED_Y = H - 41;
         let curY = tY + 7;
         rows.forEach((row, idx) => {
-            if (curY > H - 20) {
+            if (curY + 10 > FOOTER_RESERVED_Y) {
                 doc.addPage();
-                doc.setFillColor(...light);
-                doc.rect(0, 0, W, H, 'F');
-                curY = 20;
+                drawPageHeader();
+                curY = 50;
             }
 
             if (idx % 2 === 0) {
