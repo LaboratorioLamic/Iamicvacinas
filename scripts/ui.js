@@ -619,7 +619,10 @@ function populateVaccineSelects() {
 
 function populateCancelReasons() {
     const sel = document.getElementById('reg-motivo-cancelamento');
-    sel.innerHTML = '<option value="">Selecione...</option>' + cancelReasons.map(r => `<option value="${r}">${r}</option>`).join('');
+    const cur = sel.value;
+    const sorted = [...cancelReasons].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+    sel.innerHTML = '<option value="">Selecione...</option>' + sorted.map(r => `<option value="${r}">${r}</option>`).join('');
+    if (cur) sel.value = cur;
 }
 
 function populateGroupSelect() {

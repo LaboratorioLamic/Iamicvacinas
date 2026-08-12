@@ -1329,7 +1329,10 @@ function openCancelReasonsModal() {
 
 function renderCancelReasons() {
     const list = document.getElementById('reasons-list');
-    list.innerHTML = cancelReasons.map((r, i) => `
+    const sorted = cancelReasons
+        .map((r, i) => ({ r, i }))
+        .sort((a, b) => a.r.localeCompare(b.r, 'pt-BR', { sensitivity: 'base' }));
+    list.innerHTML = sorted.map(({ r, i }) => `
         <li class="py-3 px-2 flex justify-between items-center hover:bg-slate-50 transition rounded-lg">
             <span class="text-sm font-bold text-slate-700">${r}</span>
             <div class="flex gap-2">
@@ -1343,7 +1346,8 @@ function renderCancelReasons() {
     const kanbanSel = document.getElementById('kanban-cancel-reason');
     if (kanbanSel) {
         const cur = kanbanSel.value;
-        kanbanSel.innerHTML = '<option value="">Selecione o motivo...</option>' + cancelReasons.map(r=>`<option value="${r}">${r}</option>`).join('');
+        const sortedReasons = [...cancelReasons].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+        kanbanSel.innerHTML = '<option value="">Selecione o motivo...</option>' + sortedReasons.map(r=>`<option value="${r}">${r}</option>`).join('');
         if (cur) kanbanSel.value = cur;
     }
 }
@@ -1596,7 +1600,9 @@ function saveRecord(e) {
         status: statusVal,
         loteId: loteId,
         lote: loteNumero,
-        motivoCancelamento: statusVal === 'Perdido' ? document.getElementById('reg-motivo-cancelamento').value : '',
+        motivoCancelamento: statusVal === 'Perdido'
+            ? (document.getElementById('reg-aplicada-outro-local')?.checked ? 'Aplicou em outro local' : document.getElementById('reg-motivo-cancelamento').value)
+            : '',
         aplicadaOutroLocal: document.getElementById('reg-aplicada-outro-local')?.checked || false,
         pedido: pedidoVal,
         vendedor: vendedorVal,

@@ -761,6 +761,7 @@ function confirmDismissOpp() {
 
     const { patId, vacId, dose } = _dismissPending;
     const vac   = vaccines.find(x => x.id == vacId);
+    const motivoFinal = aplicadaOutroLocal ? 'Aplicou em outro local' : motivo;
     const dataPerda = document.getElementById('dismiss-opp-data')?.value || new Date().toISOString().split('T')[0];
     const vendedorNome = (typeof currentUser !== 'undefined' && currentUser)
         ? (currentUser.nome || '').toUpperCase()
@@ -779,7 +780,7 @@ function confirmDismissOpp() {
         status:             'Perdido',
         loteId:             null,
         lote:               '',
-        motivoCancelamento: motivo,
+        motivoCancelamento: motivoFinal,
         aplicadaOutroLocal: aplicadaOutroLocal,
         vendedor:           vendedorNome,
         aplicador:          ''
