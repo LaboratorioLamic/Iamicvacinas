@@ -6,7 +6,7 @@ function downloadBackup() {
         version: 2,
         exportedAt: new Date().toISOString(),
         patients, vaccines, appointments, cancelReasons, holidays, vaccineLots, stockMovements,
-        appUsers, appGroups
+        appUsers, appGroups, cpniImunoMap
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
@@ -85,6 +85,7 @@ function doBackupUpload() {
     stockMovements = d.stockMovements || [];
     if (d.appUsers)  appUsers  = d.appUsers;
     if (d.appGroups) appGroups = d.appGroups;
+    if (d.cpniImunoMap) cpniImunoMap = d.cpniImunoMap;
     saveAll();
     saveUsersData();
     pendingBackupData = null;

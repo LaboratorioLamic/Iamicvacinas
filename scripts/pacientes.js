@@ -27,6 +27,7 @@ function renderPatients(resetPage = true) {
 
         grid.innerHTML += `<div class="bg-white border border-slate-200 p-3 rounded-xl shadow-sm hover:shadow-md transition relative flex flex-col gap-2 group">
             <div class="absolute top-2 right-2 flex items-center gap-1">
+                ${p.dadosIncompletos ? `<span title="Dados incompletos — cadastre o responsável" class="h-6 w-6 rounded-md flex items-center justify-center text-xs shrink-0 animate-pulse" style="background:#fee2e2;color:#dc2626"><i class="fas fa-triangle-exclamation"></i></span>` : ''}
                 ${permBtn('editar_paciente', `<button onclick="editPatient(${p.id})" class="text-slate-300 hover:text-clinic-600 transition text-xs" title="Editar"><i class="fas fa-pen"></i></button>`)}
                 ${!hasAppointments ? permBtn('excluir_paciente', `<button onclick="deletePatient(${p.id})" class="text-slate-300 hover:text-red-500 transition text-xs" title="Excluir"><i class="fas fa-trash"></i></button>`) : ''}
             </div>
@@ -380,6 +381,8 @@ function savePatient(e) {
     };
     const isNewPac = !id;
     const oldPac = isNewPac ? null : patients.find(x => x.id == p.id);
+    // Cadastro passou pelo formulário (que já exige responsável se menor de idade) — dados não estão mais incompletos.
+    if (oldPac && oldPac.dadosIncompletos) p.dadosIncompletos = false;
 
     const dupCpf = p.cpf && patients.find(x => x.id != p.id && x.cpf === p.cpf);
     const dupNomeNasc = patients.find(x => x.id != p.id && normalizeStr(x.nome) === normalizeStr(p.nome) && x.dtNasc === p.dtNasc);

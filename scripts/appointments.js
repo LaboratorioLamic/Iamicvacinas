@@ -936,6 +936,7 @@ function viewRecord(id) {
     }
     const a = appointments.find(x => x.id == id);
     if (!a) return;
+    if (a.importedCPNI && typeof viewCpniRecord === 'function') { viewCpniRecord(id); return; }
     const pat = patients.find(x => x.id == a.patientId);
     const vac = vaccines.find(x => x.id == a.vaccineId);
     window._vrCurrentId = id;

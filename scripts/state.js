@@ -110,6 +110,13 @@ let _patientModalOpenedFromHistory = false;
 // Backup pending data
 let pendingBackupData = null;
 
+// CPNI import state
+let cpniImunoMap = {}; // { [nomeImunobiologicoNormalizado]: vaccineId } — persistido no Firebase
+let _cpniParsedRows = []; // linhas cruas parseadas da planilha, pendentes de revisão
+let _cpniInvalidDoseMap = {}; // { [textoDoseOriginal]: doseCanonica } — resolvido na revisão, não persistido
+let _cpniStep = 1;
+let _cpniImportRunning = false;
+
 // Permission labels
 const PERM_LABELS = {
     agendar: 'Visualizar Agendamento', criar_agendamento: 'Agendar', aplicar: 'Aplicar', definir_feriados: 'Definir Feriados',

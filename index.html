@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 
@@ -4475,7 +4476,7 @@
 
                 <!-- ─── ABA BACKUP ────────────────────────────────────── -->
                 <div id="settings-content-backup" class="p-6 hidden">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
 
                         <!-- Exportar -->
                         <div class="flex flex-col bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
@@ -4552,6 +4553,25 @@
                             </div>
                         </div>
 
+                        <!-- Importar CPNI -->
+                        <div class="flex flex-col bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                            <div class="flex items-center gap-3 px-5 py-4 bg-emerald-500">
+                                <div class="h-9 w-9 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                                    <i class="fas fa-syringe text-white text-base"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-black text-white text-xs uppercase tracking-wider">Importar CPNI</h4>
+                                    <p class="text-[10px] text-emerald-100 font-bold">Histórico de aplicações (.xlsx)</p>
+                                </div>
+                            </div>
+                            <div class="flex flex-col flex-1 p-5">
+                                <p class="text-xs text-slate-500 font-bold flex-1 mb-5">Importa o histórico de doses aplicadas da planilha do CPNI. Não afeta o estoque — alimenta apenas o histórico do paciente e as oportunidades.</p>
+                                <button onclick="openCpniImportModal()" class="w-full py-2.5 bg-emerald-500 text-white font-black rounded-xl hover:bg-emerald-600 transition text-xs uppercase tracking-wider">
+                                    <i class="fas fa-file-excel mr-1.5"></i>Importar Planilha
+                                </button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -4559,6 +4579,238 @@
         </div>
     </div>
     <!-- ══════════════════════════════════════════════════════════ -->
+
+    <!-- ══════════════ MODAL IMPORTAR CPNI ══════════════ -->
+    <div id="modal-cpni-import" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[350] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col" style="max-height:92vh;">
+            <div class="bg-gradient-to-br from-emerald-600 to-emerald-800 p-5 text-white flex items-center gap-3 shrink-0">
+                <div class="h-10 w-10 bg-white/15 rounded-xl flex items-center justify-center border border-white/20 shrink-0">
+                    <i class="fas fa-syringe text-white text-base"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <h3 class="font-black uppercase tracking-tight text-base leading-tight">Importar CPNI</h3>
+                    <p class="text-[11px] text-emerald-200 font-bold mt-0.5">Lista de aplicações de vacinas — não afeta o estoque</p>
+                </div>
+                <button onclick="closeCpniImportModal()" title="Fechar" class="h-8 w-8 rounded-lg flex items-center justify-center transition hover:bg-white/15 shrink-0">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Indicador de passos -->
+            <div class="flex items-center gap-2 px-5 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
+                <span class="cpni-step-dot cpni-step-active" data-step="1">1. Arquivo</span>
+                <i class="fas fa-chevron-right text-[9px] text-slate-300"></i>
+                <span class="cpni-step-dot" data-step="2">2. Imunobiológicos</span>
+                <i class="fas fa-chevron-right text-[9px] text-slate-300"></i>
+                <span class="cpni-step-dot" data-step="3">3. Doses</span>
+                <i class="fas fa-chevron-right text-[9px] text-slate-300"></i>
+                <span class="cpni-step-dot" data-step="4">4. Resumo</span>
+                <i class="fas fa-chevron-right text-[9px] text-slate-300"></i>
+                <span class="cpni-step-dot" data-step="5">5. Importar</span>
+            </div>
+
+            <div class="p-6 overflow-y-auto flex-1">
+
+                <!-- PASSO 1 — ARQUIVO -->
+                <div id="cpni-step-1">
+                    <p class="text-xs text-slate-500 font-bold mb-4">Selecione a planilha .xlsx do CPNI. Títulos devem estar na linha 3; os dados, a partir da linha 4.</p>
+                    <input type="file" id="cpni-file-input" accept=".xlsx,.xls" onchange="prepareCpniUpload(this)" class="hidden">
+                    <button onclick="document.getElementById('cpni-file-input').click()" class="w-full py-3 bg-emerald-500 text-white font-black rounded-xl hover:bg-emerald-600 transition text-xs uppercase tracking-wider mb-3">
+                        <i class="fas fa-folder-open mr-1.5"></i>Selecionar Planilha
+                    </button>
+                    <p id="cpni-file-name" class="text-[10px] text-slate-400 font-bold text-center hidden mb-3">
+                        <i class="fas fa-file-excel mr-1 text-emerald-500"></i><span id="cpni-file-label"></span>
+                    </p>
+                    <p id="cpni-parse-error" class="text-[11px] text-red-600 font-bold text-center hidden mb-3"></p>
+                    <div id="cpni-rows-summary" class="grid grid-cols-2 gap-3 mb-2">
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                            <p class="text-2xl font-black text-emerald-700" id="cpni-rows-count">0</p>
+                            <p class="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Linhas encontradas</p>
+                        </div>
+                        <div id="cpni-rows-erro-wrap" class="bg-red-50 border border-red-200 rounded-xl p-3 text-center hidden">
+                            <p class="text-2xl font-black text-red-600" id="cpni-rows-erro">0</p>
+                            <p class="text-[9px] font-black text-red-500 uppercase tracking-wider">Linhas com erro</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PASSO 2 — IMUNOBIOLÓGICOS -->
+                <div id="cpni-step-2" class="hidden">
+                    <p class="text-xs text-slate-500 font-bold mb-4">Associe cada imunobiológico da planilha a uma vacina do catálogo. Pesquise por nome, mnemônico ou nome de fábrica de algum lote. O mapeamento fica salvo para as próximas importações.</p>
+                    <div id="cpni-imuno-list" class="flex flex-col gap-2 max-h-[50vh] overflow-y-auto pr-1"></div>
+                </div>
+
+                <!-- PASSO 3 — DOSES INVÁLIDAS -->
+                <div id="cpni-step-3" class="hidden">
+                    <p class="text-xs text-slate-500 font-bold mb-4">Associe os textos de dose não reconhecidos automaticamente a uma dose válida do sistema, ou deixe como "Não importar".</p>
+                    <div id="cpni-dose-list" class="flex flex-col gap-2 max-h-[50vh] overflow-y-auto pr-1"></div>
+                </div>
+
+                <!-- PASSO 4 — RESUMO -->
+                <div id="cpni-step-4" class="hidden">
+                    <p class="text-xs text-slate-500 font-bold mb-4">Confira o resumo antes de confirmar a importação.</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
+                            <p class="text-2xl font-black text-emerald-700" id="cpni-resumo-prontos">0</p>
+                            <p class="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Prontas para importar</p>
+                        </div>
+                        <div class="bg-slate-100 border border-slate-200 rounded-xl p-4 text-center">
+                            <p class="text-2xl font-black text-slate-600" id="cpni-resumo-duplicadas">0</p>
+                            <p class="text-[9px] font-black text-slate-500 uppercase tracking-wider">Duplicadas (serão puladas)</p>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+                            <p class="text-2xl font-black text-amber-600" id="cpni-resumo-sem-imuno">0</p>
+                            <p class="text-[9px] font-black text-amber-600 uppercase tracking-wider">Sem imunobiológico mapeado</p>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+                            <p class="text-2xl font-black text-amber-600" id="cpni-resumo-sem-dose">0</p>
+                            <p class="text-[9px] font-black text-amber-600 uppercase tracking-wider">Sem dose mapeada</p>
+                        </div>
+                    </div>
+                    <div class="bg-red-50 border border-red-200 rounded-xl p-3 mt-3 text-center">
+                        <span class="text-xs font-black text-red-600"><span id="cpni-resumo-erro">0</span> linha(s) com erro (CPF/nome/data ausente) serão ignoradas.</span>
+                    </div>
+                </div>
+
+                <!-- PASSO 5 — PROGRESSO -->
+                <div id="cpni-step-5" class="hidden">
+                    <div class="flex flex-col items-center justify-center py-6">
+                        <i class="fas fa-syringe text-4xl text-emerald-500 mb-4 animate-pulse"></i>
+                        <p id="cpni-progress-label" class="text-sm font-black text-navy-900 mb-4">Processando 0/0...</p>
+                        <div class="w-full bg-slate-100 rounded-full h-4 overflow-hidden border border-slate-200">
+                            <div id="cpni-progress-bar" class="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-200" style="width:0%"></div>
+                        </div>
+                        <div id="cpni-progress-done" class="hidden w-full mt-6 grid grid-cols-3 gap-3">
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                                <p class="text-xl font-black text-emerald-700" id="cpni-done-criados">0</p>
+                                <p class="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Importados</p>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+                                <p class="text-xl font-black text-blue-700" id="cpni-done-pacientes">0</p>
+                                <p class="text-[9px] font-black text-blue-600 uppercase tracking-wider">Pacientes novos</p>
+                            </div>
+                            <div class="bg-slate-100 border border-slate-200 rounded-xl p-3 text-center">
+                                <p class="text-xl font-black text-slate-600" id="cpni-done-duplicadas">0</p>
+                                <p class="text-[9px] font-black text-slate-500 uppercase tracking-wider">Duplicadas puladas</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="p-5 pt-0 flex gap-3 shrink-0">
+                <div id="cpni-footer-1" class="flex gap-3 w-full">
+                    <button onclick="closeCpniImportModal()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Cancelar</button>
+                    <button id="cpni-btn-next-1" onclick="_cpniGoStep2()" disabled class="flex-1 bg-slate-200 text-slate-400 font-black py-3 rounded-xl uppercase text-xs transition cursor-not-allowed">
+                        Próximo <i class="fas fa-arrow-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="px-5 pb-5 hidden" id="cpni-footer-2">
+                <div class="flex gap-3">
+                    <button onclick="_cpniGoToStep(1)" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition"><i class="fas fa-arrow-left mr-1"></i>Voltar</button>
+                    <button onclick="_cpniConfirmImunoStep()" class="flex-1 bg-emerald-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-emerald-700 shadow-md">Próximo <i class="fas fa-arrow-right ml-1"></i></button>
+                </div>
+            </div>
+            <div class="px-5 pb-5 hidden" id="cpni-footer-3">
+                <div class="flex gap-3">
+                    <button onclick="_cpniGoStep2()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition"><i class="fas fa-arrow-left mr-1"></i>Voltar</button>
+                    <button onclick="_cpniGoStep4()" class="flex-1 bg-emerald-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-emerald-700 shadow-md">Próximo <i class="fas fa-arrow-right ml-1"></i></button>
+                </div>
+            </div>
+            <div class="px-5 pb-5 hidden" id="cpni-footer-4">
+                <div class="flex gap-3">
+                    <button onclick="_cpniGoStep3()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition"><i class="fas fa-arrow-left mr-1"></i>Voltar</button>
+                    <button id="cpni-btn-confirm-import" onclick="_cpniStartImport()" class="flex-1 bg-emerald-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-emerald-700 shadow-md"><i class="fas fa-check mr-1"></i>Confirmar Importação</button>
+                </div>
+            </div>
+            <div class="px-5 pb-5 hidden" id="cpni-footer-5">
+                <button onclick="finishCpniImportModal()" id="cpni-btn-finish" class="w-full py-3 bg-emerald-600 text-white font-black rounded-xl uppercase text-xs transition hover:bg-emerald-700 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">Concluir</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    .cpni-step-dot { font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:0.05em; color:#94a3b8; padding:2px 6px; border-radius:6px; }
+    .cpni-step-dot.cpni-step-active { color:#059669; background:#d1fae5; }
+    .cpni-step-dot.cpni-step-done { color:#16a34a; }
+    </style>
+
+    <!-- ══════════════ MODAL VISUALIZAR REGISTRO CPNI (somente-leitura) ══════════════ -->
+    <div id="modal-view-cpni-record" class="modal fixed inset-0 z-[380] justify-center items-center p-4 vr-overlay">
+        <div class="relative w-full max-w-lg flex flex-col rounded-3xl overflow-hidden shadow-2xl vr-panel" style="max-height:92vh;">
+
+            <div class="absolute top-0 left-0 right-0 h-1 rounded-t-3xl" style="background:linear-gradient(90deg,#22c55e,#15803d,#22c55e);background-size:200%;animation:gradientShift 3s linear infinite;"></div>
+
+            <!-- Header -->
+            <div class="relative px-6 pt-7 pb-5 shrink-0 vr-header">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="h-2.5 w-2.5 rounded-full shrink-0" style="background:#22c55e"></div>
+                    <span class="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full" style="background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.3);">Aplicado</span>
+                    <span class="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200"><i class="fas fa-file-import mr-1"></i>Importado CPNI</span>
+                    <div class="flex-1"></div>
+                    <button id="cvr-btn-prontuario" title="Prontuário vacinal" class="h-8 w-8 rounded-xl flex items-center justify-center transition vr-pron-btn">
+                        <i class="fas fa-clipboard-list text-sm"></i>
+                    </button>
+                    <button onclick="closeCpniViewRecord()" title="Fechar" class="h-8 w-8 rounded-xl flex items-center justify-center transition vr-close-btn">
+                        <i class="fas fa-times text-sm"></i>
+                    </button>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div id="cvr-avatar" class="h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 font-black text-2xl text-white shadow-lg" style="background:linear-gradient(135deg,#22c55e,#15803d);"></div>
+                    <div class="flex-1 min-w-0">
+                        <h2 id="cvr-patient-name" class="font-black text-xl leading-tight truncate vr-title"></h2>
+                        <p id="cvr-patient-meta" class="text-[11px] mt-0.5 vr-meta"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mx-6 h-px shrink-0 vr-divider"></div>
+
+            <!-- Body -->
+            <div class="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4 vr-body">
+                <div class="rounded-2xl p-4 flex items-center gap-4 vr-vaccine-card">
+                    <div class="h-11 w-11 rounded-xl flex items-center justify-center shrink-0" style="background:linear-gradient(135deg,#22c55e,#15803d);box-shadow:0 4px 14px rgba(34,197,94,0.3);">
+                        <i class="fas fa-syringe text-white text-base"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p id="cvr-vaccine-name" class="font-black text-sm truncate vr-title"></p>
+                        <p id="cvr-dose" class="text-[11px] font-bold mt-0.5" style="color:#15803d"></p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-calendar-day vr-label-icon"></i>Data de Aplicação</span>
+                        <span id="cvr-data" class="text-sm font-black vr-value"></span>
+                    </div>
+                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-barcode vr-label-icon"></i>Lote</span>
+                        <span id="cvr-lote" class="text-sm font-black font-mono vr-value"></span>
+                    </div>
+                </div>
+
+                <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
+                    <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-file-import vr-label-icon"></i>Importado em</span>
+                    <span id="cvr-importado-em" class="text-sm font-black vr-value"></span>
+                </div>
+
+                <div class="flex items-start gap-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <i class="fas fa-circle-info text-slate-400 text-xs mt-0.5 shrink-0"></i>
+                    <p class="text-[11px] text-slate-500 font-bold leading-relaxed">Registro importado do CPNI. Não afeta o estoque e não pode ser editado — apenas visualizado ou excluído.</p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 pb-6 pt-3 flex gap-3 shrink-0 vr-footer">
+                <button onclick="closeCpniViewRecord()" class="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition vr-cancel-btn">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- ══════════════ MODAL MEU PERFIL ══════════════ -->
     <div id="modal-meu-perfil" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[300] justify-center items-center p-4">
@@ -4705,6 +4957,7 @@
     <script src="scripts/contatos.js"></script>
     <script src="scripts/users.js"></script>
     <script src="scripts/backup.js"></script>
+    <script src="scripts/cpni.js"></script>
     <script src="scripts/init.js"></script>
 </body>
 </html>
