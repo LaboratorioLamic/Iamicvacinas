@@ -246,7 +246,8 @@ function viewPatientHistory(id) {
         const pendentes   = apps.filter(a => a.status === 'Agendado' || a.status === 'Em negociação' || a.status === 'Nova oportunidade');
         const concluidos  = apps.filter(a => a.status === 'Aplicado');
         const outroLocal  = apps.filter(a => a.status === 'Perdido' && a.aplicadaOutroLocal);
-        const cancelados  = apps.filter(a => a.status === 'Perdido' && !a.aplicadaOutroLocal);
+        const outraVacina = apps.filter(a => a.status === 'Perdido' && !a.aplicadaOutroLocal && a.outraVacina);
+        const cancelados  = apps.filter(a => a.status === 'Perdido' && !a.aplicadaOutroLocal && !a.outraVacina);
 
         let html = '';
 
@@ -265,6 +266,12 @@ function viewPatientHistory(id) {
         if(outroLocal.length > 0) {
             html += `<h5 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3"><i class="fas fa-map-marker-alt mr-1 text-violet-500 text-sm"></i> Aplicado em Outro Local <span class="ml-2 bg-slate-100 px-2 py-0.5 rounded text-[9px]">${outroLocal.length}</span></h5>`;
             html += outroLocal.map(a => renderHistCard(a)).join('');
+            html += `<div class="mb-6"></div>`;
+        }
+
+        if(outraVacina.length > 0) {
+            html += `<h5 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3"><i class="fas fa-syringe mr-1 text-cyan-500 text-sm"></i> Suprida por Outra Vacina <span class="ml-2 bg-slate-100 px-2 py-0.5 rounded text-[9px]">${outraVacina.length}</span></h5>`;
+            html += outraVacina.map(a => renderHistCard(a)).join('');
             html += `<div class="mb-6"></div>`;
         }
 
@@ -288,6 +295,7 @@ function renderHistCard(a) {
     const todayStr = new Date().toISOString().split('T')[0];
     const isDelayed = a.data < todayStr && a.status === 'Agendado';
     const isOutroLocal = a.status === 'Perdido' && a.aplicadaOutroLocal;
+    const isOutraVacina = a.status === 'Perdido' && !a.aplicadaOutroLocal && a.outraVacina;
 
     let borderClass, bgClass, stTextClass, iconClass;
     if (isOutroLocal) {
@@ -295,6 +303,11 @@ function renderHistCard(a) {
         bgClass     = 'bg-violet-50/50';
         stTextClass = 'text-violet-600';
         iconClass   = 'fa-map-marker-alt text-violet-500';
+    } else if (isOutraVacina) {
+        borderClass = 'border-cyan-200 hover:border-cyan-400';
+        bgClass     = 'bg-cyan-50/50';
+        stTextClass = 'text-cyan-600';
+        iconClass   = 'fa-syringe text-cyan-500';
     } else if (a.status === 'Aplicado') {
         borderClass = 'border-green-200 hover:border-green-400';
         bgClass     = 'bg-green-50/50';
@@ -327,9 +340,11 @@ function renderHistCard(a) {
         iconClass   = 'fa-calendar-alt text-blue-500';
     }
 
-    const statusLabel = isOutroLocal ? 'Outro Local' : isDelayed ? 'Atrasado' : a.status;
+    const statusLabel = isOutroLocal ? 'Outro Local' : isOutraVacina ? 'Outra Vacina' : isDelayed ? 'Atrasado' : a.status;
     const outroBadge  = isOutroLocal
         ? `<span class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-violet-100 text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full ml-2"><i class="fas fa-map-marker-alt text-[8px]"></i> Outro local</span>`
+        : isOutraVacina
+        ? `<span class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-cyan-100 text-cyan-700 border border-cyan-200 px-2 py-0.5 rounded-full ml-2"><i class="fas fa-syringe text-[8px]"></i> Outra vacina</span>`
         : '';
     const cpniBadge = a.importedCPNI
         ? `<span title="Importado do CPNI" class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full ml-2"><i class="fas fa-file-import text-[8px]"></i> CPNI</span>`

@@ -1960,7 +1960,7 @@
                 </div>
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Dose Requerida *</label>
-                    <select id="reg-dose" onchange="checkAgeConstraint(); updateSuggestedDate();" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
+                    <select id="reg-dose" onchange="checkAgeConstraint(); updateSuggestedDate(); if(typeof clearOutraVacinaRef==='function') clearOutraVacinaRef('reg');" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
                         <option value="">Selecione a vacina...</option>
                     </select>
                 </div>
@@ -2047,23 +2047,50 @@
                     </div>
                 </div>
 
-                <div class="col-span-1 md:col-span-4 flex items-center gap-2" id="div-motivo-cancelamento" style="display:none;">
-                    <div class="flex-1">
-                        <label class="block text-[10px] font-black text-red-500 uppercase mb-1">Motivo de Perda *</label>
-                        <select id="reg-motivo-cancelamento" class="w-full border border-red-200 bg-red-50 rounded-lg py-2 px-3 text-sm text-red-800 outline-none">
-                            <option value="">Selecione...</option>
-                        </select>
+                <div class="col-span-1 md:col-span-4" id="div-motivo-cancelamento" style="display:none;">
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-black text-red-500 uppercase mb-1">Motivo de Perda *</label>
+                            <select id="reg-motivo-cancelamento" class="w-full border border-red-200 bg-red-50 rounded-lg py-2 px-3 text-sm text-red-800 outline-none">
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                        <button type="button" onclick="openCancelReasonsModal()" class="mt-5 h-9 w-9 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 font-bold transition flex items-center justify-center shadow-sm" title="Gerenciar Motivos"><i class="fas fa-plus"></i></button>
+                        <!-- Checkbox: vacina aplicada em outro local -->
+                        <div id="lbl-aplicada-outro-local" class="flex flex-col items-center gap-0.5 shrink-0 mt-5">
+                            <span class="text-[8px] font-black uppercase text-violet-500 leading-tight tracking-wide">Outro Local</span>
+                            <label class="cursor-pointer select-none group" title="Vacina já aplicada em outro local">
+                                <input type="checkbox" id="reg-aplicada-outro-local" class="sr-only peer" onchange="toggleAplicadaOutroLocal(this)">
+                                <div class="w-9 h-9 rounded-lg border-2 border-violet-300 bg-violet-50 flex items-center justify-center transition-all duration-200 shadow-sm">
+                                    <i class="fas fa-map-marker-alt text-violet-400 text-sm" id="icon-aplicada-outro-local"></i>
+                                </div>
+                            </label>
+                        </div>
+                        <!-- Checkbox: coberta por outra vacina -->
+                        <div id="lbl-outra-vacina" class="flex flex-col items-center gap-0.5 shrink-0 mt-5">
+                            <span class="text-[8px] font-black uppercase text-teal-500 leading-tight tracking-wide">Outra Vacina</span>
+                            <label class="cursor-pointer select-none group" title="Dose suprida pela aplicação de outra vacina">
+                                <input type="checkbox" id="reg-outra-vacina" class="sr-only peer" onchange="toggleOutraVacina(this)">
+                                <div class="w-9 h-9 rounded-lg border-2 border-teal-300 bg-teal-50 flex items-center justify-center transition-all duration-200 shadow-sm">
+                                    <i class="fas fa-syringe text-teal-400 text-sm" id="icon-outra-vacina"></i>
+                                </div>
+                            </label>
+                        </div>
                     </div>
-                    <button type="button" onclick="openCancelReasonsModal()" class="mt-5 h-9 w-9 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 font-bold transition flex items-center justify-center shadow-sm" title="Gerenciar Motivos"><i class="fas fa-plus"></i></button>
-                    <!-- Checkbox: vacina aplicada em outro local -->
-                    <div id="lbl-aplicada-outro-local" class="flex flex-col items-center gap-0.5 shrink-0 mt-5">
-                        <span class="text-[8px] font-black uppercase text-violet-500 leading-tight tracking-wide">Outro Local</span>
-                        <label class="cursor-pointer select-none group" title="Vacina já aplicada em outro local">
-                            <input type="checkbox" id="reg-aplicada-outro-local" class="sr-only peer" onchange="toggleAplicadaOutroLocal(this)">
-                            <div class="w-9 h-9 rounded-lg border-2 border-violet-300 bg-violet-50 flex items-center justify-center transition-all duration-200 shadow-sm">
-                                <i class="fas fa-map-marker-alt text-violet-400 text-sm" id="icon-aplicada-outro-local"></i>
-                            </div>
+                    <!-- Painel: referência da vacina substituta -->
+                    <div id="box-outra-vacina" class="hidden mt-3 rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50 to-white p-3 shadow-sm">
+                        <label class="block text-[10px] font-black text-teal-600 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                            <i class="fas fa-link text-[9px]"></i>Vacina que supriu esta dose *
                         </label>
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-teal-300 text-xs pointer-events-none"></i>
+                            <input type="text" id="reg-outra-vacina-search" autocomplete="off" placeholder="Buscar agendamento aplicado do paciente..."
+                                oninput="filterOutraVacinaDropdown('reg')" onfocus="filterOutraVacinaDropdown('reg')" onblur="hideOutraVacinaDropdown('reg')"
+                                class="w-full border border-teal-200 rounded-lg py-2 pl-8 pr-3 text-sm text-slate-700 bg-white focus:ring-2 focus:ring-teal-400 outline-none">
+                            <input type="hidden" id="reg-outra-vacina-ref">
+                            <div id="reg-outra-vacina-dropdown" class="hidden absolute z-[220] left-0 right-0 bottom-full mb-1 bg-white border border-teal-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
+                        </div>
+                        <p id="reg-outra-vacina-hint" class="text-[10px] font-bold text-teal-600/70 mt-1.5"><i class="fas fa-circle-info mr-1"></i>Mostra apenas aplicações da mesma dosagem (ex.: 2ª Dose) desta perda.</p>
                     </div>
                 </div>
 
@@ -2294,6 +2321,12 @@
                 <div id="vr-motivo-row" class="rounded-xl p-3.5 flex flex-col gap-1 hidden vr-motivo-cell">
                     <span class="text-[9px] font-black uppercase tracking-widest vr-motivo-label flex items-center gap-1.5"><i class="fas fa-triangle-exclamation"></i>Motivo</span>
                     <span id="vr-motivo" class="text-sm font-black vr-motivo-value"></span>
+                </div>
+
+                <!-- Vacina substituta -->
+                <div id="vr-outra-vacina-row" class="rounded-xl p-3.5 flex flex-col gap-1 hidden border border-teal-200 bg-gradient-to-br from-teal-50 to-white">
+                    <span class="text-[9px] font-black uppercase tracking-widest text-teal-600 flex items-center gap-1.5"><i class="fas fa-syringe"></i>Suprida por</span>
+                    <span id="vr-outra-vacina" class="text-sm font-black text-teal-800"></span>
                 </div>
 
                 <!-- Obs -->
@@ -2681,16 +2714,43 @@
                             <option value="">Selecione o motivo...</option>
                         </select>
                         <button type="button" onclick="openCancelReasonsModal()" class="h-10 w-10 shrink-0 bg-slate-100 text-slate-500 hover:bg-slate-600 hover:text-white rounded-xl flex items-center justify-center transition shadow-sm border border-slate-200" title="Gerenciar motivos"><i class="fas fa-plus text-xs"></i></button>
+                    </div>
+                    <div class="flex gap-3 items-start mt-2.5">
                         <!-- Checkbox: vacina aplicada em outro local -->
-                        <div class="flex flex-col items-center gap-0.5 shrink-0">
-                            <span class="text-[8px] font-black uppercase text-violet-500 leading-tight tracking-wide">Outro Local</span>
-                            <label class="cursor-pointer select-none group" title="Já aplicada em outro local">
-                                <input type="checkbox" id="dismiss-opp-outro-local" class="sr-only peer" onchange="toggleDismissOutroLocal(this)">
-                                <div class="w-10 h-10 rounded-xl border-2 border-violet-300 bg-violet-50 flex items-center justify-center transition-all duration-200 shadow-sm">
-                                    <i class="fas fa-map-marker-alt text-violet-400 text-sm" id="icon-dismiss-outro-local"></i>
+                        <label class="flex-1 cursor-pointer select-none group" title="Já aplicada em outro local">
+                            <input type="checkbox" id="dismiss-opp-outro-local" class="sr-only peer" onchange="toggleDismissOutroLocal(this)">
+                            <div class="flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-violet-300 bg-violet-50 transition-all duration-200 shadow-sm">
+                                <div class="h-6 w-6 shrink-0 rounded-lg bg-white flex items-center justify-center">
+                                    <i class="fas fa-map-marker-alt text-violet-400 text-xs" id="icon-dismiss-outro-local"></i>
                                 </div>
-                            </label>
+                                <span class="text-[10px] font-black uppercase text-violet-600 leading-tight tracking-wide">Outro Local</span>
+                            </div>
+                        </label>
+                        <!-- Checkbox: coberta por outra vacina -->
+                        <label class="flex-1 cursor-pointer select-none group" title="Dose suprida pela aplicação de outra vacina">
+                            <input type="checkbox" id="dismiss-opp-outra-vacina" class="sr-only peer" onchange="toggleDismissOutraVacina(this)">
+                            <div class="flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-teal-300 bg-teal-50 transition-all duration-200 shadow-sm">
+                                <div class="h-6 w-6 shrink-0 rounded-lg bg-white flex items-center justify-center">
+                                    <i class="fas fa-syringe text-teal-400 text-xs" id="icon-dismiss-outra-vacina"></i>
+                                </div>
+                                <span class="text-[10px] font-black uppercase text-teal-600 leading-tight tracking-wide">Outra Vacina</span>
+                            </div>
+                        </label>
+                    </div>
+                    <!-- Painel: referência da vacina substituta -->
+                    <div id="box-dismiss-outra-vacina" class="hidden mt-3 rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50 to-white p-3 shadow-sm">
+                        <label class="block text-[10px] font-black text-teal-600 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                            <i class="fas fa-link text-[9px]"></i>Vacina que supriu esta dose *
+                        </label>
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-teal-300 text-xs pointer-events-none"></i>
+                            <input type="text" id="dismiss-outra-vacina-search" autocomplete="off" placeholder="Buscar agendamento aplicado do paciente..."
+                                oninput="filterOutraVacinaDropdown('dismiss')" onfocus="filterOutraVacinaDropdown('dismiss')" onblur="hideOutraVacinaDropdown('dismiss')"
+                                class="w-full border border-teal-200 rounded-lg py-2 pl-8 pr-3 text-sm text-slate-700 bg-white focus:ring-2 focus:ring-teal-400 outline-none">
+                            <input type="hidden" id="dismiss-outra-vacina-ref">
+                            <div id="dismiss-outra-vacina-dropdown" class="hidden absolute z-[400] left-0 right-0 bottom-full mb-1 bg-white border border-teal-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:180px;"></div>
                         </div>
+                        <p class="text-[10px] font-bold text-teal-600/70 mt-1.5"><i class="fas fa-circle-info mr-1"></i>Mostra apenas aplicações da mesma dosagem desta perda.</p>
                     </div>
                     <p id="dismiss-opp-err" class="hidden text-[11px] text-red-500 font-bold mt-1"><i class="fas fa-exclamation-circle mr-1"></i>Selecione um motivo para continuar</p>
                 </div>
@@ -2819,6 +2879,8 @@
                     <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase text-orange-700"><i class="fas fa-circle text-orange-500 text-[7px]"></i>Atrasada</span>
                     <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase text-red-700"><i class="fas fa-circle text-red-500 text-[7px]"></i>Cancelada</span>
                     <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase text-violet-700"><i class="fas fa-circle text-violet-500 text-[7px]"></i>Outro local</span>
+                    <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase text-cyan-700"><i class="fas fa-circle text-cyan-500 text-[7px]"></i>Outra vacina</span>
+                    <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase text-slate-500"><i class="fas fa-circle text-slate-400 text-[7px]"></i>Não definido</span>
                 </div>
                 <div id="rotina-list" class="p-6 overflow-y-auto flex-1 bg-white space-y-5"></div>
             </div>

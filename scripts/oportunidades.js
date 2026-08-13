@@ -721,6 +721,11 @@ function openDismissOppModal(patId, vacId, dose) {
     const dataInput = document.getElementById('dismiss-opp-data');
     if (dataInput) dataInput.value = new Date().toISOString().split('T')[0];
 
+    const chkLocal = document.getElementById('dismiss-opp-outro-local');
+    if (chkLocal) { chkLocal.checked = false; toggleDismissOutroLocal(chkLocal); }
+    const chkOV = document.getElementById('dismiss-opp-outra-vacina');
+    if (chkOV) { chkOV.checked = false; toggleDismissOutraVacina(chkOV); }
+
     document.getElementById('modal-dismiss-opp').classList.add('active');
 }
 
@@ -729,41 +734,81 @@ function closeDismissOppModal() {
     _dismissPending = null;
     const chk = document.getElementById('dismiss-opp-outro-local');
     if (chk) { chk.checked = false; toggleDismissOutroLocal(chk); }
+    const chkOV = document.getElementById('dismiss-opp-outra-vacina');
+    if (chkOV) { chkOV.checked = false; toggleDismissOutraVacina(chkOV); }
+}
+
+// Bloqueia/libera o select de motivo conforme os atalhos marcados
+function _syncDismissMotivoState() {
+    const motivoSel = document.getElementById('dismiss-opp-reason');
+    if (!motivoSel) return;
+    const bloqueia = (document.getElementById('dismiss-opp-outro-local')?.checked || false)
+        || (document.getElementById('dismiss-opp-outra-vacina')?.checked || false);
+    motivoSel.disabled = bloqueia;
+    motivoSel.classList.toggle('opacity-40', bloqueia);
+    motivoSel.classList.toggle('cursor-not-allowed', bloqueia);
+    motivoSel.classList.toggle('bg-slate-100', bloqueia);
+    if (bloqueia) motivoSel.value = '';
+}
+
+function toggleDismissOutraVacina(chk) {
+    // Mutuamente exclusivo com "Outro Local"
+    if (chk.checked) {
+        const outroLocal = document.getElementById('dismiss-opp-outro-local');
+        if (outroLocal && outroLocal.checked) { outroLocal.checked = false; toggleDismissOutroLocal(outroLocal); }
+    }
+    if (typeof _paintOutraVacinaToggle === 'function') _paintOutraVacinaToggle('dismiss', chk.checked);
+    _syncDismissMotivoState();
 }
 
 function toggleDismissOutroLocal(chk) {
     const icon      = document.getElementById('icon-dismiss-outro-local');
     const box       = chk.closest('label') && chk.closest('label').querySelector('div');
-    const motivoSel = document.getElementById('dismiss-opp-reason');
+    // Mutuamente exclusivo com "Outra Vacina"
+    if (chk.checked) {
+        const outraVacina = document.getElementById('dismiss-opp-outra-vacina');
+        if (outraVacina && outraVacina.checked) {
+            outraVacina.checked = false;
+            if (typeof _paintOutraVacinaToggle === 'function') _paintOutraVacinaToggle('dismiss', false);
+        }
+    }
     if (chk.checked) {
         if (icon) { icon.classList.remove('text-violet-400'); icon.classList.add('text-white'); }
         if (box)  { box.classList.add('bg-violet-600', 'border-violet-600'); box.classList.remove('bg-violet-50', 'border-violet-300'); }
-        if (motivoSel) {
-            motivoSel.disabled = true;
-            motivoSel.classList.add('opacity-40', 'cursor-not-allowed', 'bg-slate-100');
-        }
     } else {
         if (icon) { icon.classList.add('text-violet-400'); icon.classList.remove('text-white'); }
         if (box)  { box.classList.remove('bg-violet-600', 'border-violet-600'); box.classList.add('bg-violet-50', 'border-violet-300'); }
-        if (motivoSel) {
-            motivoSel.disabled = false;
-            motivoSel.classList.remove('opacity-40', 'cursor-not-allowed', 'bg-slate-100');
-        }
     }
+    _syncDismissMotivoState();
 }
 
 function confirmDismissOpp() {
     const aplicadaOutroLocal = document.getElementById('dismiss-opp-outro-local')?.checked || false;
+    const outraVacina        = document.getElementById('dismiss-opp-outra-vacina')?.checked || false;
     const motivo = document.getElementById('dismiss-opp-reason').value;
-    if (!motivo && !aplicadaOutroLocal) {
+    if (!motivo && !aplicadaOutroLocal && !outraVacina) {
         document.getElementById('dismiss-opp-err').classList.remove('hidden');
         return;
     }
     if (!_dismissPending) return;
 
+    const outraVacinaRef = outraVacina ? (document.getElementById('dismiss-outra-vacina-ref')?.value || '') : '';
+    if (outraVacina && !outraVacinaRef) {
+        showNotification('Selecione a vacina aplicada que supriu esta dose.', 'error');
+        document.getElementById('dismiss-outra-vacina-search')?.focus();
+        return;
+    }
+    const outraVacinaApp = outraVacinaRef ? appointments.find(x => x.id == outraVacinaRef) : null;
+    if (outraVacina && outraVacinaApp && outraVacinaApp.doseAtual !== _dismissPending.dose) {
+        showNotification(`A vacina selecionada deve ser da mesma dosagem (${_dismissPending.dose}) da oportunidade perdida.`, 'error');
+        return;
+    }
+
     const { patId, vacId, dose } = _dismissPending;
     const vac   = vaccines.find(x => x.id == vacId);
-    const motivoFinal = aplicadaOutroLocal ? 'Aplicou em outro local' : motivo;
+    const motivoFinal = aplicadaOutroLocal ? 'Aplicou em outro local'
+        : outraVacina ? 'Tomou outra vacina'
+        : motivo;
     const dataPerda = document.getElementById('dismiss-opp-data')?.value || new Date().toISOString().split('T')[0];
     const vendedorNome = (typeof currentUser !== 'undefined' && currentUser)
         ? (currentUser.nome || '').toUpperCase()
@@ -784,6 +829,9 @@ function confirmDismissOpp() {
         lote:               '',
         motivoCancelamento: motivoFinal,
         aplicadaOutroLocal: aplicadaOutroLocal,
+        outraVacina:        outraVacina,
+        outraVacinaAppId:   outraVacina ? Number(outraVacinaRef) : null,
+        outraVacinaLabel:   outraVacinaApp && typeof outraVacinaLabel === 'function' ? outraVacinaLabel(outraVacinaApp) : '',
         vendedor:           vendedorNome,
         aplicador:          ''
     };
@@ -797,6 +845,12 @@ function confirmDismissOpp() {
 
     closeDismissOppModal();
     renderOportunidades();
+    // Se aberta a partir da aba Rotina do prontuário, reflete o novo registro sem precisar reabrir.
+    const prontuario = document.getElementById('modal-patient-history');
+    if (prontuario && prontuario.classList.contains('active') && prontuario.dataset.patientId == patId
+        && typeof renderRotinaTab === 'function') {
+        renderRotinaTab(patId);
+    }
     showNotification('Oportunidade descartada e registrada como perdida.', 'success');
 }
 

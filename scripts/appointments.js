@@ -161,6 +161,8 @@ function openRecordModal() {
     document.getElementById('btn-duplicar-record').classList.add('hidden');
     const _chkOutroLocalNew = document.getElementById('reg-aplicada-outro-local');
     if (_chkOutroLocalNew) { _chkOutroLocalNew.checked = false; toggleAplicadaOutroLocal(_chkOutroLocalNew); }
+    const _chkOutraVacinaNew = document.getElementById('reg-outra-vacina');
+    if (_chkOutraVacinaNew) { _chkOutraVacinaNew.checked = false; _paintOutraVacinaToggle('reg', false); }
     if (currentUser) {
         const _fullUser = appUsers.find(u => u.id === currentUser.id);
         if (_fullUser && _fullUser.isVendedor) {
@@ -1042,6 +1044,17 @@ function viewRecord(id) {
     if (a.motivoCancelamento) { document.getElementById('vr-motivo').textContent = a.motivoCancelamento; motivoRow.classList.remove('hidden'); }
     else motivoRow.classList.add('hidden');
 
+    // Vacina substituta
+    const outraVacinaRow = document.getElementById('vr-outra-vacina-row');
+    if (outraVacinaRow) {
+        if (a.outraVacina) {
+            const ref = appointments.find(x => x.id == a.outraVacinaAppId);
+            document.getElementById('vr-outra-vacina').textContent =
+                ref ? outraVacinaLabel(ref) : (a.outraVacinaLabel || '—');
+            outraVacinaRow.classList.remove('hidden');
+        } else outraVacinaRow.classList.add('hidden');
+    }
+
     // Obs
     const obsRow = document.getElementById('vr-obs-row');
     if (a.obs) { document.getElementById('vr-obs').textContent = a.obs; obsRow.classList.remove('hidden'); }
@@ -1094,6 +1107,8 @@ function editRecord(id) {
     document.getElementById('modal-vacina-sem-estoque')?.classList.remove('active');
     const _chkOutroLocalEdit = document.getElementById('reg-aplicada-outro-local');
     if (_chkOutroLocalEdit) { _chkOutroLocalEdit.checked = false; toggleAplicadaOutroLocal(_chkOutroLocalEdit); }
+    const _chkOutraVacinaEdit = document.getElementById('reg-outra-vacina');
+    if (_chkOutraVacinaEdit) { _chkOutraVacinaEdit.checked = false; _paintOutraVacinaToggle('reg', false); }
     document.getElementById('reg-id').value = '';
     document.getElementById('hidden-patient-id').value = '';
     _toggleBtnProntuario(false);
@@ -1173,6 +1188,17 @@ function editRecord(id) {
         document.getElementById('reg-aplicador').value = a.aplicador || '';
         const chkOutroLocal = document.getElementById('reg-aplicada-outro-local');
         if(chkOutroLocal) { chkOutroLocal.checked = !!a.aplicadaOutroLocal; toggleAplicadaOutroLocal(chkOutroLocal); }
+        const chkOutraVacina = document.getElementById('reg-outra-vacina');
+        if(chkOutraVacina) {
+            chkOutraVacina.checked = !!a.outraVacina;
+            _paintOutraVacinaToggle('reg', chkOutraVacina.checked);
+            if (a.outraVacina) {
+                const ref = appointments.find(x => x.id == a.outraVacinaAppId);
+                document.getElementById('reg-outra-vacina-ref').value = a.outraVacinaAppId || '';
+                document.getElementById('reg-outra-vacina-search').value = ref ? outraVacinaLabel(ref) : (a.outraVacinaLabel || '');
+            }
+            toggleCancelReason();
+        }
 
         if (canEdit) {
             document.getElementById('modal-title-agenda').innerText = 'Editar Agendamento';
@@ -1274,17 +1300,21 @@ function toggleCancelReason() {
     const div = document.getElementById('div-motivo-cancelamento');
     const sel = document.getElementById('reg-motivo-cancelamento');
     const outroLocal = document.getElementById('reg-aplicada-outro-local');
+    const outraVacina = document.getElementById('reg-outra-vacina');
     const isOutroLocal = outroLocal && outroLocal.checked;
+    const isOutraVacina = outraVacina && outraVacina.checked;
+    const bloqueiaMotivo = isOutroLocal || isOutraVacina;
     if (s === 'Perdido') {
-        div.style.display = 'flex';
-        sel.disabled = isOutroLocal;
-        sel.required = !isOutroLocal;
-        sel.classList.toggle('opacity-40', isOutroLocal);
-        sel.classList.toggle('cursor-not-allowed', isOutroLocal);
-        sel.classList.toggle('bg-slate-100', isOutroLocal);
-        if (isOutroLocal) sel.value = '';
+        div.style.display = 'block';
+        sel.disabled = bloqueiaMotivo;
+        sel.required = !bloqueiaMotivo;
+        sel.classList.toggle('opacity-40', bloqueiaMotivo);
+        sel.classList.toggle('cursor-not-allowed', bloqueiaMotivo);
+        sel.classList.toggle('bg-slate-100', bloqueiaMotivo);
+        if (bloqueiaMotivo) sel.value = '';
     } else {
         div.style.display = 'none'; sel.required = false; sel.disabled = false; sel.value = '';
+        if (isOutraVacina && outraVacina) { outraVacina.checked = false; _paintOutraVacinaToggle('reg', false); }
     }
 
     const loteSel = document.getElementById('reg-lote');
@@ -1323,6 +1353,12 @@ function toggleAplicadaOutroLocal(chk) {
     const icon = document.getElementById('icon-aplicada-outro-local');
     const box  = chk.closest('label') && chk.closest('label').querySelector('div');
 
+    // Mutuamente exclusivo com "Outra Vacina"
+    if (chk.checked) {
+        const outraVacina = document.getElementById('reg-outra-vacina');
+        if (outraVacina && outraVacina.checked) { outraVacina.checked = false; _paintOutraVacinaToggle('reg', false); }
+    }
+
     if (chk.checked) {
         if (icon) { icon.classList.remove('text-violet-400'); icon.classList.add('text-white'); }
         if (box)  { box.classList.add('bg-violet-600', 'border-violet-600'); box.classList.remove('bg-violet-50', 'border-violet-300'); }
@@ -1330,6 +1366,162 @@ function toggleAplicadaOutroLocal(chk) {
         if (icon) { icon.classList.add('text-violet-400'); icon.classList.remove('text-white'); }
         if (box)  { box.classList.remove('bg-violet-600', 'border-violet-600'); box.classList.add('bg-violet-50', 'border-violet-300'); }
     }
+    toggleCancelReason();
+}
+
+// ─── OUTRA VACINA (dose suprida por outra vacina) ─────────────────────────────
+// Contextos: 'reg' (formulário de agendamento) e 'dismiss' (modal de perda de oportunidade).
+
+const OUTRA_VACINA_CTX = {
+    reg: {
+        chk:      'reg-outra-vacina',
+        icon:     'icon-outra-vacina',
+        box:      'box-outra-vacina',
+        search:   'reg-outra-vacina-search',
+        ref:      'reg-outra-vacina-ref',
+        dropdown: 'reg-outra-vacina-dropdown'
+    },
+    dismiss: {
+        chk:      'dismiss-opp-outra-vacina',
+        icon:     'icon-dismiss-outra-vacina',
+        box:      'box-dismiss-outra-vacina',
+        search:   'dismiss-outra-vacina-search',
+        ref:      'dismiss-outra-vacina-ref',
+        dropdown: 'dismiss-outra-vacina-dropdown'
+    }
+};
+
+// Paciente ativo em cada contexto
+function _outraVacinaPatientId(ctx) {
+    if (ctx === 'dismiss') {
+        return (typeof _dismissPending !== 'undefined' && _dismissPending) ? Number(_dismissPending.patId) : null;
+    }
+    const v = document.getElementById('hidden-patient-id')?.value;
+    return v ? Number(v) : null;
+}
+
+// Agendamento sendo editado (não pode referenciar a si mesmo)
+function _outraVacinaSelfId(ctx) {
+    if (ctx !== 'reg') return null;
+    const v = document.getElementById('reg-id')?.value;
+    return v ? Number(v) : null;
+}
+
+// Dose da vacina perdida que precisa ser suprida (mesma dosagem exigida na candidata)
+function _outraVacinaRequiredDose(ctx) {
+    if (ctx === 'dismiss') {
+        return (typeof _dismissPending !== 'undefined' && _dismissPending) ? _dismissPending.dose : null;
+    }
+    return document.getElementById('reg-dose')?.value || null;
+}
+
+// Candidatos: doses efetivamente tomadas pelo paciente (aplicadas aqui ou em outro local),
+// restritas à mesma dosagem (1ª Dose, 2ª Dose, Reforço...) da dose perdida.
+function getOutraVacinaCandidates(ctx) {
+    const patId  = _outraVacinaPatientId(ctx);
+    const selfId = _outraVacinaSelfId(ctx);
+    const dose   = _outraVacinaRequiredDose(ctx);
+    if (!patId) return [];
+    return appointments
+        .filter(a => Number(a.patientId) === patId
+            && Number(a.id) !== selfId
+            && (!dose || a.doseAtual === dose)
+            && (a.status === 'Aplicado' || (a.status === 'Perdido' && a.aplicadaOutroLocal)))
+        .sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')));
+}
+
+function outraVacinaLabel(a) {
+    const v = vaccines.find(x => x.id == a.vaccineId);
+    const d = (a.data && a.data.includes('-')) ? a.data.split('-').reverse().join('/') : (a.data || '—');
+    return `${v ? v.nome : 'Vacina'} · ${a.doseAtual || '—'} · ${d}`;
+}
+
+function filterOutraVacinaDropdown(ctx) {
+    const c  = OUTRA_VACINA_CTX[ctx];
+    const dd = document.getElementById(c.dropdown);
+    const input = document.getElementById(c.search);
+    if (!dd || !input) return;
+
+    const term = (input.value || '').toLowerCase().trim();
+    const list = getOutraVacinaCandidates(ctx)
+        .filter(a => !term || outraVacinaLabel(a).toLowerCase().includes(term));
+
+    if (!list.length) {
+        const dose = _outraVacinaRequiredDose(ctx);
+        dd.innerHTML = `<div class="px-3 py-3 text-[11px] font-bold text-slate-400 text-center">
+            <i class="fas fa-circle-info mr-1"></i>Nenhuma ${dose ? `<b>${dose}</b> aplicada` : 'vacina aplicada'} encontrada para este paciente
+        </div>`;
+        dd.classList.remove('hidden');
+        return;
+    }
+
+    dd.innerHTML = list.map(a => {
+        const v = vaccines.find(x => x.id == a.vaccineId);
+        const d = (a.data && a.data.includes('-')) ? a.data.split('-').reverse().join('/') : (a.data || '—');
+        const badge = (a.status === 'Perdido')
+            ? '<span class="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-violet-100 text-violet-600 tracking-wide">Outro Local</span>'
+            : '<span class="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-600 tracking-wide">Aplicada</span>';
+        return `<div onmousedown="selectOutraVacina('${ctx}', ${a.id})"
+            class="px-3 py-2 hover:bg-teal-50 cursor-pointer border-b border-slate-100 last:border-0 transition">
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-black text-slate-700 truncate">${v ? v.nome : 'Vacina'}</span>
+                ${badge}
+            </div>
+            <div class="text-[10px] font-bold text-slate-400 mt-0.5">${a.doseAtual || '—'} · ${d}</div>
+        </div>`;
+    }).join('');
+    dd.classList.remove('hidden');
+}
+
+function hideOutraVacinaDropdown(ctx) {
+    setTimeout(() => document.getElementById(OUTRA_VACINA_CTX[ctx].dropdown)?.classList.add('hidden'), 150);
+}
+
+function selectOutraVacina(ctx, appId) {
+    const c = OUTRA_VACINA_CTX[ctx];
+    const a = appointments.find(x => x.id == appId);
+    if (!a) return;
+    document.getElementById(c.ref).value    = a.id;
+    document.getElementById(c.search).value = outraVacinaLabel(a);
+    document.getElementById(c.dropdown)?.classList.add('hidden');
+}
+
+function clearOutraVacinaRef(ctx) {
+    const c = OUTRA_VACINA_CTX[ctx];
+    const ref = document.getElementById(c.ref);
+    const se  = document.getElementById(c.search);
+    if (ref) ref.value = '';
+    if (se)  se.value = '';
+    document.getElementById(c.dropdown)?.classList.add('hidden');
+}
+
+// Liga/desliga o visual do botão + painel de busca
+function _paintOutraVacinaToggle(ctx, on) {
+    const c    = OUTRA_VACINA_CTX[ctx];
+    const chk  = document.getElementById(c.chk);
+    const icon = document.getElementById(c.icon);
+    const box  = chk && chk.closest('label') && chk.closest('label').querySelector('div');
+    const panel = document.getElementById(c.box);
+
+    if (on) {
+        if (icon) { icon.classList.remove('text-teal-400'); icon.classList.add('text-white'); }
+        if (box)  { box.classList.add('bg-teal-600', 'border-teal-600'); box.classList.remove('bg-teal-50', 'border-teal-300'); }
+        panel?.classList.remove('hidden');
+    } else {
+        if (icon) { icon.classList.add('text-teal-400'); icon.classList.remove('text-white'); }
+        if (box)  { box.classList.remove('bg-teal-600', 'border-teal-600'); box.classList.add('bg-teal-50', 'border-teal-300'); }
+        panel?.classList.add('hidden');
+        clearOutraVacinaRef(ctx);
+    }
+}
+
+function toggleOutraVacina(chk) {
+    // Mutuamente exclusivo com "Outro Local"
+    if (chk.checked) {
+        const outroLocal = document.getElementById('reg-aplicada-outro-local');
+        if (outroLocal && outroLocal.checked) { outroLocal.checked = false; toggleAplicadaOutroLocal(outroLocal); }
+    }
+    _paintOutraVacinaToggle('reg', chk.checked);
     toggleCancelReason();
 }
 
@@ -1598,6 +1790,21 @@ function saveRecord(e) {
         }
     }
 
+    // Perda suprida por outra vacina: exige a referência do agendamento aplicado
+    const _outraVacinaChk = document.getElementById('reg-outra-vacina');
+    const _isOutraVacina  = statusVal === 'Perdido' && !!(_outraVacinaChk && _outraVacinaChk.checked);
+    const _outraVacinaRef = _isOutraVacina ? (document.getElementById('reg-outra-vacina-ref')?.value || '') : '';
+    if (_isOutraVacina && !_outraVacinaRef) {
+        showNotification('Selecione a vacina aplicada que supriu esta dose.', 'error');
+        document.getElementById('reg-outra-vacina-search')?.focus();
+        return;
+    }
+    const _outraVacinaApp = _outraVacinaRef ? appointments.find(x => x.id == _outraVacinaRef) : null;
+    if (_isOutraVacina && _outraVacinaApp && _outraVacinaApp.doseAtual !== doseAtualStr) {
+        showNotification(`A vacina selecionada deve ser da mesma dosagem (${doseAtualStr}) da dose perdida.`, 'error');
+        return;
+    }
+
     const a = {
         id: id ? Number(id) : Date.now(),
         patientId: Number(patId),
@@ -1613,9 +1820,14 @@ function saveRecord(e) {
         loteId: loteId,
         lote: loteNumero,
         motivoCancelamento: statusVal === 'Perdido'
-            ? (document.getElementById('reg-aplicada-outro-local')?.checked ? 'Aplicou em outro local' : document.getElementById('reg-motivo-cancelamento').value)
+            ? (document.getElementById('reg-aplicada-outro-local')?.checked ? 'Aplicou em outro local'
+               : _isOutraVacina ? 'Tomou outra vacina'
+               : document.getElementById('reg-motivo-cancelamento').value)
             : '',
         aplicadaOutroLocal: document.getElementById('reg-aplicada-outro-local')?.checked || false,
+        outraVacina: _isOutraVacina,
+        outraVacinaAppId: _isOutraVacina ? Number(_outraVacinaRef) : null,
+        outraVacinaLabel: _outraVacinaApp ? outraVacinaLabel(_outraVacinaApp) : '',
         pedido: pedidoVal,
         vendedor: vendedorVal,
         aplicador: aplicadorVal
