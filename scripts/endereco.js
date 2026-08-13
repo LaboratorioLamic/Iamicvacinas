@@ -55,6 +55,9 @@ async function buscarCep() {
         if (bairroEl)     bairroEl.value     = (data.bairro || bairroEl.value || '').toUpperCase();
         if (cidadeEl)     cidadeEl.value     = (data.localidade || cidadeEl.value || '').toUpperCase();
         if (estadoEl)     estadoEl.value     = data.uf || estadoEl.value || '';
+        // Retorno do CEP é dado real: deixa de valer como padrão da clínica.
+        if (data.localidade && cidadeEl) delete cidadeEl.dataset.padrao;
+        if (data.uf && estadoEl)         delete estadoEl.dataset.padrao;
 
         // Cursor pousa no próximo campo que ainda precisa de humano.
         const numeroEl = _endEl('numero');
@@ -68,7 +71,9 @@ async function buscarCep() {
 }
 
 // ─── HISTÓRICO DO PACIENTE ───────────────────────────────────────────────────
-// Só endereços já usados pelo próprio paciente. Nunca de outros pacientes.
+// Prioriza os endereços do próprio paciente. Quando ele nunca teve endereço
+// preenchido, cai para a base de todos os pacientes — assim o primeiro
+// agendamento também tem de onde escolher.
 
 function _enderecosDoPaciente(patId) {
     if (!patId || typeof appointments === 'undefined') return [];
@@ -76,6 +81,22 @@ function _enderecosDoPaciente(patId) {
         .filter(a => String(a.patientId) === String(patId) && a.endereco &&
                      ENDERECO_CAMPOS.some(c => a.endereco[c]))
         .map(a => a.endereco);
+}
+
+// Todos os endereços já cadastrados, de qualquer paciente.
+function _enderecosGlobais() {
+    if (typeof appointments === 'undefined') return [];
+    return appointments
+        .filter(a => a.endereco && ENDERECO_CAMPOS.some(c => a.endereco[c]))
+        .map(a => a.endereco);
+}
+
+// Base de sugestões: histórico do paciente quando existe, senão a base global.
+// O fallback é do paciente inteiro, não campo a campo — misturar as duas fontes
+// quebraria o cruzamento entre logradouro, bairro, cidade e UF.
+function _baseSugestoesEndereco(patId) {
+    const doPaciente = _enderecosDoPaciente(patId);
+    return doPaciente.length ? doPaciente : _enderecosGlobais();
 }
 
 // Assinatura de um endereço, para contar frequência ignorando acento/caixa.
@@ -103,39 +124,48 @@ function enderecoMaisFrequente(patId) {
 }
 
 // Preenche o formulário com o endereço mais usado do paciente, sem sobrescrever
-// nada que o usuário já tenha digitado.
+// nada que o usuário já tenha digitado. O número nunca entra: é digitado à mão.
 function autoFillEnderecoPaciente(patId, forcar) {
     const end = enderecoMaisFrequente(patId);
     if (!end) { aplicarPadraoEndereco(); return false; }
-    ENDERECO_CAMPOS.forEach(c => {
+    ENDERECO_CAMPOS.filter(c => c !== 'numero').forEach(c => {
         const el = _endEl(c);
         if (!el) return;
-        if (forcar || !el.value.trim()) el.value = end[c] || '';
+        // Padrão da clínica cede lugar ao endereço real do paciente.
+        if (forcar || !el.value.trim() || el.dataset.padrao === '1') {
+            el.value = end[c] || '';
+            if (end[c]) delete el.dataset.padrao;
+        }
     });
     aplicarPadraoEndereco();
     return true;
 }
 
-// Filtros dos níveis acima do campo atual que já estão preenchidos.
-// Referência não é um nível da hierarquia, mas é específica de um local — então
-// herda a hierarquia inteira como filtro.
+// Todos os demais níveis da hierarquia que já estão preenchidos. O cruzamento é
+// mútuo: escolher o logradouro restringe a cidade tanto quanto o contrário, para
+// que só apareçam combinações que existem juntas no histórico.
+// Referência não é um nível, mas é específica de um local — filtra por todos.
 function _filtrosHierarquiaAcima(campo) {
-    const idx = campo === 'referencia' ? ENDERECO_HIERARQUIA.length : ENDERECO_HIERARQUIA.indexOf(campo);
-    if (idx <= 0) return [];
-    return ENDERECO_HIERARQUIA.slice(0, idx)
-        .map(c => ({ campo: c, valor: (_endEl(c)?.value || '').trim() }))
+    return ENDERECO_HIERARQUIA
+        .filter(c => c !== campo)
+        .map(c => {
+            const el = _endEl(c);
+            // Valor só de padrão da clínica não conta como escolha do usuário.
+            if (!el || el.dataset.padrao === '1') return { campo: c, valor: '' };
+            return { campo: c, valor: (el.value || '').trim() };
+        })
         .filter(f => f.valor);
 }
 
-// Valores distintos do histórico para um campo, respeitando os níveis acima.
+// Valores distintos do histórico para um campo, respeitando o que já foi
+// escolhido nos outros níveis.
 function _valoresHistorico(campo, termo) {
     const patId = document.getElementById('hidden-patient-id')?.value;
-    if (!patId) return [];
     const filtros = _filtrosHierarquiaAcima(campo);
     const termoNorm = normalizeStr(termo || '');
     const vistos = new Set();
     const out = [];
-    _enderecosDoPaciente(patId).forEach(e => {
+    _baseSugestoesEndereco(patId).forEach(e => {
         const val = (e[campo] || '').trim();
         if (!val) return;
         if (filtros.some(f => normalizeStr(e[f.campo] || '') !== normalizeStr(f.valor))) return;
@@ -145,17 +175,18 @@ function _valoresHistorico(campo, termo) {
         vistos.add(k);
         out.push(val);
     });
-    return out.sort((a, b) => a.localeCompare(b, 'pt-BR')).slice(0, 8);
+    // Limite maior que o histórico de um paciente: a base global é bem mais ampla
+    // e o popover já rola.
+    return out.sort((a, b) => a.localeCompare(b, 'pt-BR')).slice(0, 30);
 }
 
 // Um registro do histórico que contenha determinado valor no campo — usado para
-// completar os níveis acima quando o usuário escolhe um nível específico.
+// completar os demais níveis quando o usuário escolhe um valor.
 function _registroHistoricoPara(campo, valor) {
     const patId = document.getElementById('hidden-patient-id')?.value;
-    if (!patId) return null;
     const alvo = normalizeStr(valor);
     const filtros = _filtrosHierarquiaAcima(campo);
-    return _enderecosDoPaciente(patId).find(e =>
+    return _baseSugestoesEndereco(patId).find(e =>
         normalizeStr(e[campo] || '') === alvo &&
         !filtros.some(f => normalizeStr(e[f.campo] || '') !== normalizeStr(f.valor))
     ) || null;
@@ -182,28 +213,29 @@ function esconderSugestoesEndereco(campo) {
     setTimeout(() => _popoverEl(campo)?.classList.add('hidden'), 150);
 }
 
-// Escolher um nível específico completa os níveis acima que ainda estão vazios.
+// Escolher um valor completa os demais níveis do mesmo endereço que ainda estão
+// vazios (ou que só têm o padrão da clínica). Vale nos dois sentidos: escolher o
+// logradouro preenche bairro/cidade/UF, e escolher a cidade preenche a UF.
 function selecionarSugestaoEndereco(campo, valor) {
     const el = _endEl(campo);
     if (!el) return;
     el.value = campo === 'estado' ? valor : String(valor).toUpperCase();
+    delete el.dataset.padrao;
     _popoverEl(campo)?.classList.add('hidden');
 
-    const idx = campo === 'referencia' ? ENDERECO_HIERARQUIA.length : ENDERECO_HIERARQUIA.indexOf(campo);
-    if (idx > 0) {
-        const reg = _registroHistoricoPara(campo, valor);
-        if (reg) {
-            ENDERECO_HIERARQUIA.slice(0, idx).forEach(c => {
-                const acima = _endEl(c);
-                if (acima && !acima.value.trim() && reg[c]) acima.value = reg[c];
-            });
-            // CEP e número não são níveis, mas acompanham o endereço escolhido.
-            ['cep', 'numero'].forEach(c => {
-                const extra = _endEl(c);
-                if (extra && !extra.value.trim() && reg[c]) extra.value = reg[c];
-            });
-        }
-    }
+    const reg = _registroHistoricoPara(campo, valor);
+    if (!reg) return;
+
+    // Só preenche o que o usuário ainda não definiu — padrão da clínica cede lugar.
+    const preenchivel = alvo => alvo && (!alvo.value.trim() || alvo.dataset.padrao === '1');
+    ENDERECO_HIERARQUIA.filter(c => c !== campo).forEach(c => {
+        const outro = _endEl(c);
+        if (preenchivel(outro) && reg[c]) { outro.value = reg[c]; delete outro.dataset.padrao; }
+    });
+    // CEP não é nível, mas acompanha o endereço escolhido. Número fica de fora:
+    // é sempre digitado à mão, pois muda de casa para casa na mesma rua.
+    const cepEl = _endEl('cep');
+    if (preenchivel(cepEl) && reg.cep) { cepEl.value = reg.cep; delete cepEl.dataset.padrao; }
 }
 
 // ─── UF ──────────────────────────────────────────────────────────────────────
@@ -229,6 +261,8 @@ function onEnderecoInputUpper(input) {
     const pos = input.selectionStart;
     input.value = input.value.toUpperCase();
     input.setSelectionRange(pos, pos);
+    // Digitou: o valor deixa de ser o padrão da clínica.
+    delete input.dataset.padrao;
 }
 
 // ─── COLETA / RESET ──────────────────────────────────────────────────────────
@@ -247,7 +281,10 @@ function coletarEnderecoForm() {
 function preencherEnderecoForm(end) {
     ENDERECO_CAMPOS.forEach(c => {
         const el = _endEl(c);
-        if (el) el.value = (end && end[c]) || '';
+        if (!el) return;
+        el.value = (end && end[c]) || '';
+        // Dado real do endereço não é padrão da clínica; vazio volta a ser elegível.
+        delete el.dataset.padrao;
     });
 }
 
@@ -259,17 +296,22 @@ function enderecoParaNovoAgendamento(patId, irmaos) {
     const base = doGrupo || enderecoMaisFrequente(patId);
     const end = {};
     ENDERECO_CAMPOS.forEach(c => { end[c] = (base && base[c]) || ''; });
+    // Número herdado das vacinas irmãs é a mesma visita, então vale. Vindo do
+    // histórico é chute — some, para ser digitado à mão.
+    if (!doGrupo) end.numero = '';
     if (!end.cidade) end.cidade = ENDERECO_PADRAO.cidade;
     if (!end.estado) end.estado = ENDERECO_PADRAO.estado;
     return end;
 }
 
 // Cidade/UF padrão da clínica — só entram onde não há dado, nunca por cima.
+// Ficam marcados como "padrão" para não estreitarem as sugestões dos outros
+// campos: o usuário não escolheu esse valor, ele só veio preenchido.
 function aplicarPadraoEndereco() {
     const cidadeEl = _endEl('cidade');
     const estadoEl = _endEl('estado');
-    if (cidadeEl && !cidadeEl.value.trim()) cidadeEl.value = ENDERECO_PADRAO.cidade;
-    if (estadoEl && !estadoEl.value.trim()) estadoEl.value = ENDERECO_PADRAO.estado;
+    if (cidadeEl && !cidadeEl.value.trim()) { cidadeEl.value = ENDERECO_PADRAO.cidade; cidadeEl.dataset.padrao = '1'; }
+    if (estadoEl && !estadoEl.value.trim()) { estadoEl.value = ENDERECO_PADRAO.estado; estadoEl.dataset.padrao = '1'; }
 }
 
 function limparEnderecoForm() {
