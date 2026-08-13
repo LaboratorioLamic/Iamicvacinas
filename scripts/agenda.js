@@ -1319,19 +1319,95 @@ function openAgendarModal(id) {
     document.getElementById('agendar-pedido').value = a.pedido || a.pedidoNumero || '';
     document.getElementById('agendar-data-erro').classList.add('hidden');
     document.getElementById('agendar-data-spacer').style.display = 'block';
+
+    // Endereço salvo tem precedência; sem ele, herda o mais usado do paciente.
+    _agendarEndereco = a.endereco
+        ? { ...a.endereco }
+        : (typeof enderecoParaNovoAgendamento === 'function' ? enderecoParaNovoAgendamento(a.patientId, []) : null);
+    _renderAgendarEndereco();
+
     checkAgendarData();
     document.getElementById('modal-agendar').classList.add('active');
+}
+
+// O editor de endereço vive dentro deste fluxo: fechar o agendamento o encerra
+// junto, devolvendo os IDs-alvo de endereco.js ao formulário de registro.
+function closeAgendarModal() {
+    if (document.getElementById('modal-endereco-grupo')?.classList.contains('active')) _encerrarEnderecoGrupo();
+    document.getElementById('modal-agendar').classList.remove('active');
+    pendingAgendarId = null;
+    _agendarEndereco = null;
+}
+
+// ─── ENDEREÇO DO AGENDAMENTO AVULSO ──────────────────────────────────────────
+// Mesmo critério do Agendar Grupo: sem endereço completo não vira "Agendado".
+
+let _agendarEndereco = null;
+
+function _enderecoAgendarCompleto() {
+    if (!_agendarEndereco) return false;
+    if (typeof ENDERECO_OBRIGATORIOS === 'undefined') return true;
+    return ENDERECO_OBRIGATORIOS.every(f => String(_agendarEndereco[f.campo] || '').trim());
+}
+
+function _renderAgendarEndereco() {
+    const resumoEl = document.getElementById('agendar-endereco-resumo');
+    const badgeEl  = document.getElementById('agendar-endereco-badge');
+    const completo = _enderecoAgendarCompleto();
+
+    if (resumoEl) {
+        const texto = (typeof enderecoResumo === 'function') ? enderecoResumo(_agendarEndereco) : '';
+        resumoEl.textContent = texto || 'Nenhum endereço informado';
+        resumoEl.className = texto
+            ? 'text-[11px] font-bold text-slate-600 truncate'
+            : 'text-[11px] font-bold text-slate-400 italic truncate';
+    }
+    if (badgeEl) {
+        badgeEl.textContent = completo ? 'Completo' : 'Incompleto';
+        badgeEl.className = completo
+            ? 'text-[9px] font-black px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 whitespace-nowrap'
+            : 'text-[9px] font-black px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200 whitespace-nowrap';
+    }
+}
+
+function abrirEnderecoAgendar() {
+    const a = appointments.find(x => x.id == pendingAgendarId);
+    if (!a) return;
+    abrirEditorEndereco({
+        patId: a.patientId,
+        endereco: _agendarEndereco,
+        mensagem: 'Endereço da visita atualizado.',
+        aoSalvar: end => {
+            _agendarEndereco = end;
+            _renderAgendarEndereco();
+            checkAgendarData();
+        }
+    });
+}
+
+// Chama atenção para o box de endereço: pulso vermelho + rolagem até ele.
+function _piscarEnderecoAgendar() {
+    const box = document.getElementById('agendar-endereco-box');
+    if (!box) return;
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const base = box.className.replace(/\s*(ring-2|ring-red-400|border-red-400|animate-pulse)\b/g, '');
+    box.className = base + ' ring-2 ring-red-400 border-red-400 animate-pulse';
+    setTimeout(() => { box.className = base; }, 1800);
 }
 
 function checkAgendarData() {
     const val = document.getElementById('agendar-data').value;
     const pedido = document.getElementById('agendar-pedido').value.trim();
     const btn = document.getElementById('btn-confirm-agendar');
-    const ok = val.length > 0 && pedido.length > 0;
-    btn.disabled = !ok;
+    const semEndereco = !_enderecoAgendarCompleto();
+    const ok = val.length > 0 && pedido.length > 0 && !semEndereco;
+    // Continua clicável mesmo bloqueado: `disabled` engole o clique e o usuário
+    // fica sem saber o motivo. confirmAgendar() valida e explica.
+    btn.disabled = false;
     btn.className = ok
         ? 'flex-1 bg-blue-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-700 cursor-pointer shadow-md'
-        : 'flex-1 bg-blue-200 text-blue-400 font-black py-3 rounded-xl uppercase text-xs transition cursor-not-allowed';
+        : 'flex-1 bg-blue-200 text-blue-400 font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-300 cursor-pointer';
+    btn.title = ok ? '' : (semEndereco ? 'Informe o endereço da visita para agendar.' : '');
 }
 
 function confirmAgendar() {
@@ -1344,6 +1420,19 @@ function confirmAgendar() {
     if (!data) {
         document.getElementById('agendar-data-erro').classList.remove('hidden');
         document.getElementById('agendar-data-spacer').style.display = 'none';
+        return;
+    }
+    // Endereço completo é pré-requisito do status Agendado.
+    if (!_enderecoAgendarCompleto()) {
+        const end = _agendarEndereco || {};
+        const faltando = (typeof ENDERECO_OBRIGATORIOS !== 'undefined' ? ENDERECO_OBRIGATORIOS : [])
+            .filter(f => !String(end[f.campo] || '').trim())
+            .map(f => f.label);
+        showNotification(
+            `Endereço incompleto: preencha <b>${faltando.join(', ')}</b> para agendar.`,
+            'error'
+        );
+        _piscarEnderecoAgendar();
         return;
     }
     if (holidays.includes(data)) {
@@ -1371,7 +1460,9 @@ function confirmAgendar() {
         appointments[idx].status = 'Agendado';
         appointments[idx].data = data;
         appointments[idx].pedido = pedido;
+        appointments[idx].endereco = { ..._agendarEndereco };
         pendingAgendarId = null;
+        _agendarEndereco = null;
         document.getElementById('modal-agendar').classList.remove('active');
         if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
@@ -2113,8 +2204,107 @@ function openAgendarGrupoModal(patId, fromStatus, groupApps) {
     const countEl = document.getElementById('agendar-grupo-count');
     if (countEl) countEl.textContent = groupApps.length + ' vacina' + (groupApps.length !== 1 ? 's' : '');
 
+    // Endereço já existente em qualquer vacina do grupo vira o ponto de partida;
+    // sem nenhum, cai no histórico do paciente (mesma regra do formulário).
+    _agendarGrupoPending.endereco =
+        (typeof enderecoParaNovoAgendamento === 'function')
+            ? enderecoParaNovoAgendamento(patId, groupApps)
+            : null;
+
+    _renderAgendarGrupoEndereco();
     _renderAgendarGrupoLines();
     document.getElementById('modal-agendar-grupo').classList.add('active');
+}
+
+// ─── ENDEREÇO DO GRUPO ───────────────────────────────────────────────────────
+// Um único endereço para todas as vacinas: é a mesma visita. Preencher aqui
+// grava em todas ao confirmar.
+
+function _enderecoGrupoCompleto() {
+    const end = _agendarGrupoPending && _agendarGrupoPending.endereco;
+    if (!end) return false;
+    if (typeof ENDERECO_OBRIGATORIOS === 'undefined') return true;
+    return ENDERECO_OBRIGATORIOS.every(f => String(end[f.campo] || '').trim());
+}
+
+function _renderAgendarGrupoEndereco() {
+    const resumoEl = document.getElementById('agendar-grupo-endereco-resumo');
+    const badgeEl  = document.getElementById('agendar-grupo-endereco-badge');
+    const end = _agendarGrupoPending && _agendarGrupoPending.endereco;
+    const completo = _enderecoGrupoCompleto();
+
+    if (resumoEl) {
+        const texto = (typeof enderecoResumo === 'function') ? enderecoResumo(end) : '';
+        resumoEl.textContent = texto || 'Nenhum endereço informado';
+        resumoEl.className = texto
+            ? 'text-[11px] font-bold text-slate-600 truncate'
+            : 'text-[11px] font-bold text-slate-400 italic truncate';
+    }
+    if (badgeEl) {
+        badgeEl.textContent = completo ? 'Completo' : 'Incompleto';
+        badgeEl.className = completo
+            ? 'text-[9px] font-black px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 whitespace-nowrap'
+            : 'text-[9px] font-black px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200 whitespace-nowrap';
+    }
+}
+
+// Editor de endereço compartilhado (modal-endereco-grupo). Cada fluxo que o abre
+// declara de onde vem o endereço e o que fazer ao salvar; o modal em si não sabe
+// nada sobre grupo ou agendamento avulso.
+let _enderecoEditor = null;
+
+function abrirEditorEndereco({ patId, endereco, titulo, aoSalvar, mensagem }) {
+    // Enquanto este modal está aberto ele é o dono dos IDs-alvo de endereco.js.
+    setEnderecoPrefixo('grpend');
+    setEnderecoPacienteId(patId);
+    _enderecoEditor = { aoSalvar, mensagem };
+
+    const pat = patients.find(p => p.id == patId);
+    const nomeEl = document.getElementById('endereco-grupo-paciente');
+    if (nomeEl) nomeEl.textContent = titulo || (pat ? pat.nome : '—');
+
+    preencherEnderecoForm(endereco);
+    aplicarPadraoEndereco();
+    document.getElementById('modal-endereco-grupo').classList.add('active');
+    setTimeout(() => document.getElementById('grpend-logradouro')?.focus(), 60);
+}
+
+// Devolve o controle dos IDs ao formulário de registro.
+function _encerrarEnderecoGrupo() {
+    limparEnderecoForm();
+    document.getElementById('modal-endereco-grupo').classList.remove('active');
+    setEnderecoPrefixo('reg');
+    setEnderecoPacienteId(null);
+    _enderecoEditor = null;
+}
+
+function fecharEnderecoGrupo() {
+    _encerrarEnderecoGrupo();
+}
+
+function salvarEnderecoGrupo() {
+    if (!_enderecoEditor) { _encerrarEnderecoGrupo(); return; }
+    // Mesma exigência do status Agendado no formulário de registro.
+    if (typeof validarEnderecoObrigatorio === 'function' && !validarEnderecoObrigatorio('Agendado')) return;
+    const end = coletarEnderecoForm();
+    const { aoSalvar, mensagem } = _enderecoEditor;
+    _encerrarEnderecoGrupo();
+    if (typeof aoSalvar === 'function') aoSalvar(end);
+    if (mensagem) showNotification(mensagem, 'success');
+}
+
+function abrirEnderecoGrupo() {
+    if (!_agendarGrupoPending) return;
+    abrirEditorEndereco({
+        patId: _agendarGrupoPending.patId,
+        endereco: _agendarGrupoPending.endereco,
+        mensagem: 'Endereço aplicado a todas as vacinas do grupo.',
+        aoSalvar: end => {
+            _agendarGrupoPending.endereco = end;
+            _renderAgendarGrupoEndereco();
+            _checkAgendarGrupoBtn();
+        }
+    });
 }
 
 function _renderAgendarGrupoLines() {
@@ -2215,11 +2405,28 @@ function _checkAgendarGrupoBtn() {
         const el = document.getElementById(`agendar-grupo-pedido-${app.id}`);
         return el && el.value.trim().length > 0;
     });
-    const canConfirm = activeApps.length > 0 && allPedidosPreenchidos;
-    btn.disabled = !canConfirm;
+    // Status Agendado exige endereço utilizável para a visita.
+    const semEndereco = !_enderecoGrupoCompleto();
+    const canConfirm = activeApps.length > 0 && allPedidosPreenchidos && !semEndereco;
+    // O botão continua clicável mesmo bloqueado: `disabled` engole o clique e o
+    // usuário fica sem saber o motivo. confirmAgendarGrupo() valida e explica.
+    btn.disabled = false;
     btn.className = canConfirm
         ? 'flex-1 bg-blue-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-700 cursor-pointer shadow-md'
-        : 'flex-1 bg-blue-200 text-blue-400 font-black py-3 rounded-xl uppercase text-xs cursor-not-allowed';
+        : 'flex-1 bg-blue-200 text-blue-400 font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-300 cursor-pointer';
+    btn.title = canConfirm ? '' :
+        (semEndereco ? 'Informe o endereço da visita para agendar.' : 'Preencha o Nº do pedido de cada vacina.');
+}
+
+// Chama atenção para o box de endereço: pulso vermelho + rolagem até ele.
+// Usado quando o bloqueio do agendamento é justamente a falta de endereço.
+function _piscarEnderecoGrupo() {
+    const box = document.getElementById('agendar-grupo-endereco-box');
+    if (!box) return;
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const base = box.className.replace(/\s*(ring-2|ring-red-400|border-red-400|animate-pulse)\b/g, '');
+    box.className = base + ' ring-2 ring-red-400 border-red-400 animate-pulse';
+    setTimeout(() => { box.className = base; }, 1800);
 }
 
 function removeAgendarGrupoLine(appId) {
@@ -2252,6 +2459,23 @@ function confirmAgendarGrupo() {
         return;
     }
 
+    // Endereço completo é pré-requisito do status Agendado — mesma regra do
+    // formulário de registro.
+    if (!_enderecoGrupoCompleto()) {
+        const end = _agendarGrupoPending.endereco || {};
+        const faltando = (typeof ENDERECO_OBRIGATORIOS !== 'undefined' ? ENDERECO_OBRIGATORIOS : [])
+            .filter(f => !String(end[f.campo] || '').trim())
+            .map(f => f.label);
+        showNotification(
+            `Endereço incompleto: preencha <b>${faltando.join(', ')}</b> para agendar.`,
+            'error'
+        );
+        // Marca o box e leva o usuário até ele; abrir o editor direto tiraria a
+        // referência visual de onde o problema está.
+        _piscarEnderecoGrupo();
+        return;
+    }
+
     // Valida datas e coleta lotes de cada linha ativa
     const dateMap = {};
     const loteMap = {};
@@ -2261,7 +2485,11 @@ function confirmAgendarGrupo() {
         const pedido = pedidoInput ? pedidoInput.value.trim() : '';
         if (!pedido) {
             showNotification(`Informe o número do pedido para "${vaccines.find(v => v.id == app.vaccineId)?.nome || 'vacina'}".`, 'error');
-            if (pedidoInput) { pedidoInput.focus(); pedidoInput.classList.add('border-red-400', 'ring-2', 'ring-red-200'); }
+            if (pedidoInput) {
+                pedidoInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                pedidoInput.focus();
+                pedidoInput.classList.add('border-red-400', 'ring-2', 'ring-red-200');
+            }
             return;
         }
         pedidoMap[app.id] = pedido;
@@ -2318,6 +2546,8 @@ function confirmAgendarGrupo() {
             appointments[idx].data = dateMap[app.id];
             appointments[idx].hora = dateMap[`hora_${app.id}`] || appointments[idx].hora || '';
             appointments[idx].pedido = pedidoMap[app.id];
+            // Mesma visita, mesmo endereço em todas as vacinas do grupo.
+            appointments[idx].endereco = { ..._agendarGrupoPending.endereco };
             if (loteMap[app.id]) {
                 appointments[idx].loteId = loteMap[app.id];
                 const lote = vaccineLots.find(l => l.id == loteMap[app.id]);
@@ -2339,6 +2569,9 @@ function confirmAgendarGrupo() {
 }
 
 function closeAgendarGrupoModal() {
+    // O modal de endereço vive dentro deste fluxo: fechar o grupo o encerra junto,
+    // devolvendo os IDs-alvo de endereco.js ao formulário de registro.
+    if (document.getElementById('modal-endereco-grupo')?.classList.contains('active')) _encerrarEnderecoGrupo();
     document.getElementById('modal-agendar-grupo').classList.remove('active');
     _agendarGrupoPending = null;
     _agendarGrupoRemovedIds = new Set();

@@ -160,6 +160,8 @@ function openRecordModal() {
     _vacinaSelNew.value = '';
     _vacinaSelNew.disabled = true;
     _vacinaSelNew.classList.add('opacity-50', 'cursor-not-allowed');
+    // O formulário de registro é sempre dono do prefixo "reg" dos campos de endereço.
+    if (typeof setEnderecoPrefixo === 'function') { setEnderecoPrefixo('reg'); setEnderecoPacienteId(null); }
     if (typeof limparEnderecoForm === 'function') limparEnderecoForm();
     document.getElementById('modal-title-agenda').innerText = 'Novo Agendamento Clínico';
     document.getElementById('btn-delete-record').classList.add('hidden');
@@ -334,6 +336,8 @@ function autoFillPatient() {
     document.getElementById('div-responsavel').style.display = 'none';
     document.getElementById('div-responsavel-placeholder').style.display = 'block';
     document.getElementById('reg-responsavel').value = '';
+    // O formulário de registro é sempre dono do prefixo "reg" dos campos de endereço.
+    if (typeof setEnderecoPrefixo === 'function') { setEnderecoPrefixo('reg'); setEnderecoPacienteId(null); }
     if (typeof limparEnderecoForm === 'function') limparEnderecoForm();
     _resetAndDisableVaccineFields();
 }
@@ -1239,6 +1243,7 @@ function editRecord(id) {
     document.getElementById('reg-patient-search').value = p ? `${p.cpf} - ${p.nome}` : '';
     autoFillPatient();
     // Endereço salvo tem precedência; sem endereço, herda o mais usado do paciente.
+    if (typeof setEnderecoPrefixo === 'function') { setEnderecoPrefixo('reg'); setEnderecoPacienteId(null); }
     if (typeof limparEnderecoForm === 'function') {
         limparEnderecoForm();
         if (a.endereco) { preencherEnderecoForm(a.endereco); aplicarPadraoEndereco(); }

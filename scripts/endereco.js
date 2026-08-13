@@ -21,7 +21,23 @@ const ESTADOS_BR = [
     { uf: 'SP', nome: 'São Paulo' }, { uf: 'SE', nome: 'Sergipe' }, { uf: 'TO', nome: 'Tocantins' }
 ];
 
-function _endEl(campo) { return document.getElementById('reg-' + campo); }
+// Prefixo dos IDs dos campos-alvo. O formulário de registro usa "reg"; outros
+// formulários (ex.: endereço do modal Agendar Grupo) trocam o prefixo enquanto
+// estão abertos, para reaproveitar CEP, sugestões, padrão e validação sem
+// duplicar nada.
+let _endPrefixo = 'reg';
+
+function setEnderecoPrefixo(p) { _endPrefixo = p || 'reg'; }
+
+function _endEl(campo) { return document.getElementById(_endPrefixo + '-' + campo); }
+
+// Paciente dono das sugestões. Formulários sem o campo escondido do registro
+// (ex.: Agendar Grupo) declaram o paciente aqui.
+let _endPacienteIdOverride = null;
+function setEnderecoPacienteId(id) { _endPacienteIdOverride = id ? String(id) : null; }
+function _endPacienteId() {
+    return _endPacienteIdOverride || document.getElementById('hidden-patient-id')?.value || '';
+}
 
 // ─── MÁSCARA / BUSCA POR CEP ─────────────────────────────────────────────────
 
@@ -160,7 +176,7 @@ function _filtrosHierarquiaAcima(campo) {
 // Valores distintos do histórico para um campo, respeitando o que já foi
 // escolhido nos outros níveis.
 function _valoresHistorico(campo, termo) {
-    const patId = document.getElementById('hidden-patient-id')?.value;
+    const patId = _endPacienteId();
     const filtros = _filtrosHierarquiaAcima(campo);
     const termoNorm = normalizeStr(termo || '');
     const vistos = new Set();
@@ -183,7 +199,7 @@ function _valoresHistorico(campo, termo) {
 // Um registro do histórico que contenha determinado valor no campo — usado para
 // completar os demais níveis quando o usuário escolhe um valor.
 function _registroHistoricoPara(campo, valor) {
-    const patId = document.getElementById('hidden-patient-id')?.value;
+    const patId = _endPacienteId();
     const alvo = normalizeStr(valor);
     const filtros = _filtrosHierarquiaAcima(campo);
     return _baseSugestoesEndereco(patId).find(e =>
@@ -192,7 +208,7 @@ function _registroHistoricoPara(campo, valor) {
     ) || null;
 }
 
-function _popoverEl(campo) { return document.getElementById('end-sug-' + campo); }
+function _popoverEl(campo) { return document.getElementById(_endPrefixo + '-end-sug-' + campo); }
 
 function mostrarSugestoesEndereco(campo) {
     const pop = _popoverEl(campo);
@@ -318,8 +334,8 @@ function limparEnderecoForm() {
     preencherEnderecoForm(null);
     ENDERECO_CAMPOS.forEach(c => _popoverEl(c)?.classList.add('hidden'));
     aplicarPadraoEndereco();
-    const box = document.getElementById('reg-mapa-box');
-    const frame = document.getElementById('reg-mapa-frame');
+    const box = document.getElementById(_endPrefixo + '-mapa-box');
+    const frame = document.getElementById(_endPrefixo + '-mapa-frame');
     if (box) box.classList.add('hidden');
     if (frame) frame.src = '';
 }
@@ -366,8 +382,8 @@ function _mapaUrl(endereco) {
 }
 
 function toggleMapaEndereco() {
-    const box   = document.getElementById('reg-mapa-box');
-    const frame = document.getElementById('reg-mapa-frame');
+    const box   = document.getElementById(_endPrefixo + '-mapa-box');
+    const frame = document.getElementById(_endPrefixo + '-mapa-frame');
     if (!box || !frame) return;
     // Fechar zera o src: mata a request pendente e o tracking do iframe.
     if (!box.classList.contains('hidden')) { box.classList.add('hidden'); frame.src = ''; return; }
