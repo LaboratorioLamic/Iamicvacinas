@@ -407,7 +407,10 @@ function saveVaccine(e) {
     if(id) vaccines = vaccines.map(x=>x.id==v.id?v:x); else vaccines.push(v);
     const vacChanges = isNewVac ? null : computeChanges(oldVacFlat, newVacFlat, {nome:'Nome', numDoses:'Doses', intervalosStr:'Intervalos', reforcoStr:'Reforço(s)', doseUnicaStr:'Dose Única', idadeMinimaAnos:'Idade Mín. (Anos)', idadeMinimaMeses:'Idade Mín. (Meses)', valor:'Valor'});
     logAudit(isNewVac ? 'Criado' : 'Editado', 'vacina', v.id, v.nome, isNewVac ? `${v.numDoses} dose(s) | Valor: ${v.valor}` : null, vacChanges);
-    saveAll(); renderVaccines(); updateExpiryBadge(); closeModals(); showNotification('Vacina salva!','success');
+    // Flush imediato (sem esperar o debounce de 300ms): fecha o modal e evita
+    // perder a gravação caso o usuário atualize a página logo em seguida.
+    if (typeof _fbSaveNow === 'function') _fbSaveNow(); else saveAll();
+    renderVaccines(); updateExpiryBadge(); closeModals(); showNotification('Vacina salva!','success');
 }
 
 function toggleVaccineStatus(id) {

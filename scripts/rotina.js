@@ -306,6 +306,8 @@ function _rotinaHasAppliedBelow(byOrdinal, ordinal, patient, apps) {
 // Calcula a próxima dose/reforço ainda sem nenhum registro no sistema.
 function _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAppliedApp, esqRepete) {
     if (maxAppliedOrdinal < 0 || !lastAppliedApp) return null;
+    // Vacina desativada: não sugere próxima dose/reforço, só mantém o histórico já aplicado.
+    if (vac.ativo === false) return null;
 
     // Dose única que se repete periodicamente (ex.: Influenza anual): sempre
     // sugere a próxima aplicação a partir da última, ignorando numDoses/reforço.

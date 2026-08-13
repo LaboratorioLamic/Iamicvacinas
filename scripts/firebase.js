@@ -124,22 +124,32 @@ function initFromFirebase() {
     });
 }
 
+function _fbSaveNow() {
+    clearTimeout(_fbSaveTimer);
+    _fbSaveTimer = null;
+    db.ref().update({
+        patients:      _arrToFbObj(patients),
+        vaccines:      _arrToFbObj(vaccines),
+        appointments:  _arrToFbObj(appointments),
+        cancelReasons: cancelReasons,
+        holidays:      holidays,
+        vaccineLots:   _arrToFbObj(vaccineLots),
+        stockMovements: _arrToFbObj(stockMovements),
+        patientContacts: _arrToFbObj(patientContacts),
+        cpniImunoMap:  cpniImunoMap
+    }).catch(err => console.error('[FB] saveAll:', err));
+}
+
 function saveAll() {
     clearTimeout(_fbSaveTimer);
-    _fbSaveTimer = setTimeout(() => {
-        db.ref().update({
-            patients:      _arrToFbObj(patients),
-            vaccines:      _arrToFbObj(vaccines),
-            appointments:  _arrToFbObj(appointments),
-            cancelReasons: cancelReasons,
-            holidays:      holidays,
-            vaccineLots:   _arrToFbObj(vaccineLots),
-            stockMovements: _arrToFbObj(stockMovements),
-            patientContacts: _arrToFbObj(patientContacts),
-            cpniImunoMap:  cpniImunoMap
-        }).catch(err => console.error('[FB] saveAll:', err));
-    }, 300);
+    _fbSaveTimer = setTimeout(_fbSaveNow, 300);
 }
+
+// Garante que uma gravação pendente (debounce de 300ms) não se perca caso o
+// usuário atualize/feche a página logo após salvar (ex.: editar reforço e
+// dar refresh na sequência para conferir).
+window.addEventListener('beforeunload', () => { if (_fbSaveTimer) _fbSaveNow(); });
+window.addEventListener('pagehide', () => { if (_fbSaveTimer) _fbSaveNow(); });
 
 function saveUsersData() {
     db.ref().update({

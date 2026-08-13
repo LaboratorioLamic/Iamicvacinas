@@ -173,7 +173,7 @@ function _cpniGoStep2() {
 
     const list = document.getElementById('cpni-imuno-list');
     list.innerHTML = _cpniImunoRows.map((row, i) => {
-        const mappedId = cpniImunoMap[row.key];
+        const mappedId = cpniMapEntryVaccineId(cpniImunoMap[row.key]);
         const mappedVac = mappedId ? vaccines.find(v => v.id == mappedId) : null;
         return `<div class="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl">
             <div class="flex-1 min-w-0">
@@ -226,7 +226,7 @@ function _cpniSelectImunoVaccine(i, vaccineId, nome) {
     document.getElementById(`cpni-imuno-value-${i}`).value = vaccineId;
     document.getElementById(`cpni-imuno-dropdown-${i}`).classList.add('hidden');
     const row = _cpniImunoRows[i];
-    if (row) cpniImunoMap[row.key] = vaccineId;
+    if (row) cpniSetMapEntry(cpniImunoMap, row.key, row.nome, vaccineId);
 }
 
 function _cpniConfirmImunoStep() {
@@ -316,7 +316,7 @@ function _cpniGoStep4() {
 
     _cpniParsedRows.forEach(r => {
         if (r._erro) { comErro++; return; }
-        const vaccineId = cpniImunoMap[normalizeStr(r.imuno)];
+        const vaccineId = cpniMapEntryVaccineId(cpniImunoMap[normalizeStr(r.imuno)]);
         if (!vaccineId) { semImuno++; return; }
         const dose = _cpniResolveDose(r, vaccineId);
         if (!dose) { semDose++; return; }
@@ -367,7 +367,7 @@ function _cpniStartImport() {
         for (; idx < limite; idx++) {
             const r = _cpniParsedRows[idx];
             if (r._erro) { stats.erro++; continue; }
-            const vaccineId = cpniImunoMap[normalizeStr(r.imuno)];
+            const vaccineId = cpniMapEntryVaccineId(cpniImunoMap[normalizeStr(r.imuno)]);
             if (!vaccineId) { stats.semImuno++; continue; }
             const dose = _cpniResolveDose(r, vaccineId);
             if (!dose) { stats.semDose++; continue; }

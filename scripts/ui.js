@@ -255,13 +255,14 @@ function switchDashView(view) {
 }
 
 function switchSettingsTab(tab) {
-    ['usuarios', 'backup'].forEach(t => {
+    ['usuarios', 'backup', 'cpnicorr'].forEach(t => {
         document.getElementById(`settings-content-${t}`).classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`settings-tab-${t}`);
         btn.className = t === tab
             ? 'flex-1 py-3 text-xs font-black uppercase tracking-widest text-navy-700 bg-white border-b-2 border-clinic-500 transition'
             : 'flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 border-b-2 border-transparent transition';
     });
+    if (tab === 'cpnicorr' && typeof renderCpniCorrecao === 'function') renderCpniCorrecao();
 }
 
 function openSettings() {
@@ -278,6 +279,10 @@ function openSettings() {
     const tabGrupos = document.getElementById('users-subtab-grupos');
     if (tabNovo)   tabNovo.style.display   = canU ? '' : 'none';
     if (tabGrupos) tabGrupos.style.display = canG ? '' : 'none';
+    // Correção CPNI: mesma permissão usada para editar registros importados (aplicador/admin)
+    const canCpniCorr = isCurrentUserAdmin() || hasPerm('aplicar');
+    const tabCpniCorr = document.getElementById('settings-tab-cpnicorr');
+    if (tabCpniCorr) tabCpniCorr.style.display = canCpniCorr ? '' : 'none';
     document.getElementById('modal-settings').classList.add('active');
 }
 

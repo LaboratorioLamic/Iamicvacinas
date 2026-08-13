@@ -84,6 +84,7 @@ function renderTable() {
     const _searchOpen = _searchWrap && _searchWrap.style.maxWidth !== '0px' && _searchWrap.style.maxWidth !== '0';
     const search = _searchOpen ? normalizeStr(document.getElementById('filter-search-agenda').value) : '';
     const status = document.getElementById('filter-status-agenda').value;
+    const filterVacina = document.getElementById('filter-vacina-agenda').value;
     const dateFilter = document.getElementById('filter-date-agenda').value;
     const monthFilter = document.getElementById('filter-month-agenda').value;
     const _rawVend = document.getElementById('filter-vendedor-agenda').value;
@@ -113,6 +114,7 @@ function renderTable() {
         else if(dateFilter === 'mes' && monthFilter) matchDate = a.data.startsWith(monthFilter);
         if(!matchDate) return false;
         if(status !== '' && a.status !== status) return false;
+        if(filterVacina && String(a.vaccineId) !== String(filterVacina)) return false;
         if(filterVendedor && a.vendedor !== filterVendedor) return false;
         if(filterAplicador && a.aplicador !== filterAplicador) return false;
 
@@ -263,21 +265,24 @@ function _positionFilterPop(btn, pop) {
 }
 
 function _closeAllFilterPops() {
-    ['date-filter-pop', 'status-filter-pop'].forEach(id => {
+    ['date-filter-pop', 'status-filter-pop', 'vacina-filter-pop'].forEach(id => {
         const p = document.getElementById(id);
         if (p) p.classList.add('hidden');
     });
     const dc = document.getElementById('date-filter-chev');
     const sc = document.getElementById('status-filter-chev');
+    const vc = document.getElementById('vacina-filter-chev');
     if (dc) dc.style.transform = '';
     if (sc) sc.style.transform = '';
+    if (vc) vc.style.transform = '';
     document.removeEventListener('click', _filterPopOutside);
     _closeVendedorPopover();
 }
 
 function _filterPopOutside(e) {
     if (e.target.closest('#date-filter-pop') || e.target.closest('#date-filter-btn') ||
-        e.target.closest('#status-filter-pop') || e.target.closest('#status-filter-btn')) return;
+        e.target.closest('#status-filter-pop') || e.target.closest('#status-filter-btn') ||
+        e.target.closest('#vacina-filter-pop') || e.target.closest('#vacina-filter-btn')) return;
     _closeAllFilterPops();
 }
 
@@ -552,6 +557,95 @@ function selectStatusFilter(val) {
     _syncStatusFilterUI();
     _closeAllFilterPops();
     renderTableReset();
+}
+
+// ── Vacina Popover ──
+function _vacinaFilterMatches(v, query) {
+    if (!query) return true;
+    if (normalizeStr(v.nome).includes(query)) return true;
+    if (v.mnemonico && normalizeStr(v.mnemonico).includes(query)) return true;
+    return vaccineLots.some(l => l.vaccineId == v.id && l.fabricante && normalizeStr(l.fabricante).includes(query));
+}
+
+function _applyVacinaFilterSearch() {
+    const searchInput = document.getElementById('vacina-filter-search');
+    const query = searchInput ? normalizeStr(searchInput.value) : '';
+    const list = document.getElementById('vacina-filter-list');
+    if (!list) return;
+    const curVal = document.getElementById('filter-vacina-agenda').value;
+    const ativos = vaccines.filter(v => v.ativo !== false);
+    const matches = ativos.filter(v => _vacinaFilterMatches(v, query)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    if (!matches.length) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">Nenhuma vacina encontrada</p>';
+        return;
+    }
+    list.innerHTML = matches.map(v => {
+        const active = String(curVal) === String(v.id);
+        return `<button type="button" onclick="selectVacinaFilter('${v.id}')"
+            class="vacina-filter-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition text-left ${active ? 'bg-clinic-50 text-clinic-700 font-semibold' : ''}">
+            <span class="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 text-clinic-500 bg-clinic-50"><i class="fas fa-syringe text-xs"></i></span>
+            <span class="flex-1 truncate">${v.nome}${v.mnemonico ? ` <span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case ml-1">${v.mnemonico}</span>` : ''}</span>
+            ${active ? '<i class="fas fa-check text-clinic-500 text-xs shrink-0"></i>' : ''}
+        </button>`;
+    }).join('');
+}
+
+function filterVacinaFilterList() {
+    _applyVacinaFilterSearch();
+}
+
+function _updateVacinaFilterBtn(val) {
+    const lbl = document.getElementById('vacina-filter-label');
+    const btn = document.getElementById('vacina-filter-btn');
+    const todosBtn = document.getElementById('btn-vacina-filter-todas');
+    if (!lbl) return;
+    const isActive = val !== '';
+    if (isActive) {
+        const vacIdx = getVaccinesIndex();
+        const v = vacIdx.get(String(val));
+        const nome = v ? v.nome : '';
+        lbl.textContent = nome.length > 16 ? nome.slice(0, 16) + '…' : nome;
+    } else {
+        lbl.textContent = 'Todas as Vacinas';
+    }
+    if (btn) {
+        btn.classList.toggle('border-clinic-300', isActive);
+        btn.classList.toggle('bg-clinic-50', isActive);
+        btn.classList.toggle('text-clinic-600', isActive);
+    }
+    if (todosBtn) {
+        todosBtn.classList.toggle('bg-clinic-100', !isActive);
+        todosBtn.classList.toggle('bg-clinic-50', isActive);
+    }
+}
+
+function selectVacinaFilter(val) {
+    document.getElementById('filter-vacina-agenda').value = val;
+    _updateVacinaFilterBtn(val);
+    _applyVacinaFilterSearch();
+    _closeAllFilterPops();
+    renderTableReset();
+}
+
+function toggleVacinaFilterPop(e) {
+    if (e) e.stopPropagation();
+    const pop = document.getElementById('vacina-filter-pop');
+    const btn = document.getElementById('vacina-filter-btn');
+    const chev = document.getElementById('vacina-filter-chev');
+    if (!pop) return;
+    const isHidden = pop.classList.contains('hidden');
+    _closeAllFilterPops();
+    if (isHidden) {
+        if (pop.parentElement !== document.body) document.body.appendChild(pop);
+        const searchInput = document.getElementById('vacina-filter-search');
+        if (searchInput) searchInput.value = '';
+        _applyVacinaFilterSearch();
+        pop.classList.remove('hidden');
+        _positionFilterPop(btn, pop);
+        if (chev) chev.style.transform = 'rotate(180deg)';
+        setTimeout(() => document.addEventListener('click', _filterPopOutside), 10);
+        setTimeout(() => searchInput && searchInput.focus(), 50);
+    }
 }
 
 // ── Vendedor Popover ──

@@ -918,6 +918,37 @@
                                 </div>
                             </div>
 
+                            <!-- Filtro de Vacina (popover) -->
+                            <div class="relative" id="vacina-filter-wrap">
+                                <input type="hidden" id="filter-vacina-agenda" value="">
+                                <button type="button" id="vacina-filter-btn" onclick="toggleVacinaFilterPop(event)"
+                                    class="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-clinic-50 hover:border-clinic-300 hover:text-clinic-600 transition shadow-sm">
+                                    <i class="fas fa-syringe text-clinic-500 text-xs"></i>
+                                    <span id="vacina-filter-label">Todas as Vacinas</span>
+                                    <i id="vacina-filter-chev" class="fas fa-chevron-down text-[9px] text-slate-400 transition-transform"></i>
+                                </button>
+                                <div id="vacina-filter-pop" class="hidden fixed z-[200] w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 select-none" style="animation:fadeSlideDown .15s ease;">
+                                    <div class="px-4 pt-3.5 pb-2.5 border-b border-slate-100">
+                                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Filtrar por vacina</p>
+                                        <div class="relative">
+                                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+                                            <input type="text" id="vacina-filter-search" placeholder="Nome, fábrica ou mnemônico..."
+                                                oninput="filterVacinaFilterList()"
+                                                class="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-400 bg-slate-50 transition">
+                                        </div>
+                                    </div>
+                                    <div id="vacina-filter-list" class="overflow-y-auto p-2" style="max-height:260px;"></div>
+                                    <div class="px-3 pb-3 pt-1 border-t border-slate-100">
+                                        <button type="button" onclick="selectVacinaFilter('')"
+                                            id="btn-vacina-filter-todas"
+                                            class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-bold text-clinic-600 bg-clinic-50 hover:bg-clinic-100 transition">
+                                            <i class="fas fa-syringe text-xs"></i>
+                                            Todas as Vacinas
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Filtro de Período (popover) -->
                             <div class="relative" id="date-filter-wrap">
                                 <input type="hidden" id="filter-date-agenda" value="todos">
@@ -4048,6 +4079,10 @@
                     class="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 border-b-2 border-transparent transition">
                     <i class="fas fa-database mr-2"></i>Backup
                 </button>
+                <button onclick="switchSettingsTab('cpnicorr')" id="settings-tab-cpnicorr"
+                    class="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 border-b-2 border-transparent transition">
+                    <i class="fas fa-wrench mr-2"></i>Correção CPNI
+                </button>
             </div>
 
             <div class="flex-1 overflow-y-auto">
@@ -4706,6 +4741,25 @@
                     </div>
                 </div>
 
+                <!-- ─── ABA CORREÇÃO CPNI ─────────────────────────────── -->
+                <div id="settings-content-cpnicorr" class="p-6 hidden">
+                    <div class="flex items-start gap-2 bg-indigo-50 border border-indigo-100 rounded-xl p-3 mb-4">
+                        <i class="fas fa-circle-info text-indigo-500 text-xs mt-0.5 shrink-0"></i>
+                        <p class="text-[11px] text-indigo-700 font-bold leading-relaxed">
+                            Corrija a associação entre um imunobiológico da planilha do CPNI e a vacina do sistema.
+                            Ao trocar a vacina de um item, todos os agendamentos já importados que apontam para a
+                            vacina antiga são reatribuídos em massa para a nova — e o mapeamento também é atualizado
+                            para as próximas importações.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3 mb-4">
+                        <input type="text" id="cpni-corr-search-global" placeholder="Buscar por imunobiológico ou vacina..." oninput="_cpniCorrSetFilter(this.value)"
+                            class="flex-1 border border-slate-200 rounded-xl py-2.5 px-4 text-sm font-bold focus:ring-2 focus:ring-clinic-500 outline-none">
+                        <span class="shrink-0 text-[10px] font-black text-slate-400 uppercase"><span id="cpni-corr-count">0</span> item(ns)</span>
+                    </div>
+                    <div id="cpni-corr-list" class="flex flex-col gap-2 max-h-[55vh] overflow-y-auto pr-1"></div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -5160,6 +5214,7 @@
     <script src="scripts/users.js"></script>
     <script src="scripts/backup.js"></script>
     <script src="scripts/cpni.js"></script>
+    <script src="scripts/cpni-correcao.js"></script>
     <script src="scripts/init.js"></script>
 </body>
 </html>

@@ -307,3 +307,21 @@ function getVaccineReforcos(v) {
     if (v.reforco) return [{ meses: v.reforcoMeses || null }];
     return [];
 }
+
+// ─── cpniImunoMap: { [nomeImunoNormalizado]: {nome, vaccineId} } ─────────────
+// Formato legado (antes de guardar o nome legível do imuno): valor era só o
+// vaccineId (number). Os helpers abaixo leem/escrevem de forma compatível com
+// ambos os formatos, sem exigir migração de dados existentes no Firebase.
+function cpniMapEntryVaccineId(entry) {
+    if (entry == null) return null;
+    return (typeof entry === 'object') ? entry.vaccineId : entry;
+}
+
+function cpniMapEntryNome(entry) {
+    if (entry == null) return '';
+    return (typeof entry === 'object') ? (entry.nome || '') : '';
+}
+
+function cpniSetMapEntry(map, key, nome, vaccineId) {
+    map[key] = { nome, vaccineId };
+}
