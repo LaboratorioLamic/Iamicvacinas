@@ -16,7 +16,7 @@ const CPNI_COLS = {
     dataAplicacao: 16 // Q
 };
 
-const CPNI_DOSE_CANONICAS = ['1ª Dose','2ª Dose','3ª Dose','4ª Dose','Dose Única','Reforço','Dose Zero'];
+const CPNI_DOSE_CANONICAS = ['1ª Dose','2ª Dose','3ª Dose','4ª Dose','Dose Única','Reforço','2º Reforço','3º Reforço','Dose Zero'];
 
 // ─── PARSING ──────────────────────────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ function _cpniNormalizeDose(txt) {
     if (raw === 'dose') return '1ª Dose';
     if (raw === 'unica' || raw === 'doseunica') return 'Dose Única';
     m = raw.match(/^(\d+)reforco$/);
-    if (m) return 'Reforço';
+    if (m) return reforcoLabel(parseInt(m[1], 10) || 1);
     if (raw === 'reforco') return 'Reforço';
     if (raw === 'dosezero' || raw === 'zero') return 'Dose Zero';
     return null;
@@ -278,24 +278,47 @@ function _cpniSetDoseMap(sel) {
     else delete _cpniInvalidDoseMap[txt];
 }
 
-// Resolve a dose canônica final de uma linha (ou null se não deve ser importada)
-function _cpniResolveDose(row) {
-    const canon = _cpniNormalizeDose(row.doseTexto);
-    if (canon) return canon;
-    return _cpniInvalidDoseMap[row.doseTexto || ''] || null;
+// Resolve a dose canônica final de uma linha (ou null se não deve ser importada).
+// vaccineId, quando informado, permite ajustar reforços: se a planilha indica um
+// reforço de índice maior que o número de reforços configurados na vacina (ex.:
+// "2º reforço" numa vacina com só 1 reforço cadastrado), usa o maior índice
+// disponível — evita perder o registro por causa de uma numeração que não existe
+// no cadastro atual da vacina.
+function _cpniResolveDose(row, vaccineId) {
+    let canon = _cpniNormalizeDose(row.doseTexto);
+    if (!canon) return _cpniInvalidDoseMap[row.doseTexto || ''] || null;
+    const idx = reforcoIndexFromLabel(canon);
+    if (idx && vaccineId) {
+        const vac = vaccines.find(v => v.id == vaccineId);
+        const nReforcos = vac ? getVaccineReforcos(vac).length : 0;
+        if (nReforcos > 0 && idx > nReforcos) canon = reforcoLabel(nReforcos);
+    }
+    return canon;
+}
+
+// Acha um agendamento já existente (mesmo paciente+vacina+data) cuja dose seja
+// um reforço com rótulo DIFERENTE do resolvido agora pela planilha — caso
+// clássico de um registro importado antes de o cadastro da vacina ter 2º/3º
+// reforço, salvo genericamente como "Reforço". Retorna o agendamento ou null.
+function _cpniFindReforcoMismatch(patientId, vaccineId, dose, dataAplicacao) {
+    if (!reforcoIndexFromLabel(dose)) return null;
+    return appointments.find(a =>
+        a.patientId === patientId && a.vaccineId === vaccineId && a.data === dataAplicacao &&
+        reforcoIndexFromLabel(a.doseAtual) != null && a.doseAtual !== dose
+    ) || null;
 }
 
 // ─── PASSO 4 — RESUMO ─────────────────────────────────────────────────────────
 
 function _cpniGoStep4() {
-    let prontos = 0, semImuno = 0, semDose = 0, duplicadas = 0, comErro = 0;
+    let prontos = 0, semImuno = 0, semDose = 0, duplicadas = 0, comErro = 0, corrigidas = 0;
     const seen = new Set(); // dedup dentro da própria planilha
 
     _cpniParsedRows.forEach(r => {
         if (r._erro) { comErro++; return; }
         const vaccineId = cpniImunoMap[normalizeStr(r.imuno)];
         if (!vaccineId) { semImuno++; return; }
-        const dose = _cpniResolveDose(r);
+        const dose = _cpniResolveDose(r, vaccineId);
         if (!dose) { semDose++; return; }
         const cpfDigits = r.cpf;
         const existing = patients.find(p => _cpniOnlyDigits(p.cpf) === cpfDigits);
@@ -303,19 +326,23 @@ function _cpniGoStep4() {
         const jaExisteNoSistema = existing && appointments.some(a =>
             a.patientId === existing.id && a.vaccineId === vaccineId && a.doseAtual === dose && a.data === r.dataAplicacao);
         if (seen.has(dupKey) || jaExisteNoSistema) { duplicadas++; return; }
+        // Não é duplicata exata, mas pode ser um registro já existente com rótulo
+        // de reforço desatualizado (ex.: "Reforço" que hoje deveria ser "2º Reforço").
+        if (existing && _cpniFindReforcoMismatch(existing.id, vaccineId, dose, r.dataAplicacao)) { corrigidas++; return; }
         seen.add(dupKey);
         prontos++;
     });
 
     document.getElementById('cpni-resumo-prontos').textContent = prontos;
     document.getElementById('cpni-resumo-duplicadas').textContent = duplicadas;
+    document.getElementById('cpni-resumo-corrigidas').textContent = corrigidas;
     document.getElementById('cpni-resumo-sem-imuno').textContent = semImuno;
     document.getElementById('cpni-resumo-sem-dose').textContent = semDose;
     document.getElementById('cpni-resumo-erro').textContent = comErro;
     const btn = document.getElementById('cpni-btn-confirm-import');
-    btn.disabled = prontos === 0;
-    btn.classList.toggle('opacity-50', prontos === 0);
-    btn.classList.toggle('cursor-not-allowed', prontos === 0);
+    btn.disabled = prontos === 0 && corrigidas === 0;
+    btn.classList.toggle('opacity-50', prontos === 0 && corrigidas === 0);
+    btn.classList.toggle('cursor-not-allowed', prontos === 0 && corrigidas === 0);
 
     _cpniGoToStep(4);
 }
@@ -331,7 +358,7 @@ function _cpniStartImport() {
 
     const seen = new Set();
     let idx = 0, seq = 0;
-    const stats = { criados: 0, pacientesNovos: 0, duplicadas: 0, semImuno: 0, semDose: 0, erro: 0 };
+    const stats = { criados: 0, pacientesNovos: 0, duplicadas: 0, corrigidas: 0, semImuno: 0, semDose: 0, erro: 0 };
     const BATCH = 50;
     const total = _cpniParsedRows.length;
 
@@ -342,7 +369,7 @@ function _cpniStartImport() {
             if (r._erro) { stats.erro++; continue; }
             const vaccineId = cpniImunoMap[normalizeStr(r.imuno)];
             if (!vaccineId) { stats.semImuno++; continue; }
-            const dose = _cpniResolveDose(r);
+            const dose = _cpniResolveDose(r, vaccineId);
             if (!dose) { stats.semDose++; continue; }
 
             let p = patients.find(x => _cpniOnlyDigits(x.cpf) === r.cpf);
@@ -368,6 +395,17 @@ function _cpniStartImport() {
             const jaExisteNoSistema = appointments.some(a =>
                 a.patientId === p.id && a.vaccineId === vaccineId && a.doseAtual === dose && a.data === r.dataAplicacao);
             if (seen.has(dupKey) || jaExisteNoSistema) { stats.duplicadas++; continue; }
+
+            // Registro já existente com rótulo de reforço desatualizado (ex.: salvo
+            // como "Reforço" antes de a vacina ter 2º/3º reforço cadastrado) — corrige
+            // o doseAtual em vez de criar um agendamento duplicado.
+            const mismatch = _cpniFindReforcoMismatch(p.id, vaccineId, dose, r.dataAplicacao);
+            if (mismatch) {
+                mismatch.doseAtual = dose;
+                stats.corrigidas++;
+                seen.add(dupKey);
+                continue;
+            }
             seen.add(dupKey);
 
             appointments.push({
@@ -416,8 +454,8 @@ function _cpniFinishImport(stats) {
         renderPatients(); renderCalendar(); renderTable(); renderDashboard();
         if (typeof populateVaccineSelects === 'function') populateVaccineSelects();
         logAudit('Criado', 'importacao_cpni', String(Date.now()), 'Importação CPNI',
-            `${stats.criados} registro(s) importado(s) | ${stats.pacientesNovos} paciente(s) novo(s) | ${stats.duplicadas} duplicada(s) puladas | ${stats.semImuno} sem imunobiológico | ${stats.semDose} sem dose | ${stats.erro} com erro`);
-        showNotification(`Importação CPNI concluída: ${stats.criados} registro(s) importado(s).`, 'success');
+            `${stats.criados} registro(s) importado(s) | ${stats.pacientesNovos} paciente(s) novo(s) | ${stats.corrigidas} rótulo(s) de reforço corrigido(s) | ${stats.duplicadas} duplicada(s) puladas | ${stats.semImuno} sem imunobiológico | ${stats.semDose} sem dose | ${stats.erro} com erro`);
+        showNotification(`Importação CPNI concluída: ${stats.criados} registro(s) importado(s)${stats.corrigidas ? `, ${stats.corrigidas} rótulo(s) de reforço corrigido(s)` : ''}.`, 'success');
     } catch (err) {
         // Os registros já foram inseridos nos arrays em memória e o saveAll() já foi disparado
         // (ou tentado) acima; um erro nos renders/log não pode deixar o wizard travado.
@@ -430,6 +468,7 @@ function _cpniFinishImport(stats) {
         document.getElementById('cpni-progress-done').classList.remove('hidden');
         document.getElementById('cpni-done-criados').textContent = stats.criados;
         document.getElementById('cpni-done-pacientes').textContent = stats.pacientesNovos;
+        document.getElementById('cpni-done-corrigidas').textContent = stats.corrigidas;
         document.getElementById('cpni-done-duplicadas').textContent = stats.duplicadas;
         document.getElementById('cpni-done-pulados').textContent = stats.semImuno + stats.semDose + stats.erro;
         document.getElementById('cpni-btn-finish').disabled = false;
@@ -470,12 +509,15 @@ function viewCpniRecord(id) {
     document.getElementById('cvr-vaccine-search').value = vac ? vac.nome : '';
     document.getElementById('cvr-vaccine-value').value = vac ? vac.id : '';
     document.getElementById('cvr-lote-input').value = a.lote || '';
+    document.getElementById('cvr-data-input').value = a.data || '';
 
     const prontuarioBtn = document.getElementById('cvr-btn-prontuario');
     prontuarioBtn.onclick = (e) => { e.stopPropagation(); closeCpniViewRecord(); if (typeof viewPatientHistory === 'function') viewPatientHistory(a.patientId); };
 
     const canEdit = (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) || (typeof hasPerm === 'function' && hasPerm('aplicar'));
     document.getElementById('cvr-btn-editar').classList.toggle('hidden', !canEdit);
+
+    // Botão de excluir só aparece no modo edição (_cvrSetEditMode cuida da visibilidade).
     _cvrSetEditMode(false);
 
     document.getElementById('modal-view-cpni-record').classList.add('active');
@@ -484,10 +526,14 @@ function viewCpniRecord(id) {
 function _cvrSetEditMode(editing) {
     document.getElementById('cvr-vaccine-card-view').classList.toggle('hidden', editing);
     document.getElementById('cvr-vaccine-card-edit').classList.toggle('hidden', !editing);
+    document.getElementById('cvr-data-cell-view').classList.toggle('hidden', editing);
+    document.getElementById('cvr-data-cell-edit').classList.toggle('hidden', !editing);
     document.getElementById('cvr-lote-cell-view').classList.toggle('hidden', editing);
     document.getElementById('cvr-lote-cell-edit').classList.toggle('hidden', !editing);
     document.getElementById('cvr-info-box').classList.toggle('hidden', editing);
     document.getElementById('cvr-btn-save-edit').classList.toggle('hidden', !editing);
+    const canDelete = (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) || (typeof hasPerm === 'function' && hasPerm('excluir_agendamento'));
+    document.getElementById('cvr-btn-delete').classList.toggle('hidden', !editing || !canDelete);
     document.getElementById('cvr-btn-cancel-edit').textContent = editing ? 'Cancelar' : 'Fechar';
 }
 
@@ -500,6 +546,7 @@ function toggleCpniEditMode() {
         document.getElementById('cvr-vaccine-search').value = vac ? vac.nome : '';
         document.getElementById('cvr-vaccine-value').value = vac ? vac.id : '';
         document.getElementById('cvr-lote-input').value = a ? (a.lote || '') : '';
+        document.getElementById('cvr-data-input').value = a ? (a.data || '') : '';
         _cvrSetEditMode(false);
     } else {
         _cvrSetEditMode(true);
@@ -553,20 +600,26 @@ function saveCpniRecordEdit() {
         return;
     }
     const newLote = document.getElementById('cvr-lote-input').value.trim().toUpperCase();
+    const newData = document.getElementById('cvr-data-input').value;
+    if (!newData) {
+        showNotification('Informe a data de aplicação.', 'error');
+        return;
+    }
 
     const old = appointments[idx];
     const oldVac = vaccines.find(v => v.id == old.vaccineId);
     const newVac = vaccines.find(v => v.id == newVaccineId);
 
-    // Só troca vaccineId/lote — status, data, dose, paciente e loteId (estoque) permanecem intocados.
-    appointments[idx] = { ...old, vaccineId: newVaccineId, lote: newLote };
+    // Troca vaccineId/lote/data — status, dose, paciente e loteId (estoque) permanecem intocados.
+    appointments[idx] = { ...old, vaccineId: newVaccineId, lote: newLote, data: newData };
 
     logAudit('Editado', 'importacao_cpni', old.id,
         `${(patients.find(p=>p.id==old.patientId)||{}).nome || '—'} | Registro CPNI`,
         null,
         [
             { field: 'Vacina', de: oldVac ? oldVac.nome : '—', para: newVac ? newVac.nome : '—' },
-            { field: 'Lote', de: old.lote || '—', para: newLote || '—' }
+            { field: 'Lote', de: old.lote || '—', para: newLote || '—' },
+            { field: 'Data de Aplicação', de: old.data ? old.data.split('-').reverse().join('/') : '—', para: newData ? newData.split('-').reverse().join('/') : '—' }
         ]
     );
 
@@ -580,4 +633,58 @@ function saveCpniRecordEdit() {
 function closeCpniViewRecord() {
     document.getElementById('modal-view-cpni-record').classList.remove('active');
     window._cvrCurrentId = null;
+}
+
+// ─── EXCLUSÃO DE REGISTRO CPNI (confirmação digitada) ─────────────────────────
+let pendingDeleteCpniId = null;
+
+function openDeleteCpniModal() {
+    const id = window._cvrCurrentId;
+    if (!id) return;
+    if (typeof checkPerm === 'function' && !checkPerm('excluir_agendamento')) return;
+    const a = appointments.find(x => x.id == id);
+    if (!a) return;
+    const pat = patients.find(x => x.id == a.patientId);
+    const vac = vaccines.find(x => x.id == a.vaccineId);
+    pendingDeleteCpniId = id;
+    document.getElementById('delete-cpni-info').innerText = pat && vac
+        ? `${pat.nome} — ${vac.nome} (${a.doseAtual}) em ${a.data ? a.data.split('-').reverse().join('/') : '—'}`
+        : '';
+    document.getElementById('delete-cpni-input').value = '';
+    checkDeleteCpniConfirm();
+    document.getElementById('modal-delete-cpni').classList.add('active');
+}
+
+function closeDeleteCpniModal() {
+    document.getElementById('modal-delete-cpni').classList.remove('active');
+    document.getElementById('delete-cpni-input').value = '';
+    pendingDeleteCpniId = null;
+}
+
+function checkDeleteCpniConfirm() {
+    const val = document.getElementById('delete-cpni-input').value.trim().toUpperCase();
+    const btn = document.getElementById('btn-confirm-delete-cpni');
+    const ok = val === 'EXCLUIR';
+    btn.disabled = !ok;
+    btn.className = ok
+        ? 'flex-1 bg-red-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-red-700 cursor-pointer'
+        : 'flex-1 bg-red-200 text-red-400 font-black py-3 rounded-xl uppercase text-xs transition cursor-not-allowed';
+}
+
+function confirmDeleteCpniRecord() {
+    if (!pendingDeleteCpniId) return;
+    const id = pendingDeleteCpniId;
+    const a = appointments.find(x => x.id == id);
+    const pat = a ? patients.find(p => p.id == a.patientId) : null;
+    const vac = a ? vaccines.find(v => v.id == a.vaccineId) : null;
+    logAudit('Excluído', 'importacao_cpni', id,
+        `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a ? a.doseAtual : ''} | ${a ? a.data : ''}`);
+    appointments = appointments.filter(x => x.id != id);
+    pendingDeleteCpniId = null;
+    saveAll();
+    closeDeleteCpniModal();
+    closeCpniViewRecord();
+    renderPatients(); renderCalendar(); renderTable(); renderDashboard();
+    if (typeof refreshOpenModals === 'function') refreshOpenModals();
+    showNotification('Registro CPNI excluído com sucesso.', 'success');
 }

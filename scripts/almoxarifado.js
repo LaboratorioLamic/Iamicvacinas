@@ -348,7 +348,7 @@ function renderEstoqueDashboard() {
                         </div>
                         <div class="min-w-0">
                             <h3 class="font-black ${tema.nameColor} text-xs leading-tight truncate" title="${v.nome}">${v.nome}</h3>
-                            <p class="${tema.label} text-[9px] font-bold">${v.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case mr-1">${v.mnemonico}</span>` : ''}${v.numDoses || 1} dose${(v.numDoses || 1) > 1 ? 's' : ''}${v.reforco ? ' + reforço' : ''}${v.doseUnica ? ' · única' : ''}</p>
+                            <p class="${tema.label} text-[9px] font-bold">${v.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case mr-1">${v.mnemonico}</span>` : ''}${v.numDoses || 1} dose${(v.numDoses || 1) > 1 ? 's' : ''}${(() => { const n = getVaccineReforcos(v).length; return n > 1 ? ` + ${n} reforços` : n === 1 ? ' + reforço' : ''; })()}${v.doseUnica ? ' · única' : ''}</p>
                         </div>
                     </div>
                     <span class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 ${tema.statusBg} border rounded-lg text-[8px] font-black uppercase whitespace-nowrap">
@@ -1138,7 +1138,8 @@ function openVaccineViewModal(vaccineId) {
     const multiEsquema = esquemas && esquemas.length > 1;
 
     // Tipo — hierarquia: Multi amostra > Dose única > Reforço
-    const tipoTxt = multiEsquema ? 'Multi amostra' : v.doseUnica ? 'Dose única' : v.reforco ? 'Multidose c/ reforço' : 'Multidose';
+    const nReforcosInfo = getVaccineReforcos(v).length;
+    const tipoTxt = multiEsquema ? 'Multi amostra' : v.doseUnica ? 'Dose única' : nReforcosInfo > 1 ? `Multidose c/ ${nReforcosInfo} reforços` : nReforcosInfo === 1 ? 'Multidose c/ reforço' : 'Multidose';
     document.getElementById('vv-info-tipo').textContent = tipoTxt;
     document.getElementById('vv-info-valor').textContent = v.valor ? `R$ ${String(v.valor).replace('R$','').trim()}` : '—';
 
@@ -1169,7 +1170,7 @@ function openVaccineViewModal(vaccineId) {
     } else {
         const esq = esquemas ? esquemas[0] : null;
         const numDoses = (esq ? esq.numDoses : null) || v.numDoses || 1;
-        document.getElementById('vv-info-doses').textContent = `${numDoses} dose${numDoses > 1 ? 's' : ''}${v.reforco ? ' + reforço' : ''}`;
+        document.getElementById('vv-info-doses').textContent = `${numDoses} dose${numDoses > 1 ? 's' : ''}${nReforcosInfo > 1 ? ` + ${nReforcosInfo} reforços` : nReforcosInfo === 1 ? ' + reforço' : ''}`;
         const idadeMin = esq
             ? ((typeof formatFaixaEtaria === 'function') ? formatFaixaEtaria(esq) : '—')
             : (v.idadeMinimaAnos > 0 ? `${v.idadeMinimaAnos} ano(s)` : v.idadeMinimaMeses > 0 ? `${v.idadeMinimaMeses} mês(es)` : '—');

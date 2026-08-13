@@ -89,6 +89,7 @@ const _nameArticles = new Set(['da','do','das','dos','de','du','e']);
 
 // Vaccine schema state (used in vaccine modal)
 let _esquemas = []; // [{minAnos, minMeses, maxAnos, maxMeses, numDoses, intervalos}]
+let _reforcos = []; // [{meses}] — até REFORCO_MAX reforços
 
 // Discount state
 let _descontoAtivo = false;   // há desconto aplicado?

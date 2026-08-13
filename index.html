@@ -2094,6 +2094,11 @@
                     </div>
                 </div>
 
+                <div class="col-span-1 md:col-span-4">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Comentário</label>
+                    <textarea id="reg-obs" rows="2" placeholder="Observações sobre este agendamento..." class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-clinic-500 outline-none resize-none"></textarea>
+                </div>
+
                 <div class="col-span-1 md:col-span-4 mt-4 flex gap-3">
                     <button type="submit" class="flex-1 bg-clinic-600 text-white font-black py-3 rounded-xl hover:bg-clinic-700 shadow-lg uppercase text-xs transition">Salvar Registro</button>
                     <button type="button" id="btn-duplicar-record" onclick="duplicarAgendamento()" class="hidden px-5 py-3 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-xl font-black hover:bg-indigo-600 hover:text-white uppercase text-xs transition shadow-sm"><i class="fas fa-copy mr-1"></i> Duplicar</button>
@@ -3027,19 +3032,15 @@
                     <div id="container-esquemas" class="space-y-2"></div>
                     <p id="esquemas-empty-hint" class="text-[10px] text-slate-400 italic mt-1">Nenhum esquema adicionado. Clique em "Adicionar" para definir o esquema por faixa etária.</p>
                 </div>
-                <div class="col-span-1 md:col-span-2 flex items-center gap-4 flex-wrap">
-                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reforço</span>
-                    <button type="button" id="btn-reforco-toggle" onclick="toggleReforco()"
-                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none bg-slate-200"
-                        aria-pressed="false">
-                        <span id="btn-reforco-knob" class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
-                    </button>
-                    <input type="hidden" id="vac-reforco" value="0">
-                    <div id="reforco-meses-wrap" class="hidden items-center gap-2">
-                        <label for="vac-reforco-meses" class="text-[10px] font-black text-slate-400 uppercase">Após</label>
-                        <input type="number" id="vac-reforco-meses" min="1" step="1" placeholder="12" inputmode="numeric" class="w-16 border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-clinic-500 outline-none text-sm font-bold text-center">
-                        <span class="text-[10px] font-black text-slate-400 uppercase">meses (opcional)</span>
+                <div class="col-span-1 md:col-span-2">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reforço</span>
+                        <button type="button" id="btn-add-reforco" onclick="addReforco()" class="flex items-center gap-1 bg-navy-900 hover:bg-navy-800 text-white text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
+                            <i class="fas fa-plus text-[9px]"></i> Adicionar Reforço
+                        </button>
                     </div>
+                    <div id="container-reforcos" class="space-y-2"></div>
+                    <p id="reforcos-empty-hint" class="text-[10px] text-slate-400 italic mt-1">Nenhum reforço adicionado. Você pode adicionar até 3.</p>
                 </div>
                 <div class="col-span-1 md:col-span-2 flex items-center gap-4 flex-wrap">
                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dose Zero</span>
@@ -3892,7 +3893,25 @@
             </div>
             <div class="p-5">
                 <p class="text-sm text-slate-600 text-center mb-5" id="aprazamento-aviso-msg"></p>
-                <button onclick="document.getElementById('modal-aprazamento-aviso').classList.remove('active')" class="w-full bg-red-600 hover:bg-red-700 text-white font-black py-2.5 rounded-xl transition text-xs uppercase">Corrigir a data do agendamento</button>
+
+                <div id="aprazamento-justificativa-box" class="hidden mb-4 text-left rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <label class="block text-[10px] font-black text-amber-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                        <i class="fas fa-triangle-exclamation text-[9px]"></i>Justificativa *
+                    </label>
+                    <textarea id="aprazamento-justificativa-input" rows="2" placeholder="Explique o motivo da antecipação..." oninput="checkAprazamentoJustificativa()"
+                        class="w-full border border-amber-300 rounded-lg py-2 px-3 text-sm text-slate-700 bg-white focus:ring-2 focus:ring-amber-400 outline-none resize-none"></textarea>
+                    <p class="text-[10px] font-bold text-amber-700/80 mt-1.5"><i class="fas fa-circle-info mr-1"></i>Esta justificativa preencherá automaticamente o campo de comentário do agendamento.</p>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <button id="btn-aprazamento-justificar" onclick="toggleAprazamentoJustificativaBox()" class="hidden w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-2.5 rounded-xl transition text-xs uppercase">
+                        <i class="fas fa-pen mr-1"></i> Aplicar com justificativa
+                    </button>
+                    <button id="btn-aprazamento-confirmar-justificativa" onclick="confirmAprazamentoComJustificativa()" disabled class="hidden w-full bg-amber-200 text-amber-400 font-black py-2.5 rounded-xl transition text-xs uppercase cursor-not-allowed">
+                        <i class="fas fa-check mr-1"></i> Confirmar aplicação
+                    </button>
+                    <button onclick="document.getElementById('modal-aprazamento-aviso').classList.remove('active')" class="w-full bg-red-600 hover:bg-red-700 text-white font-black py-2.5 rounded-xl transition text-xs uppercase">Corrigir a data do agendamento</button>
+                </div>
             </div>
         </div>
     </div>
@@ -4770,6 +4789,10 @@
                             <p class="text-2xl font-black text-slate-600" id="cpni-resumo-duplicadas">0</p>
                             <p class="text-[9px] font-black text-slate-500 uppercase tracking-wider">Duplicadas (serão puladas)</p>
                         </div>
+                        <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-center">
+                            <p class="text-2xl font-black text-indigo-600" id="cpni-resumo-corrigidas">0</p>
+                            <p class="text-[9px] font-black text-indigo-600 uppercase tracking-wider">Reforços a corrigir (rótulo)</p>
+                        </div>
                         <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
                             <p class="text-2xl font-black text-amber-600" id="cpni-resumo-sem-imuno">0</p>
                             <p class="text-[9px] font-black text-amber-600 uppercase tracking-wider">Sem imunobiológico mapeado</p>
@@ -4792,7 +4815,7 @@
                         <div class="w-full bg-slate-100 rounded-full h-4 overflow-hidden border border-slate-200">
                             <div id="cpni-progress-bar" class="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-200" style="width:0%"></div>
                         </div>
-                        <div id="cpni-progress-done" class="hidden w-full mt-6 grid grid-cols-3 gap-3">
+                        <div id="cpni-progress-done" class="hidden w-full mt-6 grid grid-cols-4 gap-3">
                             <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
                                 <p class="text-xl font-black text-emerald-700" id="cpni-done-criados">0</p>
                                 <p class="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Importados</p>
@@ -4800,6 +4823,10 @@
                             <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
                                 <p class="text-xl font-black text-blue-700" id="cpni-done-pacientes">0</p>
                                 <p class="text-[9px] font-black text-blue-600 uppercase tracking-wider">Pacientes novos</p>
+                            </div>
+                            <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-center">
+                                <p class="text-xl font-black text-indigo-600" id="cpni-done-corrigidas">0</p>
+                                <p class="text-[9px] font-black text-indigo-600 uppercase tracking-wider">Reforços corrigidos</p>
                             </div>
                             <div class="bg-slate-100 border border-slate-200 rounded-xl p-3 text-center">
                                 <p class="text-xl font-black text-slate-600" id="cpni-done-duplicadas">0</p>
@@ -4911,9 +4938,13 @@
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
-                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
+                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell" id="cvr-data-cell-view">
                         <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-calendar-day vr-label-icon"></i>Data de Aplicação</span>
                         <span id="cvr-data" class="text-sm font-black vr-value"></span>
+                    </div>
+                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell hidden" id="cvr-data-cell-edit">
+                        <label for="cvr-data-input" class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-calendar-day vr-label-icon"></i>Data de Aplicação</label>
+                        <input type="date" id="cvr-data-input" class="w-full border-0 p-0 bg-transparent text-sm font-black vr-value outline-none focus:ring-0">
                     </div>
                     <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell" id="cvr-lote-cell-view">
                         <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-barcode vr-label-icon"></i>Lote</span>
@@ -4932,12 +4963,15 @@
 
                 <div id="cvr-info-box" class="flex items-start gap-2 rounded-xl p-3 vr-info-cell">
                     <i class="fas fa-circle-info vr-label-icon text-xs mt-0.5 shrink-0"></i>
-                    <p class="text-[11px] vr-label font-bold leading-relaxed">Registro importado do CPNI. Não afeta o estoque e não pode ser editado — apenas visualizado ou excluído.</p>
+                    <p class="text-[11px] vr-label font-bold leading-relaxed">Registro importado do CPNI. Não afeta o estoque.</p>
                 </div>
             </div>
 
             <!-- Footer -->
             <div class="px-6 pb-6 pt-3 flex gap-3 shrink-0 vr-footer">
+                <button id="cvr-btn-delete" onclick="openDeleteCpniModal()" title="Excluir registro" class="hidden h-[46px] w-[46px] shrink-0 rounded-2xl flex items-center justify-center transition text-red-500 bg-red-50 hover:bg-red-100 border border-red-200">
+                    <i class="fas fa-trash text-sm"></i>
+                </button>
                 <button id="cvr-btn-cancel-edit" onclick="closeCpniViewRecord()" class="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition vr-cancel-btn">
                     Fechar
                 </button>
@@ -4946,6 +4980,35 @@
                     style="background:linear-gradient(135deg,#22c55e,#15803d);box-shadow:0 4px 20px rgba(34,197,94,0.35);">
                     <i class="fas fa-check text-[11px]"></i> Salvar
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════ MODAL EXCLUIR REGISTRO CPNI (confirmação digitada) ══════ -->
+    <div id="modal-delete-cpni" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[400] justify-center items-center p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="bg-gradient-to-br from-red-600 to-red-800 p-6 text-white text-center">
+                <div class="h-16 w-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                    <i class="fas fa-trash text-2xl text-white"></i>
+                </div>
+                <h3 class="font-black text-xl uppercase tracking-tight">Excluir Registro CPNI</h3>
+                <p class="text-red-200 text-xs mt-1 font-bold uppercase tracking-widest">Ação irreversível</p>
+            </div>
+            <div class="p-6">
+                <p class="text-slate-600 text-sm text-center mb-1">Para confirmar a exclusão, digite <span class="font-black text-red-600">EXCLUIR</span> no campo abaixo:</p>
+                <p id="delete-cpni-info" class="text-[11px] text-slate-400 text-center mb-5 font-bold truncate"></p>
+                <input type="text" id="delete-cpni-input" placeholder="Digite EXCLUIR para confirmar..." oninput="checkDeleteCpniConfirm()" autocomplete="off"
+                    class="w-full border-2 border-slate-200 rounded-xl py-3 px-4 text-center font-black text-sm tracking-widest focus:outline-none focus:border-red-400 transition uppercase mb-4">
+                <div class="flex gap-3">
+                    <button onclick="confirmDeleteCpniRecord()" id="btn-confirm-delete-cpni" disabled
+                        class="flex-1 bg-red-200 text-red-400 font-black py-3 rounded-xl uppercase text-xs transition cursor-not-allowed">
+                        <i class="fas fa-trash mr-1"></i> Excluir
+                    </button>
+                    <button onclick="closeDeleteCpniModal()"
+                        class="flex-1 border border-slate-200 text-slate-500 font-black py-3 rounded-xl hover:bg-slate-50 uppercase text-xs transition">
+                        Cancelar
+                    </button>
+                </div>
             </div>
         </div>
     </div>

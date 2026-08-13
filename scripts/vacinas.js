@@ -41,10 +41,13 @@ function renderVaccines() {
                 const faixa = esq.minAnos != null ? formatFaixaEtaria(esq) : 'Qualquer idade';
                 return `${faixa}: ${esq.numDoses || 1}D`;
             }).join('<br>');
-            if (v.reforco) schema += ' + Reforço';
+            const nReforcos = getVaccineReforcos(v).length;
+            if (nReforcos) schema += nReforcos > 1 ? ` + ${nReforcos} Reforços` : ' + Reforço';
             if (v.doseUnica) schema += ' (+ D. Única)';
         } else {
-            schema = v.doseUnica ? `${v.numDoses} Dose(s) (+ Dose Única)` : `${v.numDoses} Dose(s)${v.reforco?' + Reforço':''}`;
+            const nReforcos = getVaccineReforcos(v).length;
+            const reforcoSuffix = nReforcos > 1 ? ` + ${nReforcos} Reforços` : nReforcos === 1 ? ' + Reforço' : '';
+            schema = v.doseUnica ? `${v.numDoses} Dose(s) (+ Dose Única)` : `${v.numDoses} Dose(s)${reforcoSuffix}`;
         }
 
         let idadeMinStr = '';
@@ -236,29 +239,41 @@ function confirmarFaixaEtaria() {
     renderEsquemas();
 }
 
-function _setReforco(on) {
-    const btn  = document.getElementById('btn-reforco-toggle');
-    const knob = document.getElementById('btn-reforco-knob');
-    const inp  = document.getElementById('vac-reforco');
-    const wrap = document.getElementById('reforco-meses-wrap');
-    if (!btn) return;
-    if (on) {
-        btn.classList.replace('bg-slate-200', 'bg-indigo-600');
-        knob.classList.replace('translate-x-1', 'translate-x-6');
-        btn.setAttribute('aria-pressed', 'true');
-        inp.value = '1';
-        if (wrap) { wrap.classList.remove('hidden'); wrap.classList.add('flex'); }
-    } else {
-        btn.classList.replace('bg-indigo-600', 'bg-slate-200');
-        knob.classList.replace('translate-x-6', 'translate-x-1');
-        btn.setAttribute('aria-pressed', 'false');
-        inp.value = '0';
-        if (wrap) { wrap.classList.add('hidden'); wrap.classList.remove('flex'); }
-        const mesesInp = document.getElementById('vac-reforco-meses');
-        if (mesesInp) mesesInp.value = '';
+// ─── REFORÇOS (até REFORCO_MAX) ───────────────────────────────────────────────
+function renderReforcos() {
+    const container = document.getElementById('container-reforcos');
+    const hint = document.getElementById('reforcos-empty-hint');
+    const btnAdd = document.getElementById('btn-add-reforco');
+    if (!container) return;
+    if (!_reforcos.length) { container.innerHTML = ''; if (hint) hint.classList.remove('hidden'); }
+    else {
+        if (hint) hint.classList.add('hidden');
+        container.innerHTML = _reforcos.map((r, idx) => `<div class="flex items-center gap-2 border-2 border-indigo-200 rounded-xl p-2.5 bg-indigo-50/40">
+            <span class="flex-shrink-0 text-[10px] font-black text-indigo-700 uppercase px-2 py-1 bg-white rounded-lg border border-indigo-200">${reforcoLabel(idx + 1)}</span>
+            <label class="text-[10px] font-black text-slate-400 uppercase">Após</label>
+            <input type="number" min="1" step="1" placeholder="12" inputmode="numeric" value="${r.meses != null ? r.meses : ''}" onchange="updateReforcoMeses(${idx}, this.value)" class="w-16 border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-clinic-500 outline-none text-sm font-bold text-center">
+            <span class="text-[10px] font-black text-slate-400 uppercase">meses (opcional)</span>
+            <div class="flex-1"></div>
+            <button type="button" onclick="removeReforco(${idx})" class="flex-shrink-0 h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition" title="Remover reforço"><i class="fas fa-trash text-[10px]"></i></button>
+        </div>`).join('');
     }
+    if (btnAdd) btnAdd.disabled = _reforcos.length >= REFORCO_MAX;
 }
-function toggleReforco() { _setReforco(document.getElementById('vac-reforco').value !== '1'); }
+
+function addReforco() {
+    if (_reforcos.length >= REFORCO_MAX) return;
+    _reforcos.push({ meses: null });
+    renderReforcos();
+}
+
+function removeReforco(idx) {
+    _reforcos.splice(idx, 1);
+    renderReforcos();
+}
+
+function updateReforcoMeses(idx, val) {
+    _reforcos[idx].meses = parseInt(val, 10) || null;
+}
 
 function _setDoseZero(on) {
     const btn  = document.getElementById('btn-dose-zero-toggle');
@@ -291,10 +306,11 @@ function openVaccineModal() {
     if (!checkPerm('criar_produtos')) return;
     document.getElementById('vacina-form').reset();
     document.getElementById('vac-id').value = '';
-    _setReforco(false);
     _setDoseZero(false);
     _esquemas = [];
     renderEsquemas();
+    _reforcos = [];
+    renderReforcos();
     const btnDel = document.getElementById('btn-delete-vacina');
     if (btnDel) btnDel.classList.add('hidden');
     document.getElementById('modal-vacina').classList.add('active');
@@ -306,8 +322,8 @@ function editVaccine(id) {
     document.getElementById('vac-id').value = v.id;
     document.getElementById('vac-nome').value = v.nome;
     document.getElementById('vac-mnemonico').value = v.mnemonico || '';
-    _setReforco(v.reforco);
-    document.getElementById('vac-reforco-meses').value = v.reforcoMeses != null ? v.reforcoMeses : '';
+    _reforcos = getVaccineReforcos(v).map(r => ({ meses: r.meses != null ? r.meses : null }));
+    renderReforcos();
     _setDoseZero(v.doseZero);
     document.getElementById('vac-dose-zero-anos').value = v.doseZeroMinAnos != null ? v.doseZeroMinAnos : '';
     document.getElementById('vac-dose-zero-meses').value = v.doseZeroMinMeses != null ? v.doseZeroMinMeses : '';
@@ -362,14 +378,15 @@ function saveVaccine(e) {
     const primeiroEsquema = _esquemas.find(esq => esq.minAnos != null);
     const idadeMinimaAnos = primeiroEsquema ? (primeiroEsquema.minAnos || 0) : 0;
     const idadeMinimaMeses = primeiroEsquema ? (primeiroEsquema.minMeses || 0) : 0;
+    const reforcos = _reforcos.slice(0, REFORCO_MAX).map(r => ({ meses: r.meses != null ? r.meses : null }));
     const v = {
         id: id ? Number(id) : Date.now(), nome: document.getElementById('vac-nome').value.toUpperCase(),
         mnemonico: document.getElementById('vac-mnemonico').value.toUpperCase().trim() || null,
         numDoses: n, intervalos: intervalosBase, intervaloDias: intervalosBase[0] || 0,
-        reforco: document.getElementById('vac-reforco').value === '1',
-        reforcoMeses: document.getElementById('vac-reforco').value === '1'
-            ? (parseInt(document.getElementById('vac-reforco-meses').value, 10) || null)
-            : null,
+        reforcos,
+        // Legado: mantidos derivados do 1º reforço para compatibilidade.
+        reforco: reforcos.length > 0,
+        reforcoMeses: reforcos.length > 0 ? reforcos[0].meses : null,
         doseUnica,
         doseZero: document.getElementById('vac-dose-zero').value === '1',
         doseZeroMinAnos: document.getElementById('vac-dose-zero').value === '1'
@@ -384,10 +401,11 @@ function saveVaccine(e) {
     };
     const isNewVac = !id;
     const oldVac = isNewVac ? null : vaccines.find(x => x.id == v.id);
-    const oldVacFlat = oldVac ? {...oldVac, intervalosStr: (oldVac.intervalos||[]).join('/') || '—', reforcoStr: oldVac.reforco ? 'Sim' : 'Não', reforcoMesesStr: (oldVac.reforco && oldVac.reforcoMeses) ? `${oldVac.reforcoMeses} mês(es)` : '—', doseUnicaStr: oldVac.doseUnica ? 'Sim' : 'Não'} : null;
-    const newVacFlat = {...v, intervalosStr: (v.intervalos||[]).join('/') || '—', reforcoStr: v.reforco ? 'Sim' : 'Não', reforcoMesesStr: (v.reforco && v.reforcoMeses) ? `${v.reforcoMeses} mês(es)` : '—', doseUnicaStr: v.doseUnica ? 'Sim' : 'Não'};
+    const _reforcosStr = rs => rs.length ? rs.map((r, i) => `${reforcoLabel(i+1)}${r.meses ? ' após ' + r.meses + 'm' : ''}`).join(', ') : '—';
+    const oldVacFlat = oldVac ? {...oldVac, intervalosStr: (oldVac.intervalos||[]).join('/') || '—', reforcoStr: _reforcosStr(getVaccineReforcos(oldVac)), doseUnicaStr: oldVac.doseUnica ? 'Sim' : 'Não'} : null;
+    const newVacFlat = {...v, intervalosStr: (v.intervalos||[]).join('/') || '—', reforcoStr: _reforcosStr(reforcos), doseUnicaStr: v.doseUnica ? 'Sim' : 'Não'};
     if(id) vaccines = vaccines.map(x=>x.id==v.id?v:x); else vaccines.push(v);
-    const vacChanges = isNewVac ? null : computeChanges(oldVacFlat, newVacFlat, {nome:'Nome', numDoses:'Doses', intervalosStr:'Intervalos', reforcoStr:'Dose Reforço', reforcoMesesStr:'Reforço (após)', doseUnicaStr:'Dose Única', idadeMinimaAnos:'Idade Mín. (Anos)', idadeMinimaMeses:'Idade Mín. (Meses)', valor:'Valor'});
+    const vacChanges = isNewVac ? null : computeChanges(oldVacFlat, newVacFlat, {nome:'Nome', numDoses:'Doses', intervalosStr:'Intervalos', reforcoStr:'Reforço(s)', doseUnicaStr:'Dose Única', idadeMinimaAnos:'Idade Mín. (Anos)', idadeMinimaMeses:'Idade Mín. (Meses)', valor:'Valor'});
     logAudit(isNewVac ? 'Criado' : 'Editado', 'vacina', v.id, v.nome, isNewVac ? `${v.numDoses} dose(s) | Valor: ${v.valor}` : null, vacChanges);
     saveAll(); renderVaccines(); updateExpiryBadge(); closeModals(); showNotification('Vacina salva!','success');
 }

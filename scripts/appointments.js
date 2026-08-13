@@ -113,6 +113,8 @@ function openRecordModal() {
     // Reseta estados globais
     window._doseAnteriorConfirmado = false;
     window._pendingDoseAnteriorEvent = null;
+    window._aprazamentoJustificativaConfirmada = false;
+    window._aprazamentoJustificativaCtx = null;
     document.getElementById('record-form').reset(); document.getElementById('reg-id').value = '';
     // Limpa inputs hidden que não são resetados automaticamente
     document.getElementById('reg-vacina').value = '';
@@ -500,8 +502,11 @@ function autoFillVaccine(preserveDose) {
                 if (doseOptions.has('__dose_unica__')) {
                     doseSel.innerHTML += `<option value="Dose Única">Dose Única</option>`;
                 }
-                // Reforço: aparece para todos os esquemas quando a vacina tem reforço
-                if (v.reforco) doseSel.innerHTML += `<option value="Reforço">Reforço</option>`;
+                // Reforço(s): aparece para todos os esquemas quando a vacina tem reforço(s)
+                getVaccineReforcos(v).forEach((r, i) => {
+                    const lbl = reforcoLabel(i + 1);
+                    doseSel.innerHTML += `<option value="${lbl}">${lbl}</option>`;
+                });
                 // Dose Zero: opção independente do esquema, sempre por último na lista
                 if (v.doseZero) doseSel.innerHTML += `<option value="Dose Zero">Dose Zero</option>`;
             }
@@ -612,22 +617,27 @@ function updateSuggestedDate() {
     const v = vaccines.find(x => String(x.id) === String(vId));
     if (!v) return;
 
-    // Reforço: sugere data com base na última dose (não-reforço) + reforcoMeses meses
-    if (dose === 'Reforço') {
-        if (!v.reforco || !(v.reforcoMeses > 0)) return;
+    // Reforço N: sugere data com base na última dose relevante (reforço N-1, ou
+    // a última dose não-reforço quando N=1) + meses do próprio reforço N.
+    const reforcoIdx = reforcoIndexFromLabel(dose);
+    if (reforcoIdx) {
+        const reforcos = getVaccineReforcos(v);
+        const reforcoCfg = reforcos[reforcoIdx - 1];
+        if (!reforcoCfg || !(reforcoCfg.meses > 0)) return;
 
+        const baseLabel = reforcoIdx > 1 ? reforcoLabel(reforcoIdx - 1) : null;
         const editingId = document.getElementById('reg-id').value;
         const prevApps = appointments.filter(a =>
             String(a.patientId) === String(patId) &&
             String(a.vaccineId) === String(vId) &&
             (!editingId || String(a.id) !== String(editingId)) &&
-            a.doseAtual !== 'Reforço'
+            (baseLabel ? a.doseAtual === baseLabel : reforcoIndexFromLabel(a.doseAtual) == null)
         ).sort((a, b) => new Date(b.data) - new Date(a.data));
 
         if (!prevApps.length) return;
 
         const baseDate = new Date(prevApps[0].data + 'T00:00:00');
-        baseDate.setMonth(baseDate.getMonth() + v.reforcoMeses);
+        baseDate.setMonth(baseDate.getMonth() + reforcoCfg.meses);
         const isoDate = baseDate.toISOString().split('T')[0];
 
         spanEl.innerText = isoDate.split('-').reverse().join('/');
@@ -876,6 +886,43 @@ function resetDescontoUI() {
 function confirmarDoseAnterior() {
     document.getElementById('modal-dose-anterior-aviso').classList.remove('active');
     window._doseAnteriorConfirmado = true;
+    document.getElementById('record-form').requestSubmit();
+}
+
+// ─── APLICAR COM JUSTIFICATIVA (bloqueio de aprazamento, antecipação ≤ 15 dias) ──
+function toggleAprazamentoJustificativaBox() {
+    const box = document.getElementById('aprazamento-justificativa-box');
+    const opening = box.classList.contains('hidden');
+    box.classList.toggle('hidden', !opening);
+    document.getElementById('btn-aprazamento-confirmar-justificativa').classList.toggle('hidden', !opening);
+    document.getElementById('btn-aprazamento-justificar').classList.toggle('hidden', opening);
+    if (opening) document.getElementById('aprazamento-justificativa-input').focus();
+    checkAprazamentoJustificativa();
+}
+
+function checkAprazamentoJustificativa() {
+    const val = document.getElementById('aprazamento-justificativa-input').value.trim();
+    const btn = document.getElementById('btn-aprazamento-confirmar-justificativa');
+    if (btn.classList.contains('hidden')) return;
+    const ok = val.length > 0;
+    btn.disabled = !ok;
+    btn.className = ok
+        ? 'w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-2.5 rounded-xl transition text-xs uppercase cursor-pointer'
+        : 'w-full bg-amber-200 text-amber-400 font-black py-2.5 rounded-xl transition text-xs uppercase cursor-not-allowed';
+}
+
+function confirmAprazamentoComJustificativa() {
+    const val = document.getElementById('aprazamento-justificativa-input').value.trim();
+    if (!val || !window._aprazamentoJustificativaCtx) return;
+
+    // Preenche automaticamente o campo de comentário do agendamento com a justificativa.
+    const obsField = document.getElementById('reg-obs');
+    const prefixo = `[Aprazamento antecipado — justificativa] ${val}`;
+    obsField.value = obsField.value.trim() ? `${obsField.value.trim()}\n${prefixo}` : prefixo;
+
+    document.getElementById('modal-aprazamento-aviso').classList.remove('active');
+    window._aprazamentoJustificativaConfirmada = true;
+    window._aprazamentoJustificativaCtx = null;
     document.getElementById('record-form').requestSubmit();
 }
 
@@ -1208,6 +1255,7 @@ function editRecord(id) {
         document.getElementById('reg-pedido').value = a.pedido || a.pedidoNumero || '';
         document.getElementById('reg-vendedor').value = a.vendedor || '';
         document.getElementById('reg-aplicador').value = a.aplicador || '';
+        document.getElementById('reg-obs').value = a.obs || '';
         const chkOutroLocal = document.getElementById('reg-aplicada-outro-local');
         if(chkOutroLocal) { chkOutroLocal.checked = !!a.aplicadaOutroLocal; toggleAplicadaOutroLocal(chkOutroLocal); }
         const chkOutraVacina = document.getElementById('reg-outra-vacina');
@@ -1373,8 +1421,9 @@ function toggleCancelReason() {
 }
 
 function toggleAplicadaOutroLocal(chk) {
-    const icon = document.getElementById('icon-aplicada-outro-local');
-    const box  = chk.closest('label') && chk.closest('label').querySelector('div');
+    const icon  = document.getElementById('icon-aplicada-outro-local');
+    const box   = chk.closest('label') && chk.closest('label').querySelector('div');
+    const label = box && box.querySelector('span');
 
     // Mutuamente exclusivo com "Outra Vacina"
     if (chk.checked) {
@@ -1383,11 +1432,13 @@ function toggleAplicadaOutroLocal(chk) {
     }
 
     if (chk.checked) {
-        if (icon) { icon.classList.remove('text-violet-400'); icon.classList.add('text-white'); }
-        if (box)  { box.classList.add('bg-violet-600', 'border-violet-600'); box.classList.remove('bg-violet-50', 'border-violet-300'); }
+        if (icon)  { icon.classList.remove('text-violet-400'); icon.classList.add('text-white'); }
+        if (box)   { box.classList.add('bg-violet-600', 'border-violet-600'); box.classList.remove('bg-violet-50', 'border-violet-300'); }
+        if (label) { label.classList.remove('text-violet-600'); label.classList.add('text-white'); }
     } else {
-        if (icon) { icon.classList.add('text-violet-400'); icon.classList.remove('text-white'); }
-        if (box)  { box.classList.remove('bg-violet-600', 'border-violet-600'); box.classList.add('bg-violet-50', 'border-violet-300'); }
+        if (icon)  { icon.classList.add('text-violet-400'); icon.classList.remove('text-white'); }
+        if (box)   { box.classList.remove('bg-violet-600', 'border-violet-600'); box.classList.add('bg-violet-50', 'border-violet-300'); }
+        if (label) { label.classList.add('text-violet-600'); label.classList.remove('text-white'); }
     }
     toggleCancelReason();
 }
@@ -1544,15 +1595,18 @@ function _paintOutraVacinaToggle(ctx, on) {
     const chk  = document.getElementById(c.chk);
     const icon = document.getElementById(c.icon);
     const box  = chk && chk.closest('label') && chk.closest('label').querySelector('div');
+    const label = box && box.querySelector('span');
     const panel = document.getElementById(c.box);
 
     if (on) {
-        if (icon) { icon.classList.remove('text-teal-400'); icon.classList.add('text-white'); }
-        if (box)  { box.classList.add('bg-teal-600', 'border-teal-600'); box.classList.remove('bg-teal-50', 'border-teal-300'); }
+        if (icon)  { icon.classList.remove('text-teal-400'); icon.classList.add('text-white'); }
+        if (box)   { box.classList.add('bg-teal-600', 'border-teal-600'); box.classList.remove('bg-teal-50', 'border-teal-300'); }
+        if (label) { label.classList.remove('text-teal-600'); label.classList.add('text-white'); }
         panel?.classList.remove('hidden');
     } else {
-        if (icon) { icon.classList.add('text-teal-400'); icon.classList.remove('text-white'); }
-        if (box)  { box.classList.remove('bg-teal-600', 'border-teal-600'); box.classList.add('bg-teal-50', 'border-teal-300'); }
+        if (icon)  { icon.classList.add('text-teal-400'); icon.classList.remove('text-white'); }
+        if (box)   { box.classList.remove('bg-teal-600', 'border-teal-600'); box.classList.add('bg-teal-50', 'border-teal-300'); }
+        if (label) { label.classList.add('text-teal-600'); label.classList.remove('text-white'); }
         panel?.classList.add('hidden');
         clearOutraVacinaRef(ctx);
     }
@@ -1661,11 +1715,12 @@ function saveRecord(e) {
     // Verificação de faixa etária — bloqueante
     if (checkAgeConstraint()) return;
 
-    // Verificação de aprazamento — bloqueante (sem opção de continuar)
-    {
+    // Verificação de aprazamento — bloqueante, exceto se o usuário confirmou
+    // a aplicação com justificativa (antecipação de até 15 dias).
+    if (!window._aprazamentoJustificativaConfirmada) {
         const vIdApr = document.getElementById('reg-vacina').value;
         const doseApr = document.getElementById('reg-dose').value;
-        if (vIdApr && doseApr && !doseApr.includes('1ª') && doseApr !== 'Dose Única' && doseApr !== 'Reforço' && doseApr !== 'Dose Zero') {
+        if (vIdApr && doseApr && !doseApr.includes('1ª') && doseApr !== 'Dose Única' && reforcoIndexFromLabel(doseApr) == null && doseApr !== 'Dose Zero') {
             const vApr = vaccines.find(x => x.id == vIdApr);
             const dtNascApr = document.getElementById('reg-dtnasc').value;
             const esqApr = getEsquemaPaciente(vApr, dtNascApr);
@@ -1695,6 +1750,20 @@ function saveRecord(e) {
                                 <span class="text-slate-500 text-xs">Intervalo recomendado: <b>${intervaloApr} dias</b></span><br>
                                 <span class="text-slate-500 text-xs">Diferença: <b class="text-red-600">${diffDias} dia${diffDias !== 1 ? 's' : ''} antes do permitido</b></span><br><br>
                                 <span class="font-black text-red-600 text-xs">Data mínima: ${minBr}</span>`;
+
+                            // Permite aplicar com justificativa se a antecipação for de até 15 dias.
+                            const btnJustificar = document.getElementById('btn-aprazamento-justificar');
+                            if (btnJustificar) {
+                                const podeJustificar = diffDias <= 15;
+                                btnJustificar.classList.toggle('hidden', !podeJustificar);
+                                document.getElementById('aprazamento-justificativa-box').classList.add('hidden');
+                                document.getElementById('aprazamento-justificativa-input').value = '';
+                                const btnConfirmarJust = document.getElementById('btn-aprazamento-confirmar-justificativa');
+                                btnConfirmarJust.classList.add('hidden');
+                                btnConfirmarJust.disabled = true;
+                                window._aprazamentoJustificativaCtx = podeJustificar ? { diffDias, minDateIso, prevBr, intervaloApr } : null;
+                            }
+
                             document.getElementById('modal-aprazamento-aviso').classList.add('active');
                             return;
                         }
@@ -1703,6 +1772,7 @@ function saveRecord(e) {
             }
         }
     }
+    window._aprazamentoJustificativaConfirmada = false;
 
     // Verificação de intervalo de 1 hora entre agendamentos no mesmo dia
     {
@@ -1739,7 +1809,7 @@ function saveRecord(e) {
         const vDupl = vaccines.find(x => String(x.id) === String(vId));
         const isDoseUnicaRepetivel = doseAtualStr === 'Dose Única' &&
             vDupl && vDupl.esquemas && vDupl.esquemas.some(e => e.numDoses === 1 && e.repete);
-        const isReforco = doseAtualStr === 'Reforço';
+        const isReforco = reforcoIndexFromLabel(doseAtualStr) != null;
         const dupl = !isDoseUnicaRepetivel && !isReforco && appointments.find(x =>
             String(x.patientId) === String(patId) &&
             String(x.vaccineId) === String(vId) &&
@@ -1873,7 +1943,8 @@ function saveRecord(e) {
         outraVacinaLabel: _outraVacinaApp ? outraVacinaLabel(_outraVacinaApp) : '',
         pedido: pedidoVal,
         vendedor: vendedorVal,
-        aplicador: aplicadorVal
+        aplicador: aplicadorVal,
+        obs: document.getElementById('reg-obs').value.trim()
     };
 
     const isNew = !id;
@@ -1889,6 +1960,7 @@ function saveRecord(e) {
         `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a.doseAtual} | ${a.data ? a.data.split('-').reverse().join('/') : '—'}`,
         isNew ? `Status: ${a.status}${a.vendedor ? ' | Vendedor: ' + a.vendedor : ''}` : null, appChanges);
     window._doseAnteriorConfirmado = false;
+    window._aprazamentoJustificativaConfirmada = false;
     if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(a);
     if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
     saveAll(); renderCalendar(); renderTable(); renderDashboard(); renderPatients(); closeModals();

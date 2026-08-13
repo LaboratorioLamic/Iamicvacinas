@@ -280,3 +280,30 @@ function parseBRL(str) {
 function formatBRL(num) {
     return num.toFixed(2).replace('.', ',');
 }
+
+// ─── REFORÇOS (múltiplos, até 3) ──────────────────────────────────────────────
+// Vacina armazena v.reforcos = [{meses:12}, {meses:24}, ...] (até 3 itens).
+// v.reforco/v.reforcoMeses são mantidos como legado (derivados do 1º reforço)
+// para compatibilidade com dados antigos e código ainda não migrado.
+const REFORCO_MAX = 3;
+
+function reforcoLabel(n) {
+    return n <= 1 ? 'Reforço' : `${n}º Reforço`;
+}
+
+// Extrai o índice (1..N) de um label de reforço, ou null se não for reforço.
+function reforcoIndexFromLabel(doseStr) {
+    if (!doseStr) return null;
+    if (doseStr === 'Reforço') return 1;
+    const m = /^(\d+)º Reforço$/.exec(doseStr);
+    return m ? parseInt(m[1], 10) : null;
+}
+
+// Lista normalizada de reforços de uma vacina (sempre a partir de v.reforcos,
+// com fallback para o formato legado v.reforco/v.reforcoMeses).
+function getVaccineReforcos(v) {
+    if (!v) return [];
+    if (Array.isArray(v.reforcos) && v.reforcos.length) return v.reforcos.slice(0, REFORCO_MAX);
+    if (v.reforco) return [{ meses: v.reforcoMeses || null }];
+    return [];
+}

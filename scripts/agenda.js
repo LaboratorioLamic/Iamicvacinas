@@ -2541,7 +2541,7 @@ function _buildOportDoseOptionsHtml(vac, dtNasc, dataStr, currentDose) {
     const numeradas = [...doseOptions].filter(d => d !== '__dose_unica__').sort((a, b) => a - b);
     numeradas.forEach(i => { html += opt(`${i}ª Dose`); });
     if (doseOptions.has('__dose_unica__')) html += opt('Dose Única');
-    if (vac.reforco) html += opt('Reforço');
+    getVaccineReforcos(vac).forEach((r, i) => { html += opt(reforcoLabel(i + 1)); });
     // Dose Zero só aparece quando o paciente atende ao critério de idade próprio dela
     if (vac.doseZero && (!dtNasc || meetsDoseZero)) html += opt('Dose Zero');
     return keepCurrent(html);
@@ -2668,7 +2668,7 @@ function _oportCheckAgeBlocked(vac, dtNasc, dataStr, doseVal) {
 
 function _oportCheckDuplicidade(app, vac, doseVal) {
     const isDoseUnicaRepetivel = doseVal === 'Dose Única' && vac && vac.esquemas && vac.esquemas.some(e => e.numDoses === 1 && e.repete);
-    const isReforco = doseVal === 'Reforço';
+    const isReforco = reforcoIndexFromLabel(doseVal) != null;
     if (isDoseUnicaRepetivel || isReforco) return null;
     const patId = _editarOportunidadePending.patId;
 

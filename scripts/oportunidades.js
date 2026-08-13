@@ -199,32 +199,42 @@ function calcAprazamento() {
                 }
             }
 
-            // Case 3 — reforço
-            if (vac.reforco) {
-                const hasReforco = applied.some(a=>a.doseAtual==='Reforço');
-                // Suprime se já existe registro ativo para Reforço
-                const hasActiveReforco = active.some(a => a.doseAtual === 'Reforço');
-                if (!hasReforco && !hasActiveReforco) {
-                    const completed = numDoses===1
-                        ? applied.some(a=>a.doseAtual==='Dose Única'||a.doseAtual==='1ª Dose')
-                        : applied.some(a=>a.doseAtual===`${numDoses}ª Dose`);
-                    if (completed) {
-                        const lastApp = applied.sort((a,b)=>new Date(b.data)-new Date(a.data))[0];
-                        let suggestedDate = null;
-                        if (lastApp) {
-                            const d = new Date(lastApp.data+'T00:00:00');
-                            if (vac.reforcoMeses > 0) {
-                                d.setMonth(d.getMonth() + vac.reforcoMeses);
-                            } else {
-                                const intervalos = (esq && esq.intervalos && esq.intervalos.length) ? esq.intervalos : [];
-                                const intervalo = intervalos[numDoses] || vac.intervaloDias || 365;
-                                d.setDate(d.getDate() + intervalo);
-                            }
-                            suggestedDate = d;
-                        }
-                        opps.push({ type:'reforco', vaccine:vac, dose:'Reforço', suggestedDate, revenue:parseBRL(String(vac.valor||'0'))||0, urgency:_urgency(suggestedDate,today,in30) });
-                    }
+            // Case 3 — reforço(s): percorre em ordem, só oferece o próximo ainda
+            // sem registro cuja base (reforço anterior aplicado, ou esquema
+            // completo p/ o 1º) já exista.
+            const reforcos = getVaccineReforcos(vac);
+            const completedEsquema = numDoses===1
+                ? applied.some(a=>a.doseAtual==='Dose Única'||a.doseAtual==='1ª Dose')
+                : applied.some(a=>a.doseAtual===`${numDoses}ª Dose`);
+            for (let ri = 0; ri < reforcos.length; ri++) {
+                const lbl = reforcoLabel(ri + 1);
+                const hasReforco = applied.some(a=>a.doseAtual===lbl);
+                const hasActiveReforco = active.some(a => a.doseAtual === lbl);
+                if (hasReforco || hasActiveReforco) continue;
+                let baseApp, baseCompleted;
+                if (ri === 0) {
+                    baseApp = applied.sort((a,b)=>new Date(b.data)-new Date(a.data))[0];
+                    baseCompleted = completedEsquema;
+                } else {
+                    const prevLbl = reforcoLabel(ri);
+                    baseApp = applied.find(a => a.doseAtual === prevLbl);
+                    baseCompleted = !!baseApp;
                 }
+                if (!baseCompleted) break;
+                let suggestedDate = null;
+                if (baseApp) {
+                    const d = new Date(baseApp.data+'T00:00:00');
+                    if (reforcos[ri].meses > 0) {
+                        d.setMonth(d.getMonth() + reforcos[ri].meses);
+                    } else {
+                        const intervalos = (esq && esq.intervalos && esq.intervalos.length) ? esq.intervalos : [];
+                        const intervalo = intervalos[numDoses] || vac.intervaloDias || 365;
+                        d.setDate(d.getDate() + intervalo);
+                    }
+                    suggestedDate = d;
+                }
+                opps.push({ type:'reforco', vaccine:vac, dose:lbl, suggestedDate, revenue:parseBRL(String(vac.valor||'0'))||0, urgency:_urgency(suggestedDate,today,in30) });
+                break; // apenas o próximo reforço pendente vira oportunidade
             }
         });
 
@@ -664,7 +674,8 @@ function _renderMicroOferta(patient, opp) {
     const esq = getEsquemaPaciente(opp.vaccine, patient.dtNasc);
     const numDoses = esq ? (esq.numDoses || 1) : (opp.vaccine.numDoses || 1);
     const doseInfo = numDoses > 1 ? `${numDoses} doses` : 'Dose única';
-    const reforco  = opp.vaccine.reforco ? ' + Reforço' : '';
+    const nReforcosMO = getVaccineReforcos(opp.vaccine).length;
+    const reforco  = nReforcosMO > 1 ? ` + ${nReforcosMO} Reforços` : nReforcosMO === 1 ? ' + Reforço' : '';
 
     const _isDarkO = document.body.classList.contains('dark-mode');
     return `
@@ -764,6 +775,7 @@ function toggleDismissOutraVacina(chk) {
 function toggleDismissOutroLocal(chk) {
     const icon      = document.getElementById('icon-dismiss-outro-local');
     const box       = chk.closest('label') && chk.closest('label').querySelector('div');
+    const label     = box && box.querySelector('span');
     // Mutuamente exclusivo com "Outra Vacina"
     if (chk.checked) {
         const outraVacina = document.getElementById('dismiss-opp-outra-vacina');
@@ -773,11 +785,13 @@ function toggleDismissOutroLocal(chk) {
         }
     }
     if (chk.checked) {
-        if (icon) { icon.classList.remove('text-violet-400'); icon.classList.add('text-white'); }
-        if (box)  { box.classList.add('bg-violet-600', 'border-violet-600'); box.classList.remove('bg-violet-50', 'border-violet-300'); }
+        if (icon)  { icon.classList.remove('text-violet-400'); icon.classList.add('text-white'); }
+        if (box)   { box.classList.add('bg-violet-600', 'border-violet-600'); box.classList.remove('bg-violet-50', 'border-violet-300'); }
+        if (label) { label.classList.remove('text-violet-600'); label.classList.add('text-white'); }
     } else {
-        if (icon) { icon.classList.add('text-violet-400'); icon.classList.remove('text-white'); }
-        if (box)  { box.classList.remove('bg-violet-600', 'border-violet-600'); box.classList.add('bg-violet-50', 'border-violet-300'); }
+        if (icon)  { icon.classList.add('text-violet-400'); icon.classList.remove('text-white'); }
+        if (box)   { box.classList.remove('bg-violet-600', 'border-violet-600'); box.classList.add('bg-violet-50', 'border-violet-300'); }
+        if (label) { label.classList.add('text-violet-600'); label.classList.remove('text-white'); }
     }
     _syncDismissMotivoState();
 }

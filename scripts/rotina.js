@@ -58,30 +58,103 @@ function _rotinaFmtDate(dateStr) {
 
 // Vacina de dose única que se repete periodicamente (ex.: Influenza anual):
 // esquema com numDoses 1 e repete=true/repeteMeses definido.
-function _rotinaEsquemaRepeteDoseUnica(vac, patient) {
+//
+// A busca do esquema usa a idade ATUAL do paciente — mas as doses já aplicadas
+// podem ter sido registradas quando ele estava em outra faixa etária (ex.:
+// esquema pediátrico de 2 doses aplicado ainda criança, hoje já fora dessa
+// faixa). Por isso, mesmo achando um esquema "repete" pela idade atual, só o
+// confirma se o histórico de aplicações for de fato compatível com repetição
+// periódica — doses aplicadas com intervalo muito menor que repeteMeses
+// indicam esquema primário de doses múltiplas mal rotulado como "Dose Única",
+// não repetição anual.
+function _rotinaEsquemaRepeteDoseUnica(vac, patient, apps) {
     const esq = (typeof getEsquemaPaciente === 'function') ? getEsquemaPaciente(vac, patient.dtNasc) : null;
-    if (esq && esq.repete && esq.repeteMeses > 0 && (esq.numDoses || 1) === 1) return esq;
-    if (!esq && vac.esquemas && vac.esquemas.length) {
-        return vac.esquemas.find(e => e.repete && e.repeteMeses > 0 && (e.numDoses || 1) === 1) || null;
+    const candidate = (esq && esq.repete && esq.repeteMeses > 0 && (esq.numDoses || 1) === 1) ? esq
+        : ((!esq && vac.esquemas && vac.esquemas.length)
+            ? (vac.esquemas.find(e => e.repete && e.repeteMeses > 0 && (e.numDoses || 1) === 1) || null)
+            : null);
+    if (!candidate) return null;
+
+    // Confere se as aplicações de "Dose Única" no histórico respeitam o intervalo
+    // mínimo esperado de repetição (com folga de 50% pra não rejeitar antecipações legítimas).
+    //
+    // Exceção: a própria vacina pode ter um esquema PRIMÁRIO multi-dose em outra
+    // faixa etária (ex.: Influenza — 2 doses na primeira vacinação infantil, depois
+    // 1 dose anual). Nesse caso as primeiras aplicações naturalmente têm intervalo
+    // curto, e isso não desmente a repetição anual: as doses do esquema primário
+    // são "consumidas" antes de avaliar os gaps.
+    if (apps && apps.length) {
+        const appliedDoseUnica = apps
+            .filter(a => a.status === 'Aplicado' && a.doseAtual === 'Dose Única' && a.data)
+            .sort((a, b) => new Date(a.data) - new Date(b.data));
+        // Maior esquema primário configurado na vacina (numDoses > 1)
+        const primario = (vac.esquemas || []).reduce(
+            (max, e) => ((e.numDoses || 1) > (max ? (max.numDoses || 1) : 1) ? e : max), null);
+        const dosesPrimario = primario ? (primario.numDoses || 1) : 1;
+        // Ignora os gaps internos do esquema primário (dosesPrimario - 1 intervalos)
+        const startIdx = Math.max(1, dosesPrimario);
+        const minGapDias = candidate.repeteMeses * 30 * 0.5;
+        for (let i = startIdx; i < appliedDoseUnica.length; i++) {
+            const gapDias = (new Date(appliedDoseUnica[i].data) - new Date(appliedDoseUnica[i - 1].data)) / 86400000;
+            if (gapDias < minGapDias) return null;
+        }
     }
-    return null;
+    return candidate;
 }
 
 // Monta as "linhas" (uma por dose/marco) de uma vacina para o paciente, a
 // partir dos appointments existentes + a próxima dose prevista (se houver).
 function _rotinaBuildVaccineRow(vac, patient, apps) {
     const cards = [];
-    const esqRepete = _rotinaEsquemaRepeteDoseUnica(vac, patient);
+    const esqRepete = _rotinaEsquemaRepeteDoseUnica(vac, patient, apps);
+
+    // "Dose Única" sempre mapeia pro ordinal 1 — correto pra esquema de repetição
+    // periódica (cada aplicação substitui a anterior no mesmo slot). Mas quando NÃO é
+    // repetição (esqRepete null) e existem várias aplicações de "Dose Única" pro mesmo
+    // paciente/vacina, elas são, na prática, doses sequenciais de um esquema primário
+    // mal rotulado — renumeramos por ordem de data (1ª, 2ª, ...) pra não colapsar
+    // registros distintos no mesmo card.
+    const ordinalOverride = new Map(); // appointment.id -> ordinal efetivo
+    let doseUnicaRelabel = false;      // renumerar rótulo "Dose Única" -> "Nª Dose"?
+
+    const doseUnicaApps = apps
+        .filter(a => a.doseAtual === 'Dose Única')
+        .sort((a, b) => new Date(a.data || 0) - new Date(b.data || 0));
+    // Maior ordinal já ocupado por uma dose NUMERADA ('1ª Dose', '2ª Dose', ...).
+    const maxNumbered = apps.reduce((max, a) => {
+        const m = /^(\d+)ª Dose$/.exec(a.doseAtual || '');
+        return m ? Math.max(max, parseInt(m[1])) : max;
+    }, 0);
+    const doseUnicaAppliedCount = doseUnicaApps.filter(a => a.status === 'Aplicado').length;
+
+    if (doseUnicaApps.length && maxNumbered >= 1) {
+        // A vacina tem doses numeradas E aplicações "Dose Única" (ex.: Influenza —
+        // esquema primário de 2 doses na infância, depois a dose anual). "Dose Única"
+        // mapeia pro ordinal 1 por padrão, colidindo com a '1ª Dose': o card do ordinal
+        // escolhe um único registro e as Dose Única somem do prontuário. Empilhamos
+        // elas ACIMA do maior numerado, cada uma no seu card, mantendo o rótulo.
+        // Vale inclusive com esquema de repetição anual — cada ano é uma aplicação real
+        // que precisa aparecer, não um slot que a seguinte substitui.
+        let n = maxNumbered + 1;
+        doseUnicaApps.forEach(a => { ordinalOverride.set(a.id, n++); });
+    } else if (!esqRepete && doseUnicaAppliedCount > 1) {
+        // Sem doses numeradas e sem repetição periódica: várias "Dose Única" são, na
+        // prática, um esquema primário mal rotulado — renumera 1ª, 2ª, ...
+        doseUnicaRelabel = true;
+        let n = 1;
+        doseUnicaApps.forEach(a => { ordinalOverride.set(a.id, n++); });
+    }
+    const _ordinalOf = a => ordinalOverride.has(a.id) ? ordinalOverride.get(a.id) : _rotinaDoseOrdinal(a.doseAtual);
 
     // Doses numeradas + Dose Única + Dose Zero, na ordem em que ocorreram/estão previstas.
     const numbered = apps
-        .filter(a => _rotinaDoseOrdinal(a.doseAtual) !== null)
-        .sort((a, b) => _rotinaDoseOrdinal(a.doseAtual) - _rotinaDoseOrdinal(b.doseAtual) || new Date(a.data) - new Date(b.data));
+        .filter(a => _ordinalOf(a) !== null)
+        .sort((a, b) => _ordinalOf(a) - _ordinalOf(b) || new Date(a.data) - new Date(b.data));
 
     // Agrupa por número de dose (pode haver mais de um registro pra mesma dose: ex. cancelado + reagendado)
     const byOrdinal = new Map();
     numbered.forEach(a => {
-        const n = _rotinaDoseOrdinal(a.doseAtual);
+        const n = _ordinalOf(a);
         if (!byOrdinal.has(n)) byOrdinal.set(n, []);
         byOrdinal.get(n).push(a);
     });
@@ -143,9 +216,10 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
             ? (appointments.find(x => x.id == outraVacinaReg.outraVacinaAppId)?.data || outraVacinaReg.data)
             : null;
 
+        const doseUnicaRenumbered = doseUnicaRelabel && ordinalOverride.has(reg.id);
         cards.push({
             _ordinal: ordinal,
-            label: esqRepete ? 'Dose Única' : reg.doseAtual,
+            label: (esqRepete && reg.doseAtual === 'Dose Única') ? 'Dose Única' : (doseUnicaRenumbered ? `${ordinal}ª Dose` : reg.doseAtual),
             date: applied ? applied.data
                 : outroLocalReg ? outroLocalReg.data
                 : outraVacinaReg ? outraVacinaCoverDate
@@ -170,40 +244,44 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
     });
     cards.sort((a, b) => (a._ordinal || 0) - (b._ordinal || 0));
 
-    // Reforço (se aplicável) — mesmo tratamento
-    if (vac.reforco) {
-        const reforcoRegs = apps.filter(a => a.doseAtual === 'Reforço');
-        if (reforcoRegs.length) {
-            const applied = reforcoRegs.find(a => a.status === 'Aplicado');
-            const outroLocalReg = reforcoRegs.find(a => a.status === 'Perdido' && a.aplicadaOutroLocal);
-            const outraVacinaReg = reforcoRegs.find(a => a.status === 'Perdido' && a.outraVacina);
-            const pending = reforcoRegs.filter(a => a.status === 'Agendado' || a.status === 'Em negociação' || a.status === 'Nova oportunidade')
-                .sort((a, b) => new Date(a.data) - new Date(b.data))[0];
-            const cancelled = reforcoRegs.find(a => a.status === 'Perdido' && !a.aplicadaOutroLocal && !a.outraVacina);
-            const reg = applied || outroLocalReg || outraVacinaReg || pending || cancelled;
-            let status;
-            if (outroLocalReg && !applied) status = 'outro_local';
-            else if (outraVacinaReg && !applied) status = 'outra_vacina';
-            else if (applied) { status = 'aplicada'; lastAppliedApp = applied; }
-            else if (cancelled && !pending) status = 'cancelada';
-            else if (pending) status = _rotinaDateBucket(pending.data);
-            else status = 'cancelada';
+    // Reforço(s) (se aplicável) — mesmo tratamento, um card por reforço com registro.
+    // Percorre até REFORCO_MAX (não só os reforços configurados na vacina hoje):
+    // um agendamento já existente com rótulo "2º Reforço"/"3º Reforço" precisa
+    // continuar visível mesmo que a vacina tenha sido reconfigurada depois para
+    // menos reforços do que tinha quando o registro foi criado/importado.
+    for (let i = 0; i < REFORCO_MAX; i++) {
+        const lbl = reforcoLabel(i + 1);
+        const reforcoRegs = apps.filter(a => a.doseAtual === lbl);
+        if (!reforcoRegs.length) continue;
+        const applied = reforcoRegs.find(a => a.status === 'Aplicado');
+        const outroLocalReg = reforcoRegs.find(a => a.status === 'Perdido' && a.aplicadaOutroLocal);
+        const outraVacinaReg = reforcoRegs.find(a => a.status === 'Perdido' && a.outraVacina);
+        const pending = reforcoRegs.filter(a => a.status === 'Agendado' || a.status === 'Em negociação' || a.status === 'Nova oportunidade')
+            .sort((a, b) => new Date(a.data) - new Date(b.data))[0];
+        const cancelled = reforcoRegs.find(a => a.status === 'Perdido' && !a.aplicadaOutroLocal && !a.outraVacina);
+        const reg = applied || outroLocalReg || outraVacinaReg || pending || cancelled;
+        let status;
+        if (outroLocalReg && !applied) status = 'outro_local';
+        else if (outraVacinaReg && !applied) status = 'outra_vacina';
+        else if (applied) { status = 'aplicada'; lastAppliedApp = applied; }
+        else if (cancelled && !pending) status = 'cancelada';
+        else if (pending) status = _rotinaDateBucket(pending.data);
+        else status = 'cancelada';
 
-            const outraVacinaCoverDateReforco = outraVacinaReg
-                ? (appointments.find(x => x.id == outraVacinaReg.outraVacinaAppId)?.data || outraVacinaReg.data)
-                : null;
+        const outraVacinaCoverDateReforco = outraVacinaReg
+            ? (appointments.find(x => x.id == outraVacinaReg.outraVacinaAppId)?.data || outraVacinaReg.data)
+            : null;
 
-            cards.push({
-                label: 'Reforço',
-                date: applied ? applied.data
-                    : outroLocalReg ? outroLocalReg.data
-                    : outraVacinaReg ? outraVacinaCoverDateReforco
-                    : (pending ? pending.data : (cancelled ? cancelled.data : null)),
-                status,
-                appointmentId: reg.id,
-                hasAppointment: true
-            });
-        }
+        cards.push({
+            label: lbl,
+            date: applied ? applied.data
+                : outroLocalReg ? outroLocalReg.data
+                : outraVacinaReg ? outraVacinaCoverDateReforco
+                : (pending ? pending.data : (cancelled ? cancelled.data : null)),
+            status,
+            appointmentId: reg.id,
+            hasAppointment: true
+        });
     }
 
     // Próxima dose prevista (sem registro ainda) — card azul/amarelo/laranja "fantasma", clicável p/ agendar.
@@ -275,15 +353,30 @@ function _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAp
         };
     }
 
-    // Reforço previsto (esquema completo, vacina prevê reforço, ainda sem registro)
-    if (vac.reforco) {
-        const hasReforcoReg = apps.some(a => a.doseAtual === 'Reforço');
+    // Reforço previsto (esquema completo, vacina prevê reforço, ainda sem registro).
+    // Percorre os reforços em ordem: sugere o primeiro ainda sem registro cuja
+    // base (reforço anterior aplicado, ou esquema completo p/ o 1º) já exista.
+    const reforcos = getVaccineReforcos(vac);
+    if (reforcos.length) {
         const completed = totalDoses === 1
             ? apps.some(a => (a.doseAtual === 'Dose Única' || a.doseAtual === '1ª Dose') && (a.status === 'Aplicado' || (a.status === 'Perdido' && a.aplicadaOutroLocal)))
             : maxAppliedOrdinal >= totalDoses;
-        if (!hasReforcoReg && completed) {
-            const d = new Date(lastAppliedApp.data + 'T00:00:00');
-            if (vac.reforcoMeses > 0) d.setMonth(d.getMonth() + vac.reforcoMeses);
+        for (let i = 0; i < reforcos.length; i++) {
+            const lbl = reforcoLabel(i + 1);
+            const hasReforcoReg = apps.some(a => a.doseAtual === lbl);
+            if (hasReforcoReg) continue;
+            let baseApp, baseCompleted;
+            if (i === 0) {
+                baseApp = lastAppliedApp;
+                baseCompleted = completed;
+            } else {
+                const prevLbl = reforcoLabel(i);
+                baseApp = apps.find(a => a.doseAtual === prevLbl && a.status === 'Aplicado');
+                baseCompleted = !!baseApp;
+            }
+            if (!baseCompleted || !baseApp) return null; // reforços seguintes dependem do anterior aplicado
+            const d = new Date(baseApp.data + 'T00:00:00');
+            if (reforcos[i].meses > 0) d.setMonth(d.getMonth() + reforcos[i].meses);
             else {
                 const intervalos = (esq && esq.intervalos && esq.intervalos.length) ? esq.intervalos : [];
                 const intervalo = intervalos[totalDoses] || vac.intervaloDias || 365;
@@ -291,12 +384,12 @@ function _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAp
             }
             const dateStr = d.toISOString().split('T')[0];
             return {
-                label: 'Reforço',
+                label: lbl,
                 date: dateStr,
                 status: _rotinaDateBucket(dateStr),
                 appointmentId: null,
                 hasAppointment: false,
-                suggestedDose: 'Reforço'
+                suggestedDose: lbl
             };
         }
     }
