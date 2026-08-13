@@ -442,6 +442,9 @@ function toggleContactsPanel(e) {
     const panel = document.getElementById('contacts-panel');
     if (!panel) return;
     if (panel.classList.contains('hidden')) {
+        // Os dois painéis ocupam a mesma posição — fecha o de lote pendente antes de abrir
+        const other = document.getElementById('semlote-panel');
+        if (other) { other.classList.add('hidden'); other.classList.remove('flex'); }
         renderContactsPanel();
         panel.classList.remove('hidden');
         panel.classList.add('flex');
@@ -490,4 +493,149 @@ function _openContactFromPanel(patientId) {
     toggleContactsPanel();
     if (typeof viewPatientHistory === 'function') viewPatientHistory(patientId);
     switchProntuarioTab('contato');
+}
+
+// ── Sino global de agendamentos sem lote (visível apenas para aplicadores) ────
+
+// Pacientes com o grupo recolhido no painel (chave = patientId como string)
+const _semLoteCollapsed = new Set();
+
+// Somente quem pode aplicar (ou admin) enxerga o sino de lote pendente
+function _canSeeSemLoteBell() {
+    return isCurrentUserAdmin() || hasPerm('aplicar');
+}
+
+// Agendamentos com status "Agendado" que ainda não tiveram o lote preenchido
+function _semLoteAppointments() {
+    if (!_canSeeSemLoteBell()) return [];
+    return appointments.filter(a =>
+        a.status === 'Agendado' &&
+        !a.loteId &&
+        !(a.lote && String(a.lote).trim())
+    );
+}
+
+function updateSemLoteBadge() {
+    const btn = document.getElementById('btn-semlote-bell');
+    const badge = document.getElementById('semlote-badge');
+    if (!btn || !badge) return;
+
+    if (!_canSeeSemLoteBell()) {
+        btn.style.display = 'none';
+        const panel = document.getElementById('semlote-panel');
+        if (panel) { panel.classList.add('hidden'); panel.classList.remove('flex'); }
+        return;
+    }
+    btn.style.display = '';
+
+    const count = _semLoteAppointments().length;
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.classList.toggle('hidden', count === 0);
+    badge.classList.toggle('flex', count > 0);
+}
+
+function toggleSemLotePanel(e) {
+    if (e) e.stopPropagation();
+    if (!_canSeeSemLoteBell()) return;
+    const panel = document.getElementById('semlote-panel');
+    if (!panel) return;
+    if (panel.classList.contains('hidden')) {
+        // Os dois painéis ocupam a mesma posição — fecha o de contatos antes de abrir
+        const other = document.getElementById('contacts-panel');
+        if (other) { other.classList.add('hidden'); other.classList.remove('flex'); }
+        renderSemLotePanel();
+        panel.classList.remove('hidden');
+        panel.classList.add('flex');
+    } else {
+        panel.classList.add('hidden');
+        panel.classList.remove('flex');
+    }
+}
+
+function renderSemLotePanel() {
+    const list = document.getElementById('semlote-panel-list');
+    if (!list) return;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const pend = _semLoteAppointments().sort((a, b) =>
+        String(a.data).localeCompare(String(b.data)) || String(a.hora || '').localeCompare(String(b.hora || ''))
+    );
+
+    if (!pend.length) {
+        list.innerHTML = '<div class="text-center py-8"><i class="fas fa-check-circle text-3xl text-slate-200 mb-2 block"></i><p class="text-xs text-slate-400 font-bold uppercase">Todos os agendamentos com lote</p></div>';
+        return;
+    }
+
+    // Agrupa por paciente, preservando a ordem cronológica dentro de cada grupo
+    const grupos = new Map();
+    pend.forEach(a => {
+        const key = String(a.patientId);
+        if (!grupos.has(key)) grupos.set(key, []);
+        grupos.get(key).push(a);
+    });
+
+    list.innerHTML = Array.from(grupos.entries()).map(([patId, apps]) => {
+        const p = patients.find(x => x.id == patId);
+        const grupoAtrasado = apps.some(a => a.data < todayStr);
+        const aberto = !_semLoteCollapsed.has(patId);
+
+        const itens = apps.map(a => {
+            const v = vaccines.find(x => x.id == a.vaccineId);
+            const nomeVacina = v ? v.nome : 'Vacina não identificada';
+            const isAtrasado = a.data < todayStr;
+            const dateFmt = a.data ? String(a.data).split('-').reverse().join('/') : '—';
+            const horaFmt = a.hora ? ` ${a.hora}` : '';
+            return `
+            <button onclick="_openSemLoteFromPanel(${a.id})" class="w-full text-left px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-pink-400 transition flex items-center justify-between gap-2">
+                <span class="text-[11px] text-slate-600 truncate min-w-0"><i class="fas fa-syringe mr-1 text-slate-400"></i>${_escapeHtml(nomeVacina)}</span>
+                <span class="text-[9px] font-bold shrink-0 ${isAtrasado ? 'text-red-600' : 'text-slate-400'}">${dateFmt}${horaFmt}</span>
+            </button>`;
+        }).join('');
+
+        return `
+        <div class="rounded-xl border ${grupoAtrasado ? 'border-red-200 bg-red-50/50' : 'border-pink-200 bg-pink-50/50'} overflow-hidden">
+            <div class="w-full p-3 flex items-start justify-between gap-2">
+                <button onclick="_openSemLoteGrupoFromPanel('${patId}', event)" class="text-left min-w-0 flex-1 hover:opacity-70 transition" title="Abrir edição em grupo">
+                    <p class="text-xs font-black text-navy-900 truncate">${_escapeHtml(p ? p.nome : 'Paciente removido')}</p>
+                    <p class="text-[9px] font-bold uppercase ${grupoAtrasado ? 'text-red-600' : 'text-pink-600'}">${apps.length} vacina${apps.length > 1 ? 's' : ''} sem lote</p>
+                </button>
+                <button onclick="toggleSemLoteGroup('${patId}', event)" class="shrink-0 h-6 w-6 rounded-lg flex items-center justify-center hover:bg-black/10 transition" title="${aberto ? 'Ocultar vacinas' : 'Mostrar vacinas'}">
+                    <i class="fas fa-chevron-${aberto ? 'up' : 'down'} text-[10px] text-slate-400"></i>
+                </button>
+            </div>
+            <div class="px-3 pb-3 space-y-1.5 ${aberto ? '' : 'hidden'}">${itens}</div>
+        </div>`;
+    }).join('');
+}
+
+// Recolhe/expande a lista de vacinas de um paciente no painel
+function toggleSemLoteGroup(patId, e) {
+    if (e) e.stopPropagation();
+    const key = String(patId);
+    if (_semLoteCollapsed.has(key)) _semLoteCollapsed.delete(key);
+    else _semLoteCollapsed.add(key);
+    renderSemLotePanel();
+}
+
+function _openSemLoteFromPanel(appointmentId) {
+    toggleSemLotePanel();
+    if (typeof editRecord === 'function') editRecord(appointmentId);
+}
+
+// Abre a edição em grupo com todos os agendamentos sem lote do paciente
+function _openSemLoteGrupoFromPanel(patId, e) {
+    if (e) e.stopPropagation();
+    // openAgendarGrupoModal não valida permissão internamente
+    if (!isCurrentUserAdmin() && !hasPerm('agendar') && !hasPerm('criar_agendamento')) {
+        showNotification('Acesso negado: você não tem permissão para editar agendamentos.', 'error');
+        return;
+    }
+    // Importados do CPNI não entram em ações de grupo (mesmo critério do modal)
+    const apps = _semLoteAppointments().filter(a => String(a.patientId) === String(patId) && !a.importedCPNI);
+    if (!apps.length) {
+        showNotification('Nenhuma vacina elegível para edição em grupo.', 'error');
+        return;
+    }
+    toggleSemLotePanel();
+    // "Agendar grupo": mantém o status Agendado e permite preencher o lote de cada vacina
+    if (typeof openAgendarGrupoModal === 'function') openAgendarGrupoModal(patId, 'Agendado', apps);
 }

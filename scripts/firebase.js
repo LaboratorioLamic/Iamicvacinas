@@ -34,6 +34,9 @@ function setupRealtimeSync() {
             scheduleRender('renderCalendar', renderCalendar);
             scheduleRender('renderTable', renderTable);
             scheduleRender('renderPatients', renderPatients);
+            if (typeof updateSemLoteBadge === 'function') updateSemLoteBadge();
+            const _slPanel = document.getElementById('semlote-panel');
+            if (_slPanel && !_slPanel.classList.contains('hidden')) renderSemLotePanel();
             if (document.getElementById('tab-dashboard').classList.contains('active')) {
                 scheduleRender('renderDashboard', renderDashboard);
             }

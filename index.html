@@ -363,6 +363,12 @@
         </div>
         <div class="flex-1"></div>
         <div class="relative shrink-0">
+            <button onclick="toggleSemLotePanel(event)" id="btn-semlote-bell" class="relative h-9 w-9 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition flex items-center justify-center" title="Agendamentos sem lote definido" style="display:none">
+                <i class="fas fa-calendar-alt text-sm"></i>
+                <span id="semlote-badge" class="hidden absolute -top-1 -right-1 h-5 min-w-5 px-1 bg-pink-500 text-white text-[9px] font-black rounded-full items-center justify-center shadow leading-none"></span>
+            </button>
+        </div>
+        <div class="relative shrink-0">
             <button onclick="toggleContactsPanel(event)" id="btn-contacts-bell" class="relative h-9 w-9 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition flex items-center justify-center" title="Contatos agendados">
                 <i class="fas fa-bell text-sm"></i>
                 <span id="contacts-badge" class="hidden absolute -top-1 -right-1 h-5 min-w-5 px-1 bg-red-500 text-white text-[9px] font-black rounded-full items-center justify-center shadow leading-none"></span>
@@ -385,6 +391,15 @@
             </div>
         </div>
         <div id="contacts-panel-list" class="overflow-y-auto p-3 space-y-2 flex-1"></div>
+    </div>
+
+    <!-- PAINEL FLUTUANTE DE AGENDAMENTOS SEM LOTE (sino global — somente aplicadores) -->
+    <div id="semlote-panel" class="hidden fixed w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-[500] overflow-hidden flex-col" style="max-height: 420px; top: 3.5rem; right: 1rem;">
+        <div class="bg-gradient-to-r from-pink-600 to-rose-600 p-3 flex items-center justify-between shrink-0 gap-2">
+            <h4 class="font-black text-white text-xs uppercase tracking-widest shrink-0"><i class="fas fa-calendar-alt mr-2"></i>Agendados sem Lote</h4>
+            <button onclick="toggleSemLotePanel(event)" class="text-white/80 hover:text-white transition shrink-0"><i class="fas fa-times text-xs"></i></button>
+        </div>
+        <div id="semlote-panel-list" class="overflow-y-auto p-3 space-y-2 flex-1"></div>
     </div>
 
     <main class="flex-1 overflow-auto p-6 relative" style="padding-top:4rem;min-height:100vh;">
@@ -1920,18 +1935,19 @@
         </div>
     </div>
 
-    <div id="modal-record" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[110] justify-center items-center p-4 overflow-y-auto">
-        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden my-auto border border-white/20">
-            <div class="bg-navy-900 p-5 text-white flex justify-between items-center">
+    <div id="modal-record" class="modal fixed inset-0 bg-navy-900/90 backdrop-blur-md z-[110] justify-center items-center p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden border border-white/20 flex flex-col max-h-[90vh]">
+            <div class="bg-navy-900 p-5 text-white flex justify-between items-center shrink-0">
                 <h3 id="modal-title-agenda" class="font-black uppercase tracking-tight text-xl">Novo Agendamento</h3>
                 <div class="flex items-center gap-1">
                     <button onclick="openAuditModal('agendamento', document.getElementById('reg-id').value, document.getElementById('modal-title-agenda').innerText)" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition" title="Histórico de edições"><i class="fas fa-clock text-slate-400 text-sm"></i></button>
                     <button onclick="closeRecordModal()" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition"><i class="fas fa-times text-xl"></i></button>
                 </div>
             </div>
-            <form id="record-form" onsubmit="saveRecord(event)" class="p-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <form id="record-form" onsubmit="saveRecord(event)" class="flex flex-col min-h-0 flex-1">
+              <div class="p-6 grid grid-cols-1 md:grid-cols-4 gap-4 overflow-y-auto flex-1 min-h-0">
                 <input type="hidden" id="reg-id">
-                
+
                 <div class="col-span-1 md:col-span-2 relative">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">CPF/Paciente *</label>
                     <div class="flex gap-2">
@@ -2125,12 +2141,81 @@
                     </div>
                 </div>
 
+                <!-- Endereço do agendamento -->
+                <div class="col-span-1 md:col-span-4 border-t border-slate-100 mt-1 pt-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-location-dot text-slate-300"></i>Endereço</span>
+                        <button type="button" onclick="toggleMapaEndereco()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-clinic-600 hover:text-white text-slate-600 text-[10px] font-black uppercase tracking-wide transition"><i class="fas fa-map-location-dot"></i> Mapa</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="col-span-1">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">CEP</label>
+                            <input type="text" id="reg-cep" maxlength="9" autocomplete="off" placeholder="00000-000"
+                                oninput="formatCep(this)" onblur="buscarCep()"
+                                class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
+                        </div>
+                        <div class="col-span-1 md:col-span-2 relative">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Logradouro <span class="text-amber-500" title="Obrigatorio para o status Agendado">*</span></label>
+                            <input type="text" id="reg-logradouro" autocomplete="off" placeholder="Rua, avenida..."
+                                oninput="onEnderecoInputUpper(this); mostrarSugestoesEndereco('logradouro')"
+                                onfocus="mostrarSugestoesEndereco('logradouro')" onblur="esconderSugestoesEndereco('logradouro')"
+                                class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
+                            <div id="end-sug-logradouro" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
+                        </div>
+                        <div class="col-span-1">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Número <span class="text-amber-500" title="Obrigatorio para o status Agendado">*</span></label>
+                            <input type="text" id="reg-numero" autocomplete="off" placeholder="Nº"
+                                oninput="onEnderecoInputUpper(this)"
+                                class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
+                        </div>
+                        <div class="col-span-1 relative">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Bairro <span class="text-amber-500" title="Obrigatorio para o status Agendado">*</span></label>
+                            <input type="text" id="reg-bairro" autocomplete="off" placeholder="Bairro"
+                                oninput="onEnderecoInputUpper(this); mostrarSugestoesEndereco('bairro')"
+                                onfocus="mostrarSugestoesEndereco('bairro')" onblur="esconderSugestoesEndereco('bairro')"
+                                class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
+                            <div id="end-sug-bairro" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
+                        </div>
+                        <div class="col-span-1 relative">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Cidade <span class="text-amber-500" title="Obrigatorio para o status Agendado">*</span></label>
+                            <input type="text" id="reg-cidade" autocomplete="off" placeholder="Cidade"
+                                oninput="onEnderecoInputUpper(this); mostrarSugestoesEndereco('cidade')"
+                                onfocus="mostrarSugestoesEndereco('cidade')" onblur="esconderSugestoesEndereco('cidade')"
+                                class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
+                            <div id="end-sug-cidade" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
+                        </div>
+                        <div class="col-span-1 relative">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">UF <span class="text-amber-500" title="Obrigatorio para o status Agendado">*</span></label>
+                            <input type="text" id="reg-estado" autocomplete="off" placeholder="UF"
+                                oninput="onEnderecoInputUpper(this); mostrarSugestoesEndereco('estado')"
+                                onfocus="mostrarSugestoesEndereco('estado')"
+                                onblur="esconderSugestoesEndereco('estado'); validarEstadoEndereco()"
+                                class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
+                            <div id="end-sug-estado" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
+                        </div>
+                        <div class="col-span-1 relative">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Ponto de Referência</label>
+                            <input type="text" id="reg-referencia" autocomplete="off" placeholder="Próximo a..."
+                                oninput="onEnderecoInputUpper(this); mostrarSugestoesEndereco('referencia')"
+                                onfocus="mostrarSugestoesEndereco('referencia')" onblur="esconderSugestoesEndereco('referencia')"
+                                class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
+                            <div id="end-sug-referencia" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
+                        </div>
+                    </div>
+                    <div id="reg-mapa-box" class="hidden mt-3 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                        <iframe id="reg-mapa-frame" src="" title="Mapa do endereço" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+                            class="w-full" style="height:260px;border:0;"></iframe>
+                    </div>
+                </div>
+
                 <div class="col-span-1 md:col-span-4">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Comentário</label>
                     <textarea id="reg-obs" rows="2" placeholder="Observações sobre este agendamento..." class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-clinic-500 outline-none resize-none"></textarea>
                 </div>
 
-                <div class="col-span-1 md:col-span-4 mt-4 flex gap-3">
+              </div>
+
+                <div class="p-4 px-6 flex gap-3 shrink-0 border-t border-slate-100 bg-white">
                     <button type="submit" class="flex-1 bg-clinic-600 text-white font-black py-3 rounded-xl hover:bg-clinic-700 shadow-lg uppercase text-xs transition">Salvar Registro</button>
                     <button type="button" id="btn-duplicar-record" onclick="duplicarAgendamento()" class="hidden px-5 py-3 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-xl font-black hover:bg-indigo-600 hover:text-white uppercase text-xs transition shadow-sm"><i class="fas fa-copy mr-1"></i> Duplicar</button>
                     <button type="button" id="btn-delete-record" onclick="openDeleteModal(document.getElementById('reg-id').value)" class="hidden px-5 py-3 bg-red-50 border border-red-200 text-red-600 rounded-xl font-black hover:bg-red-600 hover:text-white uppercase text-xs transition shadow-sm"><i class="fas fa-trash mr-1"></i> Excluir</button>
@@ -2363,6 +2448,47 @@
                 <div id="vr-outra-vacina-row" onclick="viewOutraVacinaRef()" class="rounded-xl p-3.5 flex flex-col gap-1 hidden border border-teal-200 bg-gradient-to-br from-teal-50 to-white cursor-pointer hover:shadow-md hover:border-teal-400 transition" title="Ver detalhes da vacina que supriu esta dose">
                     <span class="text-[9px] font-black uppercase tracking-widest text-teal-600 flex items-center gap-1.5"><i class="fas fa-syringe"></i>Suprida por <i class="fas fa-arrow-up-right-from-square text-[8px] ml-auto"></i></span>
                     <span id="vr-outra-vacina" class="text-sm font-black text-teal-800"></span>
+                </div>
+
+                <!-- Endereço -->
+                <div id="vr-endereco-row" class="hidden rounded-2xl p-4 flex flex-col gap-3 vr-info-cell border border-slate-200">
+                    <span class="text-[10px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5">
+                        <i class="fas fa-location-dot vr-label-icon"></i>Endereço
+                    </span>
+
+                    <div id="vr-end-linha-row" class="flex flex-col gap-0.5">
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label">Endereço</span>
+                        <span id="vr-end-linha" class="text-sm font-black vr-value uppercase"></span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div id="vr-end-cidade-row" class="flex flex-col gap-0.5">
+                            <span class="text-[9px] font-black uppercase tracking-widest vr-label">Cidade</span>
+                            <span id="vr-end-cidade" class="text-sm font-black vr-value uppercase"></span>
+                        </div>
+                        <div id="vr-end-cep-row" class="flex flex-col gap-0.5">
+                            <span class="text-[9px] font-black uppercase tracking-widest vr-label">CEP</span>
+                            <span id="vr-end-cep" class="text-sm font-black vr-value font-mono"></span>
+                        </div>
+                    </div>
+
+                    <div id="vr-end-ref-row" class="flex flex-col gap-0.5">
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label">Ponto de Referência</span>
+                        <span id="vr-end-ref" class="text-sm font-black vr-value uppercase"></span>
+                    </div>
+
+                    <button type="button" id="vr-btn-mapa" onclick="toggleMapaEnderecoView()"
+                        class="self-start flex items-center gap-2 pl-4 pr-3.5 py-2.5 rounded-full text-white text-[11px] font-black uppercase tracking-wider transition hover:opacity-90 shadow-md"
+                        style="background:linear-gradient(135deg,#f59e0b,#ea8a0b);box-shadow:0 4px 14px rgba(245,158,11,0.35);">
+                        <i class="fas fa-map-location-dot"></i>
+                        <span>Ver no mapa</span>
+                        <i id="vr-btn-mapa-chevron" class="fas fa-chevron-down text-[9px] transition-transform"></i>
+                    </button>
+
+                    <div id="vr-mapa-box" class="hidden rounded-xl overflow-hidden border border-slate-200">
+                        <iframe id="vr-mapa-frame" src="" title="Mapa do endereço" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+                            class="w-full" style="height:240px;border:0;"></iframe>
+                    </div>
                 </div>
 
                 <!-- Obs -->
@@ -5207,6 +5333,7 @@
     <script src="scripts/pacientes.js"></script>
     <script src="scripts/vacinas.js"></script>
     <script src="scripts/almoxarifado.js"></script>
+    <script src="scripts/endereco.js"></script>
     <script src="scripts/appointments.js"></script>
     <script src="scripts/oportunidades.js"></script>
     <script src="scripts/rotina.js"></script>

@@ -11,6 +11,7 @@ const initTab = getFirstAllowedTab() || 'agenda';
         switchTab(initTab);
         updateExpiryBadge();
         updateContactsBadge();
+        updateSemLoteBadge();
         initAuth();
         _appReady = true;
         if (loadingEl) loadingEl.style.display = 'none';
@@ -28,6 +29,15 @@ const initTab = getFirstAllowedTab() || 'agenda';
             const panel = document.getElementById('contacts-panel');
             if (!panel) return;
             const clickedBell = e.target.closest('#btn-contacts-bell');
+            if (!panel.classList.contains('hidden') && !panel.contains(e.target) && !clickedBell) {
+                panel.classList.add('hidden');
+                panel.classList.remove('flex');
+            }
+        });
+        document.addEventListener('click', (e) => {
+            const panel = document.getElementById('semlote-panel');
+            if (!panel) return;
+            const clickedBell = e.target.closest('#btn-semlote-bell');
             if (!panel.classList.contains('hidden') && !panel.contains(e.target) && !clickedBell) {
                 panel.classList.add('hidden');
                 panel.classList.remove('flex');

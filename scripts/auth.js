@@ -124,6 +124,7 @@ function doRegister(e) {
     document.getElementById('login-screen').style.display = 'none';
     updateUserUI();
     if (typeof updateContactsBadge === 'function') updateContactsBadge();
+    if (typeof updateSemLoteBadge === 'function') updateSemLoteBadge();
     const firstTab = getFirstAllowedTab();
     if (firstTab) switchTab(firstTab);
     showNotification(`Bem-vindo, ${newUser.nome.split(' ')[0]}!`, 'success');
@@ -163,6 +164,7 @@ function createFirstAdmin(e) {
     document.getElementById('login-screen').style.display = 'none';
     updateUserUI();
     if (typeof updateContactsBadge === 'function') updateContactsBadge();
+    if (typeof updateSemLoteBadge === 'function') updateSemLoteBadge();
     showNotification(`Bem-vindo, ${admin.nome.split(' ')[0]}!`, 'success');
 }
 
@@ -184,6 +186,7 @@ function doLogin(e) {
     document.getElementById('login-screen').style.display = 'none';
     updateUserUI();
     if (typeof updateContactsBadge === 'function') updateContactsBadge();
+    if (typeof updateSemLoteBadge === 'function') updateSemLoteBadge();
     const firstTab = getFirstAllowedTab();
     if (firstTab) switchTab(firstTab);
     showNotification(`Bem-vindo, ${user.nome.split(' ')[0]}!`, 'success');
@@ -200,6 +203,7 @@ function doLogout() {
     updateSelfRegisterUI();
     document.getElementById('login-screen').style.display = 'flex';
     if (typeof updateContactsBadge === 'function') updateContactsBadge();
+    if (typeof updateSemLoteBadge === 'function') updateSemLoteBadge();
 }
 
 function getFirstAllowedTab() {

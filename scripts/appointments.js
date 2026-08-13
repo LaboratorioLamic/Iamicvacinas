@@ -160,6 +160,7 @@ function openRecordModal() {
     _vacinaSelNew.value = '';
     _vacinaSelNew.disabled = true;
     _vacinaSelNew.classList.add('opacity-50', 'cursor-not-allowed');
+    if (typeof limparEnderecoForm === 'function') limparEnderecoForm();
     document.getElementById('modal-title-agenda').innerText = 'Novo Agendamento Clínico';
     document.getElementById('btn-delete-record').classList.add('hidden');
     document.getElementById('btn-duplicar-record').classList.add('hidden');
@@ -313,6 +314,11 @@ function autoFillPatient() {
             document.getElementById('div-responsavel').style.display = 'none';
             document.getElementById('div-responsavel-placeholder').style.display = 'block';
         }
+        // Endereço: herda o mais usado do próprio paciente, sem sobrescrever digitação.
+        // Em edição o endereço salvo já foi aplicado, então não reescreve.
+        if (typeof autoFillEnderecoPaciente === 'function' && !document.getElementById('reg-id').value) {
+            autoFillEnderecoPaciente(p.id);
+        }
         _enableVaccineFields();
         checkAgeConstraint(); updateSuggestedDate();
         if (document.getElementById('reg-vacina').value) autoFillVaccine();
@@ -328,6 +334,7 @@ function autoFillPatient() {
     document.getElementById('div-responsavel').style.display = 'none';
     document.getElementById('div-responsavel-placeholder').style.display = 'block';
     document.getElementById('reg-responsavel').value = '';
+    if (typeof limparEnderecoForm === 'function') limparEnderecoForm();
     _resetAndDisableVaccineFields();
 }
 
@@ -1124,6 +1131,32 @@ function viewRecord(id) {
         }
     }
 
+    // Endereço — mapa sempre recolhido ao (re)abrir o modal
+    const endRow = document.getElementById('vr-endereco-row');
+    if (endRow) {
+        document.getElementById('vr-mapa-box')?.classList.add('hidden');
+        const _vrFrame = document.getElementById('vr-mapa-frame');
+        if (_vrFrame) _vrFrame.src = '';
+        const _vrChev = document.getElementById('vr-btn-mapa-chevron');
+        if (_vrChev) _vrChev.style.transform = '';
+
+        const partes = (typeof enderecoPartes === 'function') ? enderecoPartes(a.endereco) : null;
+        if (partes) {
+            // Cada sub-linha some sozinha quando o endereço é parcial.
+            const setPart = (rowId, valId, txt) => {
+                document.getElementById(valId).textContent = txt || '';
+                document.getElementById(rowId).classList.toggle('hidden', !txt);
+            };
+            setPart('vr-end-linha-row',  'vr-end-linha',  partes.linha);
+            setPart('vr-end-cidade-row', 'vr-end-cidade', partes.cidade);
+            setPart('vr-end-cep-row',    'vr-end-cep',    partes.cep);
+            setPart('vr-end-ref-row',    'vr-end-ref',    partes.referencia);
+            endRow.classList.remove('hidden');
+        } else {
+            endRow.classList.add('hidden');
+        }
+    }
+
     // Obs
     const obsRow = document.getElementById('vr-obs-row');
     if (a.obs) { document.getElementById('vr-obs').textContent = a.obs; obsRow.classList.remove('hidden'); }
@@ -1205,6 +1238,12 @@ function editRecord(id) {
     document.getElementById('reg-id').value = a.id;
     document.getElementById('reg-patient-search').value = p ? `${p.cpf} - ${p.nome}` : '';
     autoFillPatient();
+    // Endereço salvo tem precedência; sem endereço, herda o mais usado do paciente.
+    if (typeof limparEnderecoForm === 'function') {
+        limparEnderecoForm();
+        if (a.endereco) { preencherEnderecoForm(a.endereco); aplicarPadraoEndereco(); }
+        else autoFillEnderecoPaciente(a.patientId);
+    }
 
     setTimeout(() => {
         // Limpa completamente os campos de vacina ANTES de preencher com novos dados
@@ -1326,6 +1365,7 @@ function duplicarAgendamento() {
                 document.getElementById('div-responsavel-placeholder').style.display = 'none';
                 document.getElementById('reg-responsavel').value = p.responsavel;
             }
+            if (typeof autoFillEnderecoPaciente === 'function') autoFillEnderecoPaciente(p.id);
             _enableVaccineFields();
         }
 
@@ -1864,6 +1904,9 @@ function saveRecord(e) {
         return;
     }
 
+    // Endereço completo é pré-requisito do status Agendado
+    if (typeof validarEnderecoObrigatorio === 'function' && !validarEnderecoObrigatorio(statusVal)) return;
+
     // Bloqueio: salvar como Aplicado exige permissão de aplicador
     if (statusVal === 'Aplicado' && !isCurrentUserAdmin() && !hasPerm('aplicar')) {
         showNotification('Apenas usuários com permissão de aplicador podem registrar aplicações.', 'error');
@@ -1944,6 +1987,7 @@ function saveRecord(e) {
         pedido: pedidoVal,
         vendedor: vendedorVal,
         aplicador: aplicadorVal,
+        endereco: (typeof coletarEnderecoForm === 'function') ? coletarEnderecoForm() : null,
         obs: document.getElementById('reg-obs').value.trim()
     };
 
@@ -1953,9 +1997,11 @@ function saveRecord(e) {
     const pat = patients.find(x => x.id == a.patientId);
     const vac = vaccines.find(x => x.id == a.vaccineId);
     const fmtDate = d => (d && d.includes('-')) ? d.split('-').reverse().join('/') : (d || '—');
-    const oldAppFmt = oldApp ? {...oldApp, data: fmtDate(oldApp.data)} : null;
-    const newAppFmt = {...a, data: fmtDate(a.data)};
-    const appChanges = isNew ? null : computeChanges(oldAppFmt, newAppFmt, {data:'Data', hora:'Hora', doseAtual:'Dose', status:'Status', lote:'Lote', valorAplicado:'Valor', vendedor:'Vendedor', aplicador:'Aplicador', motivoCancelamento:'Motivo de Perda'});
+    // Endereço vira texto no log: computeChanges compara valores simples, não objetos.
+    const fmtEnd = e => (typeof enderecoResumo === 'function' ? enderecoResumo(e) : '') || '';
+    const oldAppFmt = oldApp ? {...oldApp, data: fmtDate(oldApp.data), endereco: fmtEnd(oldApp.endereco)} : null;
+    const newAppFmt = {...a, data: fmtDate(a.data), endereco: fmtEnd(a.endereco)};
+    const appChanges = isNew ? null : computeChanges(oldAppFmt, newAppFmt, {data:'Data', hora:'Hora', doseAtual:'Dose', status:'Status', lote:'Lote', valorAplicado:'Valor', vendedor:'Vendedor', aplicador:'Aplicador', motivoCancelamento:'Motivo de Perda', endereco:'Endereço'});
     logAudit(isNew ? 'Criado' : 'Editado', 'agendamento', a.id,
         `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a.doseAtual} | ${a.data ? a.data.split('-').reverse().join('/') : '—'}`,
         isNew ? `Status: ${a.status}${a.vendedor ? ' | Vendedor: ' + a.vendedor : ''}` : null, appChanges);
@@ -1967,6 +2013,7 @@ function saveRecord(e) {
     if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
     if (typeof refreshOpenModals === 'function') refreshOpenModals();
     if (typeof updateExpiryBadge === 'function') updateExpiryBadge();
+    if (typeof updateSemLoteBadge === 'function') updateSemLoteBadge();
     const _oppElSave = document.getElementById('agendaview-oportunidades');
     if (_oppElSave && !_oppElSave.classList.contains('hidden') && typeof renderOportunidades === 'function') renderOportunidades();
     showNotification('Agendamento salvo com sucesso!', 'success');

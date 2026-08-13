@@ -1833,6 +1833,7 @@ function renderKanbanGrouped() {
             const waLink = `https://wa.me/55${formatWa(pat.contato || '')}`;
             const hasDelayed = apps.some(a => a.data < todayStr && a.status === 'Agendado');
             const hasToday = apps.some(a => a.data === todayStr && a.status === 'Agendado');
+            const hasSemLote = col.key === 'Agendado' && apps.some(a => !a.loteId);
             const hasContactAlert = (typeof patientContacts !== 'undefined' && typeof _isContactDue === 'function')
                 && patientContacts.some(c => c.patientId == patId && _isContactDue(c));
             const allOutroLocal = col.key === 'Perdido' && apps.length > 0 && apps.every(a => a.aplicadaOutroLocal);
@@ -1846,11 +1847,12 @@ function renderKanbanGrouped() {
                 const isToday = a.data === todayStr && a.status === 'Agendado';
                 const isOutroLocal = col.key === 'Perdido' && a.aplicadaOutroLocal;
                 const isOutraVacina = col.key === 'Perdido' && a.outraVacina;
+                const semLote = col.key === 'Agendado' && !a.loteId;
                 const miniCol = isOutroLocal ? PURPLE : isOutraVacina ? CYAN : col;
                 const dateLabel = a.data ? a.data.split('-').reverse().join('/') : '—';
-                const miniBg = isDelayed ? _dl('#fef2f2','#2d0a0a') : isToday ? _dl('#fffbeb','#1c1500') : _dl('#fff','#1e293b');
-                const miniBorder = isDelayed ? _dl('#fecaca','#7f1d1d') : isToday ? _dl('#fde68a','#78350f') : miniCol.border;
-                const miniAccent = isDelayed ? '#dc2626' : isToday ? '#f59e0b' : miniCol.color;
+                const miniBg = semLote ? _dl('#fdf2f8','#3b0a25') : isDelayed ? _dl('#fef2f2','#2d0a0a') : isToday ? _dl('#fffbeb','#1c1500') : _dl('#fff','#1e293b');
+                const miniBorder = semLote ? _dl('#fbcfe8','#831843') : isDelayed ? _dl('#fecaca','#7f1d1d') : isToday ? _dl('#fde68a','#78350f') : miniCol.border;
+                const miniAccent = semLote ? '#db2777' : isDelayed ? '#dc2626' : isToday ? '#f59e0b' : miniCol.color;
                 return `<div
                     draggable="true"
                     ondragstart="kanbanMiniInGroupDragStart(event,${a.id})"
@@ -1866,6 +1868,7 @@ function renderKanbanGrouped() {
                      ${a.importedCPNI
                         ? `<span title="Importado do CPNI" class="text-[9px] font-black shrink-0 whitespace-nowrap inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full" style="color:${_dl('#059669','#34d399')};background:${_dl('#d1fae5','#052e1c')};border:1px solid ${_dl('#a7f3d0','#065f46')}"><i class="fas fa-file-import"></i></span>`
                         : (a.valorAplicado ? `<span class="text-[9px] font-black shrink-0 whitespace-nowrap" style="color:${_dl('#059669','#34d399')}">R$ ${a.valorAplicado}</span>` : '')}
+                    ${semLote ? `<span title="Sem lote reservado" class="text-[8px] font-black px-1 py-0.5 rounded-full shrink-0 inline-flex items-center gap-0.5" style="color:${_dl('#9d174d','#f9a8d4')};background:${_dl('#fce7f3','#3b0a25')};border:1px solid ${_dl('#fbcfe8','#831843')}"><i class="fas fa-exclamation-triangle"></i> Sem lote</span>` : ''}
                     ${isDelayed ? `<span class="text-[8px] font-black px-1 py-0.5 rounded-full shrink-0" style="color:${_dl('#991b1b','#fca5a5')};background:${_dl('#fee2e2','#450a0a')};border:1px solid ${_dl('#fecaca','#7f1d1d')}">!</span>` : ''}
                     ${isToday ? `<span class="text-[8px] font-black px-1 py-0.5 rounded-full shrink-0" style="color:${_dl('#92400e','#fbbf24')};background:${_dl('#fffbeb','#1c1500')};border:1px solid ${_dl('#fde68a','#78350f')}">Hoje</span>` : ''}
                 </div>`;
@@ -1876,7 +1879,7 @@ function renderKanbanGrouped() {
                 ondragstart="kanbanGroupDragStart(event,${patId},'${colKeyEsc}')"
                 ondragend="kanbanGroupDragEnd(event)"
                 class="kanban-group-card rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing select-none"
-                style="border:2px solid ${hasDelayed ? _dl('#fecaca','#7f1d1d') : hasToday ? _dl('#fde68a','#78350f') : groupCol.border};background:${_dl('#fff','#1e293b')};">
+                style="border:2px solid ${hasSemLote ? _dl('#fbcfe8','#831843') : hasDelayed ? _dl('#fecaca','#7f1d1d') : hasToday ? _dl('#fde68a','#78350f') : groupCol.border};background:${_dl('#fff','#1e293b')};">
                 <div class="px-3 pt-2 pb-1.5 flex flex-col gap-1.5" style="background:${groupCol.light};border-bottom:1px solid ${groupCol.border};">
                     <div class="flex items-center gap-2">
                         <div class="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 font-black text-xs text-white" style="background:${groupCol.color};">
@@ -2760,6 +2763,12 @@ function confirmEditarOportunidade() {
         if (_fullUser) vendedorNome = _fullUser.nome;
     }
 
+    // Endereço de referência: as vacinas já salvas deste mesmo grupo.
+    const _enderecoIrmaosOport = _editarOportunidadePending.apps
+        .filter(app => !app._isNew)
+        .map(app => appointments.find(a => a.id == app.id))
+        .filter(Boolean);
+
     let novosCount = 0;
     _editarOportunidadePending.apps.forEach((app, i) => {
         const doseEl = document.getElementById(`oport-dose-${app.id}`);
@@ -2794,7 +2803,11 @@ function confirmEditarOportunidade() {
                 aplicadaOutroLocal: false,
                 pedido: pedidoVal,
                 vendedor: vendedorNome,
-                aplicador: ''
+                aplicador: '',
+                // Herda o endereço das vacinas já existentes do grupo
+                endereco: (typeof enderecoParaNovoAgendamento === 'function')
+                    ? enderecoParaNovoAgendamento(_editarOportunidadePending.patId, _enderecoIrmaosOport)
+                    : null
             };
             appointments.push(novoApp);
             if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(novoApp);

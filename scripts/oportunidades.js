@@ -847,7 +847,9 @@ function confirmDismissOpp() {
         outraVacinaAppId:   outraVacina ? Number(outraVacinaRef) : null,
         outraVacinaLabel:   outraVacinaApp && typeof outraVacinaLabel === 'function' ? outraVacinaLabel(outraVacinaApp) : '',
         vendedor:           vendedorNome,
-        aplicador:          ''
+        aplicador:          '',
+        endereco:           (typeof enderecoParaNovoAgendamento === 'function')
+                                ? enderecoParaNovoAgendamento(patId) : null
     };
 
     appointments.push(newApp);
@@ -893,6 +895,7 @@ function agendarOportunidade(patId, vacId, dose, dataIso) {
             document.getElementById('div-responsavel-placeholder').style.display = 'none';
             document.getElementById('reg-responsavel').value = p.responsavel;
         }
+        if (typeof autoFillEnderecoPaciente === 'function') autoFillEnderecoPaciente(p.id);
         _enableVaccineFields();
 
         const vac = vaccines.find(x => x.id == vacId);
