@@ -1051,7 +1051,19 @@ function viewRecord(id) {
     const canEdit = isCurrentUserAdmin() || hasPerm('criar_agendamento');
     document.getElementById('vr-btn-edit').style.display = canEdit ? '' : 'none';
 
-    closeModals();
+    // Se aberto por trás do prontuário do paciente, mantém-o aberto (não fecha
+    // tudo) — só fecha os demais modais concorrentes e empilha por cima dele.
+    const _phOpen = document.getElementById('modal-patient-history')?.classList.contains('active');
+    if (_phOpen) {
+        document.querySelectorAll('.modal').forEach(m => { if (m.id !== 'modal-patient-history') m.classList.remove('active'); });
+        const _mr = document.getElementById('modal-record');
+        if (_mr) _mr.style.removeProperty('z-index');
+        const _mp = document.getElementById('modal-paciente');
+        if (_mp) _mp.style.removeProperty('z-index');
+        window._agendaOpenedFromProntuario = false;
+    } else {
+        closeModals();
+    }
     document.getElementById('modal-view-record').classList.add('active');
 }
 

@@ -708,8 +708,10 @@ function openDismissOppModal(patId, vacId, dose) {
 
     const sel = document.getElementById('dismiss-opp-reason');
     if (sel) {
+        const sortedReasons = (typeof cancelReasons !== 'undefined' ? [...cancelReasons] : [])
+            .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
         sel.innerHTML = '<option value="">Selecione o motivo...</option>' +
-            (typeof cancelReasons !== 'undefined' ? cancelReasons : []).map(r => `<option value="${r}">${r}</option>`).join('');
+            sortedReasons.map(r => `<option value="${r}">${r}</option>`).join('');
         sel.value = '';
     }
 

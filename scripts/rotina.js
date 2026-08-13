@@ -7,9 +7,11 @@
 //   Amarelo = A vencer (até 30 dias, aplicada ou não)
 //   Laranja = Atrasada
 //   Vermelho= Cancelada (agendamento perdido, sem ser "outro local")
-//   Roxo    = Aplicada em outro local (registrada como tal, ou dose > 1 sem
-//             que as doses anteriores estejam no sistema — esquema iniciado
-//             fora da clínica mesmo sem registro explícito)
+//   Roxo    = Aplicada em outro local (registrada como tal), OU card fantasma
+//             de dose faltante (sem nenhum registro) abaixo de uma dose já
+//             aplicada/importada do CPNI — clicável p/ marcar como outro local.
+//             Doses importadas do CPNI são sempre "Aplicada" (verde), mesmo
+//             sem as doses anteriores no sistema — fonte oficial confiável.
 
 const ROTINA_STATUS_STYLE = {
     aplicada:   { bar: 'bg-green-500',  bg: 'bg-green-50/60',  border: 'border-green-200 hover:border-green-400',  text: 'text-green-700',  icon: 'fa-check',                dot: 'bg-green-500'  },
@@ -82,6 +84,8 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
 
     let maxAppliedOrdinal = -1;
     let lastAppliedApp = null;
+    let lastAppliedIsOutroLocal = false;
+    const missingGhosts = new Set(); // ordinais sem nenhum registro, abaixo da maior dose aplicada
 
     Array.from(byOrdinal.keys()).sort((a, b) => a - b).forEach(ordinal => {
         const regs = byOrdinal.get(ordinal);
@@ -97,7 +101,9 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
 
         // Roxo: marcado como outro local, OU aplicada mas é dose > 1 sem a dose anterior
         // registrada no sistema (esquema iniciado fora da clínica sem registro explícito).
-        const missingPrevDose = applied && ordinal > 1 && !esqRepete && !_rotinaHasAppliedBelow(byOrdinal, ordinal, patient, apps);
+        // Registros importados do CPNI são sempre "Aplicada": vêm de fonte oficial, mesmo
+        // sem a dose anterior no sistema — não é aplicação "fora da clínica" sem registro.
+        const missingPrevDose = applied && ordinal > 1 && !esqRepete && !applied.importedCPNI && !_rotinaHasAppliedBelow(byOrdinal, ordinal, patient, apps);
 
         let status;
         if (outroLocalReg && !applied) {
@@ -106,6 +112,16 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
             status = (missingPrevDose) ? 'outro_local' : 'aplicada';
             maxAppliedOrdinal = ordinal;
             lastAppliedApp = applied;
+            lastAppliedIsOutroLocal = (status === 'outro_local');
+            // Doses anteriores sem nenhum registro no sistema: viram cards fantasma
+            // "outro local", clicáveis pra registrar a perda aplicada em outro local.
+            if (ordinal > 1 && !esqRepete) {
+                for (let n = 1; n < ordinal; n++) {
+                    const regsN = byOrdinal.get(n) || [];
+                    const hasRegN = regsN.some(a => a.status === 'Aplicado' || (a.status === 'Perdido' && a.aplicadaOutroLocal));
+                    if (!hasRegN) missingGhosts.add(n);
+                }
+            }
         } else if (cancelled && !pending) {
             status = 'cancelada';
         } else if (pending) {
@@ -115,6 +131,7 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
         }
 
         cards.push({
+            _ordinal: ordinal,
             label: esqRepete ? 'Dose Única' : reg.doseAtual,
             date: (applied || outroLocalReg) ? (applied || outroLocalReg).data : (pending ? pending.data : (cancelled ? cancelled.data : null)),
             status,
@@ -122,6 +139,20 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
             hasAppointment: true
         });
     });
+
+    missingGhosts.forEach(n => {
+        cards.push({
+            _ordinal: n,
+            label: `${n}ª Dose`,
+            date: null,
+            status: 'outro_local',
+            appointmentId: null,
+            hasAppointment: false,
+            ghostOutroLocal: true,
+            suggestedDose: `${n}ª Dose`
+        });
+    });
+    cards.sort((a, b) => (a._ordinal || 0) - (b._ordinal || 0));
 
     // Reforço (se aplicável) — mesmo tratamento
     if (vac.reforco) {
@@ -151,7 +182,9 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
     }
 
     // Próxima dose prevista (sem registro ainda) — card azul/amarelo/laranja "fantasma", clicável p/ agendar.
-    const next = _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAppliedApp, esqRepete);
+    // Não sugere se a última dose aplicada foi "outro local": sem lote/data confiável no
+    // sistema, não há base pra calcular o próximo intervalo do esquema.
+    const next = lastAppliedIsOutroLocal ? null : _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAppliedApp, esqRepete);
     if (next) cards.push(next);
 
     return cards;
@@ -255,16 +288,18 @@ function _rotinaCardHtml(vac, patient, card) {
         a_vencer: card.date ? `Prevista para ${_rotinaFmtDate(card.date)}` : 'Data a definir',
         atrasada: card.date ? `Prevista para ${_rotinaFmtDate(card.date)}` : 'Data a definir',
         cancelada: card.date ? `Cancelada • ${_rotinaFmtDate(card.date)}` : 'Cancelada',
-        outro_local: card.date ? `Aplicada em ${_rotinaFmtDate(card.date)}` : 'Aplicada em outro local'
+        outro_local: card.ghostOutroLocal ? 'Não registrada — clique p/ marcar' : (card.date ? `Registrada em ${_rotinaFmtDate(card.date)}` : 'Aplicada em outro local')
     };
     const line = card.status === 'aplicada' ? dateLine : (dateLineOther[card.status] || dateLine);
 
-    const onclick = card.hasAppointment
-        ? `viewRecord(${card.appointmentId})`
-        : `rotinaAgendarSugestao(${patient.id}, ${vac.id}, '${card.suggestedDose}', '${card.date}')`;
+    const onclick = card.ghostOutroLocal
+        ? `rotinaMarcarOutroLocal(${patient.id}, ${vac.id}, '${card.suggestedDose}')`
+        : (card.hasAppointment
+            ? `viewRecord(${card.appointmentId})`
+            : `rotinaAgendarSugestao(${patient.id}, ${vac.id}, '${card.suggestedDose}', '${card.date}')`);
 
-    const actionLabel = card.hasAppointment ? 'Ver detalhes' : 'Agendar';
-    const actionIcon = card.hasAppointment ? 'fa-arrow-right' : 'fa-calendar-plus';
+    const actionLabel = card.ghostOutroLocal ? 'Marcar outro local' : (card.hasAppointment ? 'Ver detalhes' : 'Agendar');
+    const actionIcon = card.ghostOutroLocal ? 'fa-map-marker-alt' : (card.hasAppointment ? 'fa-arrow-right' : 'fa-calendar-plus');
 
     return `
     <button onclick="${onclick}" class="rotina-card relative w-36 shrink-0 text-left ${style.bg} border ${style.border} rounded-xl shadow-sm hover:shadow-md transition overflow-hidden group">
@@ -322,4 +357,74 @@ function rotinaAgendarSugestao(patId, vacId, dose, dataIso) {
         agendarOportunidade(patId, vacId, dose, dataIso);
         setTimeout(() => { document.getElementById('modal-record').style.zIndex = '130'; }, 0);
     }
+}
+
+// Marca uma dose faltante (sem nenhum registro no sistema, "buraco" abaixo de
+// uma dose CPNI/aplicada) como Perdido + "Aplicada em outro local". Só uma
+// confirmação simples — sem abrir a janela de agenda — e cria direto na data
+// de hoje.
+function rotinaMarcarOutroLocal(patId, vacId, dose) {
+    if (!checkPerm('criar_agendamento')) return;
+    const pat = patients.find(x => x.id == patId);
+    const vac = vaccines.find(x => x.id == vacId);
+    if (!pat || !vac) return;
+
+    showConfirmNeutral(
+        `Marcar "${dose}" de ${vac.nome} como aplicada em outro local para ${pat.nome}, na data de hoje?`,
+        () => _rotinaConfirmarOutroLocal(patId, vacId, dose),
+        { title: 'Aplicada em outro local', icon: 'fa-map-marker-alt', confirmLabel: 'Confirmar' }
+    );
+}
+
+function _rotinaConfirmarOutroLocal(patId, vacId, dose) {
+    if (typeof agendarOportunidade !== 'function' || typeof saveRecord !== 'function') return;
+    window._agendaOpenedFromProntuario = true;
+    const modal = document.getElementById('modal-record');
+
+    // Preenche o formulário de registro por trás (sem mostrar ao usuário),
+    // reaproveitando as mesmas validações/efeitos colaterais do salvamento normal.
+    if (modal) { modal.style.visibility = 'hidden'; modal.style.pointerEvents = 'none'; }
+    agendarOportunidade(patId, vacId, dose, _rotinaTodayISO());
+
+    // agendarOportunidade preenche em cascata de setTimeouts (paciente → vacina →
+    // dose, ~200ms); espera o valor da dose realmente "pegar" antes de salvar, em
+    // vez de confiar num tempo fixo — a opção pode não existir ainda no <select>
+    // se a idade do paciente hoje ficou fora da faixa etária do esquema (paciente
+    // mais velho recuperando uma dose antiga).
+    const doseSel = document.getElementById('reg-dose');
+    let tries = 0;
+    const trySave = () => {
+        tries++;
+        if (doseSel && doseSel.value !== dose && tries < 20) {
+            setTimeout(trySave, 50);
+            return;
+        }
+        // Depois de esperar, se a opção ainda não existe no select (esquema não
+        // cobre a idade atual do paciente), injeta a opção manualmente — a dose
+        // já foi validada pela própria rotina, é legítima mesmo fora da faixa.
+        if (doseSel && doseSel.value !== dose && ![...doseSel.options].some(o => o.value === dose)) {
+            doseSel.innerHTML += `<option value="${dose}">${dose}</option>`;
+        }
+        if (doseSel) doseSel.value = dose;
+
+        const statusSel = document.getElementById('reg-status');
+        if (statusSel) statusSel.value = 'Perdido';
+        const chk = document.getElementById('reg-aplicada-outro-local');
+        if (chk) { chk.checked = true; if (typeof toggleAplicadaOutroLocal === 'function') toggleAplicadaOutroLocal(chk); }
+        if (typeof toggleCancelReason === 'function') toggleCancelReason();
+
+        saveRecord({ preventDefault() {} });
+
+        if (modal) { modal.style.visibility = ''; modal.style.pointerEvents = ''; }
+
+        // A aba Rotina fica por trás do modal de registro (dentro do prontuário) —
+        // reaplica seus dados pra refletir o novo registro sem precisar reabrir.
+        const prontuario = document.getElementById('modal-patient-history');
+        if (prontuario && prontuario.classList.contains('active') && prontuario.dataset.patientId == patId
+            && typeof renderRotinaTab === 'function') {
+            renderRotinaTab(patId);
+        }
+    };
+
+    setTimeout(trySave, 220);
 }

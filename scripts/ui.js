@@ -105,6 +105,23 @@ function closeDangerConfirm() {
     _dangerCallback = null;
 }
 
+let _neutralCallback = null;
+
+function showConfirmNeutral(msg, onConfirm, opts) {
+    _neutralCallback = onConfirm;
+    document.getElementById('modal-neutral-msg').textContent = msg;
+    document.getElementById('modal-neutral-title').textContent = (opts && opts.title) || 'Confirmar';
+    const btn = document.getElementById('modal-neutral-btn-confirm');
+    btn.innerHTML = `<i class="fas ${(opts && opts.icon) || 'fa-check'} mr-1.5"></i>${(opts && opts.confirmLabel) || 'Confirmar'}`;
+    document.getElementById('modal-neutral-confirm').classList.remove('hidden');
+    btn.onclick = () => { const cb = _neutralCallback; closeNeutralConfirm(); if (cb) cb(); };
+}
+
+function closeNeutralConfirm() {
+    document.getElementById('modal-neutral-confirm').classList.add('hidden');
+    _neutralCallback = null;
+}
+
 function showDuplicatePatientBlock(msg, info, existingId) {
     document.getElementById('modal-patient-duplicate-msg').textContent = msg;
     document.getElementById('modal-patient-duplicate-info').textContent = info;
