@@ -2273,7 +2273,7 @@
                 <!-- Grid de infos -->
                 <div class="grid grid-cols-2 gap-3">
                     <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
-                        <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-calendar-day vr-label-icon"></i>Data</span>
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-calendar-day vr-label-icon"></i><span id="vr-data-label">Data</span></span>
                         <span id="vr-data" class="text-sm font-black vr-value"></span>
                     </div>
                     <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
@@ -2324,8 +2324,8 @@
                 </div>
 
                 <!-- Vacina substituta -->
-                <div id="vr-outra-vacina-row" class="rounded-xl p-3.5 flex flex-col gap-1 hidden border border-teal-200 bg-gradient-to-br from-teal-50 to-white">
-                    <span class="text-[9px] font-black uppercase tracking-widest text-teal-600 flex items-center gap-1.5"><i class="fas fa-syringe"></i>Suprida por</span>
+                <div id="vr-outra-vacina-row" onclick="viewOutraVacinaRef()" class="rounded-xl p-3.5 flex flex-col gap-1 hidden border border-teal-200 bg-gradient-to-br from-teal-50 to-white cursor-pointer hover:shadow-md hover:border-teal-400 transition" title="Ver detalhes da vacina que supriu esta dose">
+                    <span class="text-[9px] font-black uppercase tracking-widest text-teal-600 flex items-center gap-1.5"><i class="fas fa-syringe"></i>Suprida por <i class="fas fa-arrow-up-right-from-square text-[8px] ml-auto"></i></span>
                     <span id="vr-outra-vacina" class="text-sm font-black text-teal-800"></span>
                 </div>
 

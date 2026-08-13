@@ -139,10 +139,17 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
             status = 'cancelada';
         }
 
+        const outraVacinaCoverDate = outraVacinaReg
+            ? (appointments.find(x => x.id == outraVacinaReg.outraVacinaAppId)?.data || outraVacinaReg.data)
+            : null;
+
         cards.push({
             _ordinal: ordinal,
             label: esqRepete ? 'Dose Única' : reg.doseAtual,
-            date: (applied || outroLocalReg || outraVacinaReg) ? (applied || outroLocalReg || outraVacinaReg).data : (pending ? pending.data : (cancelled ? cancelled.data : null)),
+            date: applied ? applied.data
+                : outroLocalReg ? outroLocalReg.data
+                : outraVacinaReg ? outraVacinaCoverDate
+                : (pending ? pending.data : (cancelled ? cancelled.data : null)),
             status,
             appointmentId: reg.id,
             hasAppointment: true
@@ -182,9 +189,16 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
             else if (pending) status = _rotinaDateBucket(pending.data);
             else status = 'cancelada';
 
+            const outraVacinaCoverDateReforco = outraVacinaReg
+                ? (appointments.find(x => x.id == outraVacinaReg.outraVacinaAppId)?.data || outraVacinaReg.data)
+                : null;
+
             cards.push({
                 label: 'Reforço',
-                date: (applied || outroLocalReg || outraVacinaReg) ? (applied || outroLocalReg || outraVacinaReg).data : (pending ? pending.data : (cancelled ? cancelled.data : null)),
+                date: applied ? applied.data
+                    : outroLocalReg ? outroLocalReg.data
+                    : outraVacinaReg ? outraVacinaCoverDateReforco
+                    : (pending ? pending.data : (cancelled ? cancelled.data : null)),
                 status,
                 appointmentId: reg.id,
                 hasAppointment: true

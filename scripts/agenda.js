@@ -1821,6 +1821,9 @@ function renderKanbanGrouped() {
         const PURPLE = _dark
             ? { color: '#7c3aed', border: '#4c1d95', light: '#1e1535', text: '#c4b5fd' }
             : { color: '#7c3aed', border: '#ddd6fe', light: '#faf5ff', text: '#6d28d9' };
+        const CYAN = _dark
+            ? { color: '#06b6d4', border: '#155e75', light: '#083344', text: '#67e8f9' }
+            : { color: '#06b6d4', border: '#a5f3fc', light: '#ecfeff', text: '#0e7490' };
 
         const groupsHtml = pageGroups.map(([patId, apps]) => {
             const pat = getPatientById(patId);
@@ -1833,7 +1836,8 @@ function renderKanbanGrouped() {
             const hasContactAlert = (typeof patientContacts !== 'undefined' && typeof _isContactDue === 'function')
                 && patientContacts.some(c => c.patientId == patId && _isContactDue(c));
             const allOutroLocal = col.key === 'Perdido' && apps.length > 0 && apps.every(a => a.aplicadaOutroLocal);
-            const groupCol = allOutroLocal ? PURPLE : col;
+            const allOutraVacina = col.key === 'Perdido' && apps.length > 0 && apps.every(a => a.outraVacina);
+            const groupCol = allOutroLocal ? PURPLE : allOutraVacina ? CYAN : col;
 
             const minicardsHtml = apps.map(a => {
                 const vac = getVaccineById(a.vaccineId);
@@ -1841,7 +1845,8 @@ function renderKanbanGrouped() {
                 const isDelayed = a.data < todayStr && a.status === 'Agendado';
                 const isToday = a.data === todayStr && a.status === 'Agendado';
                 const isOutroLocal = col.key === 'Perdido' && a.aplicadaOutroLocal;
-                const miniCol = isOutroLocal ? PURPLE : col;
+                const isOutraVacina = col.key === 'Perdido' && a.outraVacina;
+                const miniCol = isOutroLocal ? PURPLE : isOutraVacina ? CYAN : col;
                 const dateLabel = a.data ? a.data.split('-').reverse().join('/') : '—';
                 const miniBg = isDelayed ? _dl('#fef2f2','#2d0a0a') : isToday ? _dl('#fffbeb','#1c1500') : _dl('#fff','#1e293b');
                 const miniBorder = isDelayed ? _dl('#fecaca','#7f1d1d') : isToday ? _dl('#fde68a','#78350f') : miniCol.border;

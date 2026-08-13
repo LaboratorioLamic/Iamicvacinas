@@ -138,6 +138,8 @@ function openRecordModal() {
     document.getElementById('div-motivo-cancelamento').style.display = 'none';
     document.getElementById('sugestao-data').classList.add('hidden');
     document.getElementById('reg-data').removeAttribute('min');
+    document.getElementById('reg-data').removeAttribute('readonly');
+    document.getElementById('reg-data').classList.remove('bg-slate-50', 'text-slate-500', 'cursor-not-allowed');
     document.getElementById('reg-data').value = new Date().toISOString().split('T')[0];
     document.getElementById('reg-lote-validade-hint').classList.add('hidden');
     const _estoqueHintNew = document.getElementById('reg-lote-estoque-hint');
@@ -931,6 +933,13 @@ function closeViewRecord() {
     window._vrCurrentId = null;
 }
 
+// Abre os detalhes da vacina que supriu a dose perdida (clique no card "Suprida por")
+function viewOutraVacinaRef() {
+    const refId = window._vrOutraVacinaRefId;
+    if (!refId) return;
+    viewRecord(refId);
+}
+
 function viewRecord(id) {
     if (!isCurrentUserAdmin() && !hasPerm('agendar') && !hasPerm('criar_agendamento')) {
         showNotification('Acesso negado: você não tem permissão para visualizar agendamentos.', 'error');
@@ -995,7 +1004,15 @@ function viewRecord(id) {
     document.getElementById('vr-dose').textContent = a.doseAtual || '—';
 
     // Infos
-    document.getElementById('vr-data').textContent = a.data ? a.data.split('-').reverse().join('/') : '—';
+    const _outraVacinaRefForData = a.outraVacina ? appointments.find(x => x.id == a.outraVacinaAppId) : null;
+    const vrDataLabelEl = document.getElementById('vr-data-label');
+    if (_outraVacinaRefForData) {
+        if (vrDataLabelEl) vrDataLabelEl.textContent = 'Suprida em';
+        document.getElementById('vr-data').textContent = _outraVacinaRefForData.data ? _outraVacinaRefForData.data.split('-').reverse().join('/') : '—';
+    } else {
+        if (vrDataLabelEl) vrDataLabelEl.textContent = 'Data';
+        document.getElementById('vr-data').textContent = a.data ? a.data.split('-').reverse().join('/') : '—';
+    }
     document.getElementById('vr-hora').textContent = a.hora || '—';
     document.getElementById('vr-valor').textContent = a.cortesia ? 'R$ 0,00' : (a.valorAplicado ? 'R$ ' + a.valorAplicado : '—');
     const vrBadge = document.getElementById('vr-desconto-badge');
@@ -1051,8 +1068,13 @@ function viewRecord(id) {
             const ref = appointments.find(x => x.id == a.outraVacinaAppId);
             document.getElementById('vr-outra-vacina').textContent =
                 ref ? outraVacinaLabel(ref) : (a.outraVacinaLabel || '—');
+            window._vrOutraVacinaRefId = ref ? ref.id : null;
+            outraVacinaRow.classList.toggle('cursor-pointer', !!ref);
             outraVacinaRow.classList.remove('hidden');
-        } else outraVacinaRow.classList.add('hidden');
+        } else {
+            window._vrOutraVacinaRefId = null;
+            outraVacinaRow.classList.add('hidden');
+        }
     }
 
     // Obs
@@ -1196,6 +1218,7 @@ function editRecord(id) {
                 const ref = appointments.find(x => x.id == a.outraVacinaAppId);
                 document.getElementById('reg-outra-vacina-ref').value = a.outraVacinaAppId || '';
                 document.getElementById('reg-outra-vacina-search').value = ref ? outraVacinaLabel(ref) : (a.outraVacinaLabel || '');
+                _syncOutraVacinaDateLock('reg', ref || null);
             }
             toggleCancelReason();
         }
@@ -1484,6 +1507,7 @@ function selectOutraVacina(ctx, appId) {
     document.getElementById(c.ref).value    = a.id;
     document.getElementById(c.search).value = outraVacinaLabel(a);
     document.getElementById(c.dropdown)?.classList.add('hidden');
+    _syncOutraVacinaDateLock(ctx, a);
 }
 
 function clearOutraVacinaRef(ctx) {
@@ -1493,6 +1517,25 @@ function clearOutraVacinaRef(ctx) {
     if (ref) ref.value = '';
     if (se)  se.value = '';
     document.getElementById(c.dropdown)?.classList.add('hidden');
+    _syncOutraVacinaDateLock(ctx, null);
+}
+
+// Trava/libera o campo "Data Agendada" (só existe no contexto 'reg') na data da
+// vacina que supriu a dose perdida, e esconde a sugestão de aprazamento nesse caso.
+function _syncOutraVacinaDateLock(ctx, coveringApp) {
+    if (ctx !== 'reg') return;
+    const dataInput = document.getElementById('reg-data');
+    const sugDiv     = document.getElementById('sugestao-data');
+    if (!dataInput) return;
+    if (coveringApp) {
+        dataInput.value = coveringApp.data || '';
+        dataInput.setAttribute('readonly', 'readonly');
+        dataInput.classList.add('bg-slate-50', 'text-slate-500', 'cursor-not-allowed');
+        sugDiv?.classList.add('hidden');
+    } else {
+        dataInput.removeAttribute('readonly');
+        dataInput.classList.remove('bg-slate-50', 'text-slate-500', 'cursor-not-allowed');
+    }
 }
 
 // Liga/desliga o visual do botão + painel de busca
