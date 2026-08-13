@@ -50,10 +50,22 @@ function _rotinaFmtDate(dateStr) {
     return dateStr ? dateStr.split('-').reverse().join('/') : '—';
 }
 
+// Vacina de dose única que se repete periodicamente (ex.: Influenza anual):
+// esquema com numDoses 1 e repete=true/repeteMeses definido.
+function _rotinaEsquemaRepeteDoseUnica(vac, patient) {
+    const esq = (typeof getEsquemaPaciente === 'function') ? getEsquemaPaciente(vac, patient.dtNasc) : null;
+    if (esq && esq.repete && esq.repeteMeses > 0 && (esq.numDoses || 1) === 1) return esq;
+    if (!esq && vac.esquemas && vac.esquemas.length) {
+        return vac.esquemas.find(e => e.repete && e.repeteMeses > 0 && (e.numDoses || 1) === 1) || null;
+    }
+    return null;
+}
+
 // Monta as "linhas" (uma por dose/marco) de uma vacina para o paciente, a
 // partir dos appointments existentes + a próxima dose prevista (se houver).
 function _rotinaBuildVaccineRow(vac, patient, apps) {
     const cards = [];
+    const esqRepete = _rotinaEsquemaRepeteDoseUnica(vac, patient);
 
     // Doses numeradas + Dose Única + Dose Zero, na ordem em que ocorreram/estão previstas.
     const numbered = apps
@@ -85,7 +97,7 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
 
         // Roxo: marcado como outro local, OU aplicada mas é dose > 1 sem a dose anterior
         // registrada no sistema (esquema iniciado fora da clínica sem registro explícito).
-        const missingPrevDose = applied && ordinal > 1 && !_rotinaHasAppliedBelow(byOrdinal, ordinal, patient, apps);
+        const missingPrevDose = applied && ordinal > 1 && !esqRepete && !_rotinaHasAppliedBelow(byOrdinal, ordinal, patient, apps);
 
         let status;
         if (outroLocalReg && !applied) {
@@ -103,7 +115,7 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
         }
 
         cards.push({
-            label: reg.doseAtual,
+            label: esqRepete ? 'Dose Única' : reg.doseAtual,
             date: (applied || outroLocalReg) ? (applied || outroLocalReg).data : (pending ? pending.data : (cancelled ? cancelled.data : null)),
             status,
             appointmentId: reg.id,
@@ -139,7 +151,7 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
     }
 
     // Próxima dose prevista (sem registro ainda) — card azul/amarelo/laranja "fantasma", clicável p/ agendar.
-    const next = _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAppliedApp);
+    const next = _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAppliedApp, esqRepete);
     if (next) cards.push(next);
 
     return cards;
@@ -156,8 +168,24 @@ function _rotinaHasAppliedBelow(byOrdinal, ordinal, patient, apps) {
 }
 
 // Calcula a próxima dose/reforço ainda sem nenhum registro no sistema.
-function _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAppliedApp) {
+function _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAppliedApp, esqRepete) {
     if (maxAppliedOrdinal < 0 || !lastAppliedApp) return null;
+
+    // Dose única que se repete periodicamente (ex.: Influenza anual): sempre
+    // sugere a próxima aplicação a partir da última, ignorando numDoses/reforço.
+    if (esqRepete) {
+        const d = new Date(lastAppliedApp.data + 'T00:00:00');
+        d.setMonth(d.getMonth() + esqRepete.repeteMeses);
+        const dateStr = d.toISOString().split('T')[0];
+        return {
+            label: 'Dose Única',
+            date: dateStr,
+            status: _rotinaDateBucket(dateStr),
+            appointmentId: null,
+            hasAppointment: false,
+            suggestedDose: 'Dose Única'
+        };
+    }
 
     const esq = (typeof getEsquemaPaciente === 'function') ? getEsquemaPaciente(vac, patient.dtNasc) : null;
     const totalDoses = (vac.esquemas && vac.esquemas.length)
