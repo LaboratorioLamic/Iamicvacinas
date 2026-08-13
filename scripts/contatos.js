@@ -69,30 +69,30 @@ function switchProntuarioTab(tab) {
     const modal        = document.getElementById('modal-patient-history');
     const patientId    = modal ? modal.dataset.patientId : null;
     const patientHeader = document.getElementById('ph-patient-header');
-    const infoBtn    = document.getElementById('phtab-info');
-    const contatoBtn = document.getElementById('phtab-contato');
-    const infoPane   = document.getElementById('ph-tab-info');
-    const contatoPane = document.getElementById('ph-tab-contato');
-    if (!infoBtn || !contatoBtn || !infoPane || !contatoPane) return;
 
-    const active = tab === 'contato';
-    if (patientHeader) patientHeader.classList.toggle('hidden', active);
-    infoBtn.classList.toggle('text-indigo-700', !active);
-    infoBtn.classList.toggle('bg-indigo-50', !active);
-    infoBtn.classList.toggle('border-indigo-500', !active);
-    infoBtn.classList.toggle('text-slate-500', active);
-    infoBtn.classList.toggle('border-transparent', active);
+    const tabs = {
+        info:    { btn: document.getElementById('phtab-info'),    pane: document.getElementById('ph-tab-info') },
+        rotina:  { btn: document.getElementById('phtab-rotina'),  pane: document.getElementById('ph-tab-rotina') },
+        contato: { btn: document.getElementById('phtab-contato'), pane: document.getElementById('ph-tab-contato') }
+    };
+    if (!tabs.info.btn || !tabs.rotina.btn || !tabs.contato.btn || !tabs.info.pane || !tabs.rotina.pane || !tabs.contato.pane) return;
 
-    contatoBtn.classList.toggle('text-indigo-700', active);
-    contatoBtn.classList.toggle('bg-indigo-50', active);
-    contatoBtn.classList.toggle('border-indigo-500', active);
-    contatoBtn.classList.toggle('text-slate-500', !active);
-    contatoBtn.classList.toggle('border-transparent', !active);
+    if (patientHeader) patientHeader.classList.toggle('hidden', tab !== 'info');
 
-    infoPane.classList.toggle('hidden', active);
-    contatoPane.classList.toggle('hidden', !active);
+    Object.keys(tabs).forEach(key => {
+        const active = key === tab;
+        const { btn, pane } = tabs[key];
+        btn.classList.toggle('text-indigo-700', active);
+        btn.classList.toggle('bg-indigo-50', active);
+        btn.classList.toggle('border-indigo-500', active);
+        btn.classList.toggle('text-slate-500', !active);
+        btn.classList.toggle('border-transparent', !active);
+        pane.classList.toggle('hidden', !active);
+    });
 
-    if (active && patientId) renderContatoTab(patientId);
+    if (!patientId) return;
+    if (tab === 'contato') renderContatoTab(patientId);
+    if (tab === 'rotina' && typeof renderRotinaTab === 'function') renderRotinaTab(patientId);
 }
 
 // ── Feed (form + timeline) ───────────────────────────────────────────────────

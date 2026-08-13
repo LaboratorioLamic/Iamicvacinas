@@ -2286,7 +2286,7 @@
     @keyframes gradientShift { 0%{background-position:0%} 100%{background-position:200%} }
 
     /* ── VIEW RECORD — Light mode (padrão) ── */
-    #modal-view-record.vr-overlay          { background:rgba(15,23,42,0.55); backdrop-filter:blur(10px); }
+    #modal-view-record.vr-overlay, #modal-view-cpni-record.vr-overlay          { background:rgba(15,23,42,0.55); backdrop-filter:blur(10px); }
     .vr-panel                              { background:#ffffff; border:1px solid #e2e8f0; }
     .vr-header                             { background:#ffffff; }
     .vr-title                              { color:#172554; }
@@ -2320,7 +2320,7 @@
     .vr-cancel-btn:hover                   { background:#e2e8f0; color:#1e293b; }
 
     /* ── VIEW RECORD — Dark mode ── */
-    .dark-mode #modal-view-record.vr-overlay   { background:rgba(8,15,35,0.82); }
+    .dark-mode #modal-view-record.vr-overlay, .dark-mode #modal-view-cpni-record.vr-overlay   { background:rgba(8,15,35,0.82); }
     .dark-mode .vr-panel                       { background:linear-gradient(160deg,#0f172a 0%,#1e293b 100%); border-color:rgba(99,102,241,0.25); }
     .dark-mode .vr-header                      { background:transparent; }
     .dark-mode .vr-title                       { color:#f1f5f9; }
@@ -2757,6 +2757,7 @@
 
             <div class="px-6 pt-3 bg-white border-b border-slate-200 shrink-0 flex gap-2">
                 <button onclick="switchProntuarioTab('info')" id="phtab-info" class="flex-1 py-2.5 text-xs font-black uppercase tracking-widest text-indigo-700 bg-indigo-50 border-b-2 border-indigo-500 rounded-t-lg transition"><i class="fas fa-info-circle mr-1"></i>Informações</button>
+                <button onclick="switchProntuarioTab('rotina')" id="phtab-rotina" class="flex-1 py-2.5 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 border-b-2 border-transparent rounded-t-lg transition"><i class="fas fa-syringe mr-1"></i>Rotina</button>
                 <button onclick="switchProntuarioTab('contato')" id="phtab-contato" class="flex-1 py-2.5 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 border-b-2 border-transparent rounded-t-lg transition"><i class="fas fa-comments mr-1"></i>Contato<span id="phtab-contato-badge" class="hidden ml-1.5 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full"></span></button>
             </div>
 
@@ -2771,6 +2772,19 @@
                         <i class="fas fa-pen"></i> Editar
                     </button>
                 </div>
+            </div>
+
+            <div id="ph-tab-rotina" class="hidden flex-1 min-h-0 flex flex-col">
+                <div class="px-6 py-3 bg-slate-50 border-b border-slate-200 shrink-0 flex items-center flex-wrap gap-x-3 gap-y-1.5" id="rotina-legenda">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1">Legenda:</span>
+                    <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase text-green-700"><i class="fas fa-circle text-green-500 text-[7px]"></i>Aplicada</span>
+                    <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase text-blue-700"><i class="fas fa-circle text-blue-500 text-[7px]"></i>Próxima dose</span>
+                    <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase text-amber-700"><i class="fas fa-circle text-amber-500 text-[7px]"></i>A vencer (30d)</span>
+                    <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase text-orange-700"><i class="fas fa-circle text-orange-500 text-[7px]"></i>Atrasada</span>
+                    <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase text-red-700"><i class="fas fa-circle text-red-500 text-[7px]"></i>Cancelada</span>
+                    <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase text-violet-700"><i class="fas fa-circle text-violet-500 text-[7px]"></i>Outro local</span>
+                </div>
+                <div id="rotina-list" class="p-6 overflow-y-auto flex-1 bg-white space-y-5"></div>
             </div>
 
             <div id="ph-tab-contato" class="hidden flex-1 min-h-0 flex flex-col">
@@ -4749,7 +4763,7 @@
                 <div class="flex items-center gap-3 mb-4">
                     <div class="h-2.5 w-2.5 rounded-full shrink-0" style="background:#22c55e"></div>
                     <span class="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full" style="background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.3);">Aplicado</span>
-                    <span class="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200"><i class="fas fa-file-import mr-1"></i>Importado CPNI</span>
+                    <span class="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full vr-info-cell vr-label"><i class="fas fa-file-import mr-1"></i>Importado CPNI</span>
                     <div class="flex-1"></div>
                     <button id="cvr-btn-editar" onclick="toggleCpniEditMode()" title="Editar vacina/lote" class="hidden h-8 w-8 rounded-xl flex items-center justify-center transition vr-pron-btn">
                         <i class="fas fa-pencil-alt text-sm"></i>
@@ -4818,9 +4832,9 @@
                     <span id="cvr-importado-em" class="text-sm font-black vr-value"></span>
                 </div>
 
-                <div id="cvr-info-box" class="flex items-start gap-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
-                    <i class="fas fa-circle-info text-slate-400 text-xs mt-0.5 shrink-0"></i>
-                    <p class="text-[11px] text-slate-500 font-bold leading-relaxed">Registro importado do CPNI. Não afeta o estoque e não pode ser editado — apenas visualizado ou excluído.</p>
+                <div id="cvr-info-box" class="flex items-start gap-2 rounded-xl p-3 vr-info-cell">
+                    <i class="fas fa-circle-info vr-label-icon text-xs mt-0.5 shrink-0"></i>
+                    <p class="text-[11px] vr-label font-bold leading-relaxed">Registro importado do CPNI. Não afeta o estoque e não pode ser editado — apenas visualizado ou excluído.</p>
                 </div>
             </div>
 
@@ -4980,6 +4994,7 @@
     <script src="scripts/almoxarifado.js"></script>
     <script src="scripts/appointments.js"></script>
     <script src="scripts/oportunidades.js"></script>
+    <script src="scripts/rotina.js"></script>
     <script src="scripts/contatos.js"></script>
     <script src="scripts/users.js"></script>
     <script src="scripts/backup.js"></script>
