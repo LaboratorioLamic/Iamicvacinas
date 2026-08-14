@@ -1993,6 +1993,10 @@
                         <input type="hidden" id="reg-vacina">
                         <div id="vacina-dropdown" class="hidden absolute z-[200] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:220px;"></div>
                     </div>
+                    <!-- Legenda: doses disponíveis desta vacina (soma dos lotes abertos) -->
+                    <p id="reg-vacina-estoque-hint" class="text-[9px] font-bold mt-1 hidden">
+                        <i class="fas fa-boxes-stacked mr-1"></i><span id="span-vacina-disp"></span>
+                    </p>
                 </div>
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1" id="lbl-lote">Lote</label>

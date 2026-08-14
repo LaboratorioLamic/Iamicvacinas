@@ -2173,6 +2173,19 @@ function _handleGroupDrop(patId, fromStatus, targetStatus) {
     showNotification(`${groupApps.length} agendamento(s) movido(s) para ${targetStatus}!`, 'success');
 }
 
+// Legenda de doses disponíveis de uma vacina, exibida em cada linha do modal.
+// Existe para suprir a informação de estoque a quem não pode abrir o select de lote.
+function _grupoEstoqueLegenda(vaccineId, ignoreAppointmentId) {
+    if (!vaccineId || typeof getLoteDisponivelParaAgendamento !== 'function') return '';
+    const openLots = (vaccineLots || []).filter(l => l.vaccineId == vaccineId && l.status === 'aberto');
+    const disp = openLots.reduce((s, l) => s + Math.max(0, getLoteDisponivelParaAgendamento(l.id, ignoreAppointmentId)), 0);
+    const cor = disp > 0 ? 'text-emerald-600' : 'text-red-600';
+    const txt = disp > 0
+        ? `<b>${disp}</b> dose${disp !== 1 ? 's' : ''} disponíve${disp !== 1 ? 'is' : 'l'} em ${openLots.length} lote${openLots.length !== 1 ? 's' : ''}`
+        : 'Sem doses disponíveis em estoque';
+    return `<p class="text-[9px] font-bold ${cor} mt-0.5"><i class="fas fa-boxes-stacked mr-1"></i>${txt}</p>`;
+}
+
 // ─── MODAL: AGENDAR GRUPO ─────────────────────────────────────────────────────
 
 function openAgendarGrupoModal(patId, fromStatus, groupApps) {
@@ -2315,6 +2328,9 @@ function _renderAgendarGrupoLines() {
     const lines = _agendarGrupoPending.apps;
     const removedIds = _agendarGrupoRemovedIds;
     const fromStatus = _agendarGrupoPending.fromStatus;
+    // Lote só é editável por quem tem permissão de aplicar vacina; os demais veem
+    // a disponibilidade pela legenda de doses ao lado do nome da vacina.
+    const _podeEditarLoteGrupo = (typeof canEditLoteAplicador === 'function') ? canEditLoteAplicador() : true;
 
     container.innerHTML = lines.map(app => {
         const vac = vaccines.find(v => v.id == app.vaccineId);
@@ -2370,13 +2386,14 @@ function _renderAgendarGrupoLines() {
                 <div class="flex-1 min-w-0">
                     <p class="text-[11px] font-black text-navy-900 truncate leading-tight flex items-center gap-1.5">${nomVac}${vac && vac.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case shrink-0">${vac.mnemonico}</span>` : ''}</p>
                     <p class="text-[10px] text-slate-500">${app.dose}${valorStr}</p>
+                    ${_grupoEstoqueLegenda(app.vaccineId, app.id)}
                 </div>
                 <input type="text" id="agendar-grupo-pedido-${app.id}" value="${app.pedido || ''}" placeholder="Nº pedido" oninput="_checkAgendarGrupoBtn()"
                     class="border border-slate-200 rounded-lg py-1.5 px-2 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0 w-[100px]">
-                ${openLots.length > 0 ? `<select id="agendar-grupo-lote-${app.id}"
-                    class="border border-slate-200 rounded-lg py-1.5 px-2 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0 max-w-[140px]">
+                ${openLots.length > 0 ? `<select id="agendar-grupo-lote-${app.id}" ${_podeEditarLoteGrupo ? '' : 'disabled title="Somente usuários com permissão de aplicar vacina podem definir o lote."'}
+                    class="border border-slate-200 rounded-lg py-1.5 px-2 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0 max-w-[140px]${_podeEditarLoteGrupo ? '' : ' opacity-60 cursor-not-allowed bg-slate-100'}">
                     ${loteOptions}
-                </select>` : ''}
+                </select>` : `<span class="text-[9px] font-bold text-slate-400 shrink-0 whitespace-nowrap" title="Nenhum lote aberto para esta vacina">Sem lote</span>`}
                 <input type="date" id="agendar-grupo-date-${app.id}" value="${app.data || ''}"
                     class="border border-slate-200 rounded-lg py-1.5 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0">
                 <input type="time" id="agendar-grupo-hora-${app.id}" value="${app.hora || ''}"

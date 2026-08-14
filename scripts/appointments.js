@@ -65,6 +65,8 @@ function filterUserDropdown(inputId, ddId, flag) {
     const input = document.getElementById(inputId);
     const dd    = document.getElementById(ddId);
     if (!input || !dd) return;
+    // Campo bloqueado (sem permissão de aplicar) não abre sugestões
+    if (input.readOnly || input.disabled) { dd.classList.add('hidden'); return; }
     const val = normalizeStr(input.value);
     // Mostra usuários com a flag (vendedor/aplicador), incluindo admins com a flag
     const matches = appUsers.filter(u => u[flag] && u.ativo !== false && (!val || normalizeStr(u.nome).includes(val))).slice(0, 10);
@@ -206,6 +208,15 @@ function openAgendarFromProntuario(patId) {
     }
 }
 
+// Badge "Disponível: N" fixo à direita de cada item do dropdown de vacinas.
+function _vacinaDispBadge(vId) {
+    const editingId = document.getElementById('reg-id')?.value;
+    const disp = getVacinaDisponivelTotal(vId, editingId ? Number(editingId) : null);
+    if (disp == null) return '';
+    const cor = disp > 0 ? 'text-emerald-600' : 'text-red-500';
+    return `<span class="ml-auto text-[9px] font-black normal-case whitespace-nowrap shrink-0 ${cor}">Disponível: ${disp}</span>`;
+}
+
 function filterVacinaDropdown() {
     const input = document.getElementById('reg-vacina-search');
     const dd    = document.getElementById('vacina-dropdown');
@@ -227,7 +238,10 @@ function filterVacinaDropdown() {
         `<div class="px-3 py-2 hover:bg-clinic-50 hover:text-clinic-700 cursor-pointer text-sm font-bold text-navy-900 border-b border-slate-100 last:border-0 transition uppercase"
               onmousedown="selectVacinaFromDropdown(${v.id},'${v.nome.replace(/'/g,"\\'")}')">
             <span>${v.nome}</span>
-            ${v.mnemonico ? `<br><span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case mt-0.5">${v.mnemonico}</span>` : ''}
+            <div class="flex items-center gap-2 mt-0.5">
+                ${v.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case shrink-0">${v.mnemonico}</span>` : ''}
+                ${_vacinaDispBadge(v.id)}
+            </div>
         </div>`
     ).join('');
     dd.classList.remove('hidden');
@@ -240,7 +254,36 @@ function selectVacinaFromDropdown(id, nome) {
     document.getElementById('reg-vacina').value = id;
     document.getElementById('vacina-dropdown').classList.add('hidden');
     autoFillVaccine();
+    updateVacinaEstoqueHint();
     checkVacinaSemEstoque(id, nome);
+}
+
+// Doses disponíveis da vacina (soma dos lotes abertos), exibidas abaixo do campo
+// Vacina. Supre a informação de estoque para quem não tem permissão de aplicar e
+// portanto não consegue abrir o select de Lote.
+function getVacinaDisponivelTotal(vId, ignoreAppointmentId) {
+    if (!vId || typeof getLoteDisponivelParaAgendamento !== 'function') return null;
+    return (vaccineLots || [])
+        .filter(l => l.vaccineId == vId && l.status === 'aberto')
+        .reduce((sum, l) => sum + Math.max(0, getLoteDisponivelParaAgendamento(l.id, ignoreAppointmentId)), 0);
+}
+
+function updateVacinaEstoqueHint() {
+    const hint = document.getElementById('reg-vacina-estoque-hint');
+    const span = document.getElementById('span-vacina-disp');
+    if (!hint || !span) return;
+
+    const vId = document.getElementById('reg-vacina')?.value;
+    if (!vId) { hint.classList.add('hidden'); return; }
+
+    const editingId = document.getElementById('reg-id')?.value;
+    const disp = getVacinaDisponivelTotal(vId, editingId ? Number(editingId) : null);
+    if (disp == null) { hint.classList.add('hidden'); return; }
+
+    span.innerHTML = `Disponível: <b>${disp}</b> dose${disp !== 1 ? 's' : ''}`;
+    hint.classList.toggle('text-red-600', disp <= 0);
+    hint.classList.toggle('text-emerald-600', disp > 0);
+    hint.classList.remove('hidden');
 }
 
 function checkVacinaSemEstoque(vId, nome) {
@@ -346,7 +389,7 @@ function populateLoteSelect(vaccineId, selectedLoteId) {
     const sel = document.getElementById('reg-lote');
     sel.innerHTML = '<option value="">Selecione o lote...</option>';
     document.getElementById('reg-lote-validade-hint').classList.add('hidden');
-    if (!vaccineId) return;
+    if (!vaccineId) { updateVacinaEstoqueHint(); applyLoteAplicadorPermission(); return; }
     const editingId = document.getElementById('reg-id')?.value;
     // Lotes abertos + o lote já vinculado a este agendamento (mesmo que tenha sido auto-fechado)
     const openLots = vaccineLots.filter(l =>
@@ -369,6 +412,37 @@ function populateLoteSelect(vaccineId, selectedLoteId) {
     if (selectedLoteId) {
         sel.value = selectedLoteId;
         onLoteChange();
+    }
+    updateVacinaEstoqueHint();
+    applyLoteAplicadorPermission();
+}
+
+// Bloqueia Lote e Aplicador para quem não tem permissão de aplicar vacina.
+// Os campos ficam somente-leitura com aviso; o valor já gravado é preservado.
+function applyLoteAplicadorPermission() {
+    const pode = (typeof canEditLoteAplicador === 'function') ? canEditLoteAplicador() : true;
+    const loteSel = document.getElementById('reg-lote');
+    const aplicadorInput = document.getElementById('reg-aplicador');
+    const bloqCls = ['bg-slate-100', 'opacity-60', 'cursor-not-allowed'];
+
+    if (loteSel) {
+        // Campo bloqueado não pode ser required: travaria o submit de quem não
+        // tem permissão (o status "Aplicado" já é barrado em toggleCancelReason).
+        if (!pode) loteSel.required = false;
+        loteSel.disabled = !pode;
+        loteSel.classList.toggle('pointer-events-none', !pode);
+        bloqCls.forEach(c => loteSel.classList.toggle(c, !pode));
+        loteSel.title = pode ? '' : 'Somente usuários com permissão de aplicar vacina podem definir o lote.';
+    }
+    if (aplicadorInput) {
+        if (!pode) aplicadorInput.required = false;
+        aplicadorInput.readOnly = !pode;
+        bloqCls.forEach(c => aplicadorInput.classList.toggle(c, !pode));
+        aplicadorInput.title = pode ? '' : 'Somente usuários com permissão de aplicar vacina podem definir o aplicador.';
+        if (!pode) {
+            const dd = document.getElementById('aplicador-dropdown');
+            if (dd) dd.classList.add('hidden');
+        }
     }
 }
 
@@ -1463,6 +1537,8 @@ function toggleCancelReason() {
         aplicadorInput.required = false;
         aplicadorLabel.innerText = 'Aplicador';
     }
+
+    applyLoteAplicadorPermission();
 }
 
 function toggleAplicadaOutroLocal(chk) {

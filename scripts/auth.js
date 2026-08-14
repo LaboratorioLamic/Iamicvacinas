@@ -15,6 +15,13 @@ function hasPerm(perm) {
     return g ? (g.permissions || []).includes(perm) : false;
 }
 
+// Só quem pode aplicar vacina (marcar status "Aplicado") edita Lote/Aplicador.
+// Para os demais os campos ficam bloqueados — a informação de estoque é suprida
+// pela legenda de doses disponíveis abaixo do campo Vacina.
+function canEditLoteAplicador() {
+    return isCurrentUserAdmin() || hasPerm('aplicar');
+}
+
 function isCurrentUserAdmin() {
     if (!currentUser) return false;
     const u = appUsers.find(x => x.id == currentUser.id);
