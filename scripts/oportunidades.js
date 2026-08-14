@@ -302,6 +302,10 @@ function _sortGroups(groups, isAprazamento) {
 // ── Sub-abas ──────────────────────────────────────────────────────────────────
 
 function switchOppSubTab(tab) {
+    // Aprazamento é restrito a quem tem permissão de aplicar vacina
+    if (tab === 'aprazamento' && typeof canEditLoteAplicador === 'function' && !canEditLoteAplicador()) {
+        tab = 'oferta';
+    }
     _oppSubTab = tab;
     ['aprazamento','oferta'].forEach(t => {
         const btn = document.getElementById(`btn-opp-sub-${t}`);
@@ -411,6 +415,11 @@ function renderOportunidades() {
     // render. Dentro de um render ele ainda evita as N log N varreduras do sort.
     _appliedCountSrc = null;
     _appliedCountLen = -1;
+    // Sem permissão de aplicar, Aprazamento não é renderizado nem como estado inicial
+    if (_oppSubTab === 'aprazamento' && typeof canEditLoteAplicador === 'function' && !canEditLoteAplicador()) {
+        switchOppSubTab('oferta');
+        return;
+    }
     if (_oppSubTab === 'aprazamento') _renderAprazamento();
     else _renderOferta();
 }

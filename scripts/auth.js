@@ -254,6 +254,16 @@ function applyPermissions() {
         if (btn) btn.style.display = canTabela ? '' : 'none';
     });
 
+    // Sub-aba Aprazamento (Oportunidades) — exclusiva de quem pode aplicar vacina
+    const canAprazar = admin || hasPerm('aplicar');
+    const btnAprazamento = document.getElementById('btn-opp-sub-aprazamento');
+    if (btnAprazamento) btnAprazamento.style.display = canAprazar ? '' : 'none';
+    // Sem permissão, cai para "Oferta" se o Aprazamento estiver aberto
+    if (!canAprazar && typeof _oppSubTab !== 'undefined' && _oppSubTab === 'aprazamento'
+        && typeof switchOppSubTab === 'function') {
+        switchOppSubTab('oferta');
+    }
+
     // Tabs — oculta botões sem permissão
     const tabVisibility = {
         'btn-dashboard': canDash,
