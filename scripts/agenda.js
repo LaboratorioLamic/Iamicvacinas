@@ -416,12 +416,14 @@ function renderWeekly() {
         if (!pat) return '';
         const apps = g.apps;
         const hasDelayed = apps.some(a => a.status === 'Agendado' && a.data < todayStr);
+        const hasSemLote = apps.some(a => a.status === 'Agendado' && !a.loteId);
         const dominant = apps.every(a => a.status === 'Aplicado') ? 'Aplicado'
             : apps.some(a => a.status === 'Agendado') ? 'Agendado'
             : apps.some(a => a.status === 'Em negociação') ? 'Em negociação'
             : apps.some(a => a.status === 'Nova oportunidade') ? 'Nova oportunidade'
             : apps[0].status;
-        const accent = hasDelayed ? '#f59e0b'
+        const accent = hasSemLote ? '#db2777'
+            : hasDelayed ? '#f59e0b'
             : dominant === 'Aplicado' ? '#16a34a'
             : dominant === 'Agendado' ? '#2563eb'
             : dominant === 'Em negociação' ? '#0891b2'
@@ -445,7 +447,7 @@ function renderWeekly() {
             ondragover="weeklyDragOver(event)" ondragleave="weeklyDragLeave(event)"
             ondrop="weeklyDrop(event,'${d.dateStr}','${_wkHHMM(startMin)}')"
             onclick="openWeeklyGroup('${d.dateStr}','${g.patId}')"
-            title="${String(pat.nome).replace(/"/g, '&quot;')} — ${_wkHHMM(startMin)}"
+            title="${String(pat.nome).replace(/"/g, '&quot;')} — ${_wkHHMM(startMin)}${hasSemLote ? ' — Sem lote reservado' : ''}"
             style="top:${top}px;height:${height}px;left:calc(${lane * widthPct}% + 2px);width:calc(${widthPct}% - 4px);background:${tint};border-left:3px solid ${accent};box-shadow:0 1px 2px rgba(15,23,42,.08);">
             <button class="wk-add wk-add-on-event" title="Adicionar vacina a ${String(pat.nome).replace(/"/g, '&quot;')} às ${_wkHHMM(startMin)}"
                 onclick="event.stopPropagation();addVacinaToWeeklyGroup('${d.dateStr}','${g.patId}','${_wkHHMM(startMin)}','${String(apps.find(a => a.vendedor)?.vendedor || '').replace(/'/g, "\\'")}')"
@@ -456,6 +458,8 @@ function renderWeekly() {
                 </p>
                 <p class="text-[10px] font-black leading-tight truncate mt-0.5" style="color:${C.text}">${pat.nome}</p>
                 <p class="text-[9px] leading-none truncate" style="color:${C.muted}">${sub}</p>
+                ${hasSemLote ? `<span title="Sem lote reservado" class="text-[8px] font-black px-1 py-0.5 rounded-full mt-0.5 self-start inline-flex items-center gap-0.5 shrink-0"
+                    style="color:${_isDark ? '#f9a8d4' : '#9d174d'};background:${_isDark ? '#3b0a25' : '#fce7f3'};border:1px solid ${_isDark ? '#831843' : '#fbcfe8'}"><i class="fas fa-exclamation-triangle"></i> Sem lote</span>` : ''}
             </div>
         </div>`;
     };
@@ -467,14 +471,18 @@ function renderWeekly() {
         return gs.map(g => {
             const pat = getPatientById(g.patId);
             if (!pat) return '';
+            const semLote = g.apps.some(a => a.status === 'Agendado' && !a.loteId);
             return `<div class="rounded-md px-1.5 py-1 mb-1 cursor-grab select-none"
                 draggable="true"
                 ondragstart="weeklyGroupDragStart(event,'${d.dateStr}','${g.patId}')"
                 ondragend="weeklyDragEnd(event)"
                 onclick="openWeeklyGroup('${d.dateStr}','${g.patId}')"
-                style="background:${_isDark ? '#1e293b' : '#f1f5f9'};border-left:3px solid #94a3b8;">
+                title="${String(pat.nome).replace(/"/g, '&quot;')}${semLote ? ' — Sem lote reservado' : ''}"
+                style="background:${semLote ? (_isDark ? '#3b0a25' : '#fdf2f8') : (_isDark ? '#1e293b' : '#f1f5f9')};border-left:3px solid ${semLote ? '#db2777' : '#94a3b8'};">
                 <p class="text-[10px] font-black truncate" style="color:${C.text}">${pat.nome}</p>
                 <p class="text-[8px] truncate" style="color:${C.muted}">${g.apps.length} vacina(s) · sem horário</p>
+                ${semLote ? `<span title="Sem lote reservado" class="text-[8px] font-black px-1 py-0.5 rounded-full mt-0.5 inline-flex items-center gap-0.5"
+                    style="color:${_isDark ? '#f9a8d4' : '#9d174d'};background:${_isDark ? '#3b0a25' : '#fce7f3'};border:1px solid ${_isDark ? '#831843' : '#fbcfe8'}"><i class="fas fa-exclamation-triangle"></i> Sem lote</span>` : ''}
             </div>`;
         }).join('');
     };
@@ -976,8 +984,10 @@ function renderCalendar() {
                 const agendados = agendadosTodos.length - atrasados;
                 const aplicados = dayApps.filter(a => a.status === 'Aplicado').length;
                 const cancelados = dayApps.filter(a => a.status === 'Perdido').length;
+                const semLote = agendadosTodos.filter(a => !a.loteId).length;
 
                 let summary = '';
+                if(semLote)     summary += `<div class="text-[9px] font-black text-pink-700 bg-pink-50 border border-pink-200 rounded px-1 mb-0.5 truncate shadow-sm" title="Agendamentos sem lote reservado"><i class="fas fa-exclamation-triangle"></i> ${semLote} AGENDADO(S) SEM LOTE</div>`;
                 if(emAndamento) summary += `<div class="text-[9px] font-black text-cyan-700 bg-cyan-50 border border-cyan-100 rounded px-1 mb-0.5 truncate shadow-sm">${emAndamento} NEGOCIANDO</div>`;
                 if(atrasados)   summary += `<div class="text-[9px] font-black text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 mb-0.5 truncate shadow-sm"><i class="fas fa-exclamation-triangle"></i> ${atrasados} ATRASADO(S)</div>`;
                 if(agendados)   summary += `<div class="text-[9px] font-black text-blue-700 bg-blue-50 border border-blue-100 rounded px-1 mb-0.5 truncate shadow-sm">${agendados} AGENDADO(S)</div>`;
@@ -1142,6 +1152,7 @@ function openDayModal(dateStr, d, month, year) {
                 apps.sort((a, b) => _dmApptTime(a) - _dmApptTime(b));
 
                 const hasDelayed = apps.some(a => dateStr < todayStrDM && a.status === 'Agendado');
+                const hasSemLoteDM = apps.some(a => a.status === 'Agendado' && !a.loteId);
                 const waLink = `https://wa.me/55${formatWa(pat.contato || '')}`;
                 const firstHora = apps[0].hora || '';
 
@@ -1181,8 +1192,11 @@ function openDayModal(dateStr, d, month, year) {
                     const stColor = a.status === 'Aplicado' ? (_dmIsDark?'#4ade80':'#16a34a') : isDelayed ? (_dmIsDark?'#fbbf24':'#d97706') : a.status === 'Agendado' ? (_dmIsDark?'#60a5fa':'#2563eb') : a.status === 'Em negociação' ? (_dmIsDark?'#22d3ee':'#0891b2') : (_dmIsDark?'#94a3b8':'#64748b');
                     const stBg = a.status === 'Aplicado' ? (_dmIsDark?'rgba(74,222,128,0.15)':'#dcfce7') : isDelayed ? (_dmIsDark?'rgba(251,191,36,0.15)':'#fffbeb') : a.status === 'Agendado' ? (_dmIsDark?'rgba(96,165,250,0.15)':'#dbeafe') : a.status === 'Em negociação' ? (_dmIsDark?'rgba(34,211,238,0.15)':'#cffafe') : (_dmIsDark?'rgba(148,163,184,0.15)':'#f1f5f9');
                     const stLabel = isDelayed ? 'Atrasado' : a.status;
+                    const semLoteA = a.status === 'Agendado' && !a.loteId;
+                    const mcBg = semLoteA ? _dmDl('#fdf2f8','#3b0a25') : miniCardBg;
+                    const mcAccent = semLoteA ? '#db2777' : stColor;
                     return `<div class="flex items-center gap-2 px-3 py-2 rounded-lg border hover:shadow-sm transition cursor-grab"
-                        style="background:${miniCardBg};border-color:${miniCardBorder};border-left:3px solid ${stColor};border-left-color:${stColor};"
+                        style="background:${mcBg};border-color:${semLoteA ? _dmDl('#fbcfe8','#831843') : miniCardBorder};border-left:3px solid ${mcAccent};border-left-color:${mcAccent};"
                         draggable="true"
                         ondragstart="monthDragStart(event,${a.id})"
                         ondragend="monthDragEnd(event)"
@@ -1192,6 +1206,7 @@ function openDayModal(dateStr, d, month, year) {
                             <p class="text-[11px] font-black truncate" style="color:${patNameColor}">${vac.nome}</p>
                             <p class="text-[10px]" style="color:${metaColor}">${a.doseAtual}${a.hora ? ' · <i class="far fa-clock"></i> '+a.hora : ''}</p>
                         </div>
+                        ${semLoteA ? `<span title="Sem lote reservado" class="text-[9px] font-black px-1.5 py-0.5 rounded-full whitespace-nowrap border shrink-0" style="background:${_dmDl('#fce7f3','#3b0a25')};color:${_dmDl('#9d174d','#f9a8d4')};border-color:${_dmDl('#fbcfe8','#831843')}"><i class="fas fa-exclamation-triangle mr-1"></i>Sem lote</span>` : ''}
                         <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full whitespace-nowrap" style="background:${stBg};color:${stColor};">${stLabel}</span>
                         <div class="flex gap-1 shrink-0">
                             ${a.status === 'Agendado' ? permBtn('aplicar', `<button onclick="event.stopPropagation();openConcluirModal(${a.id})" class="h-7 px-2 rounded-lg text-[9px] font-black uppercase shadow-sm transition" style="background:${_dmIsDark?'rgba(74,222,128,0.2)':'#22c55e'};color:${_dmIsDark?'#4ade80':'#fff'};border:1px solid ${_dmIsDark?'rgba(74,222,128,0.35)':'transparent'}"><i class="fas fa-check mr-1"></i>Aplicar</button>`) : ''}
@@ -1226,6 +1241,7 @@ function openDayModal(dateStr, d, month, year) {
                                 <h4 class="font-black text-sm" style="color:${patNameColor}">${pat.nome}</h4>
                                 <a href="${waLink}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp" class="text-green-500 hover:text-green-700 transition"><i class="fab fa-whatsapp"></i></a>
                                 ${hasDelayed ? `<span class="text-[9px] font-black px-1.5 py-0.5 rounded-full border" style="background:${_dmDl('#fef9c3','#422006')};color:${_dmDl('#a16207','#fbbf24')};border-color:${_dmDl('#fde68a','#78350f')}"><i class="fas fa-exclamation-triangle mr-1"></i>Atrasado</span>` : ''}
+                                ${hasSemLoteDM ? `<span title="Sem lote reservado" class="text-[9px] font-black px-1.5 py-0.5 rounded-full border" style="background:${_dmDl('#fce7f3','#3b0a25')};color:${_dmDl('#9d174d','#f9a8d4')};border-color:${_dmDl('#fbcfe8','#831843')}"><i class="fas fa-exclamation-triangle mr-1"></i>Sem lote</span>` : ''}
                             </div>
                             <p class="text-[10px] font-bold" style="color:${metaColor}">${getAgeDisplay(pat.dtNasc)} · CPF: ${pat.cpf}${firstHora ? ' · '+firstHora : ''} · ${apps.length} vacina${apps.length !== 1 ? 's' : ''}</p>
                         </div>

@@ -899,6 +899,7 @@ function agendarOportunidade(patId, vacId, dose, dataIso) {
         document.getElementById('reg-dtnasc').value = p.dtNasc;
         updateIdadeField();
         document.getElementById('reg-contato').value = formatPhone(p.contato);
+        if (typeof updateRecordPatientAlert === 'function') updateRecordPatientAlert(p);
         if (p.responsavel) {
             document.getElementById('div-responsavel').style.display = 'block';
             document.getElementById('div-responsavel-placeholder').style.display = 'none';

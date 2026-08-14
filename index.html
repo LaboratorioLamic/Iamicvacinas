@@ -1959,6 +1959,7 @@
                         <button type="button" id="btn-prontuario-agenda" onclick="viewPatientHistory(document.getElementById('hidden-patient-id').value)" title="Prontuário Vacinal" class="hidden bg-indigo-50 px-3 rounded-lg border border-indigo-100 hover:bg-indigo-600 hover:text-white text-indigo-500 transition"><i class="fas fa-clipboard-list"></i></button>
                         <input type="hidden" id="hidden-patient-id">
                     </div>
+                    <div id="reg-patient-alert" class="hidden items-center gap-1.5 mt-1.5 rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-wide"></div>
                 </div>
                 <div class="col-span-1 md:col-span-2" id="div-responsavel" style="display:none;">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Responsável</label>
@@ -2372,7 +2373,10 @@
                 <div class="flex items-center gap-4">
                     <div id="vr-avatar" class="h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 font-black text-2xl text-white shadow-lg"></div>
                     <div class="flex-1 min-w-0">
-                        <h2 id="vr-patient-name" class="font-black text-xl leading-tight truncate vr-title"></h2>
+                        <div class="flex items-center gap-2 min-w-0">
+                            <h2 id="vr-patient-name" class="font-black text-xl leading-tight truncate vr-title"></h2>
+                            <span id="vr-patient-alert" class="shrink-0"></span>
+                        </div>
                         <p id="vr-patient-meta" class="text-[11px] mt-0.5 vr-meta"></p>
                     </div>
                 </div>
@@ -5210,7 +5214,10 @@
                 <div class="flex items-center gap-4">
                     <div id="cvr-avatar" class="h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 font-black text-2xl text-white shadow-lg" style="background:linear-gradient(135deg,#22c55e,#15803d);"></div>
                     <div class="flex-1 min-w-0">
-                        <h2 id="cvr-patient-name" class="font-black text-xl leading-tight truncate vr-title"></h2>
+                        <div class="flex items-center gap-2 min-w-0">
+                            <h2 id="cvr-patient-name" class="font-black text-xl leading-tight truncate vr-title"></h2>
+                            <span id="cvr-patient-alert" class="shrink-0"></span>
+                        </div>
                         <p id="cvr-patient-meta" class="text-[11px] mt-0.5 vr-meta"></p>
                     </div>
                 </div>

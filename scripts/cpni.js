@@ -494,6 +494,8 @@ function viewCpniRecord(id) {
 
     document.getElementById('cvr-avatar').textContent = pat ? (pat.nome || '?')[0].toUpperCase() : '?';
     document.getElementById('cvr-patient-name').textContent = pat ? pat.nome : '—';
+    const cvrAlertEl = document.getElementById('cvr-patient-alert');
+    if (cvrAlertEl) cvrAlertEl.innerHTML = (typeof patientAlertBadge === 'function') ? patientAlertBadge(pat, 'text-[9px]', true) : '';
     const age = pat && pat.dtNasc ? getAgeDisplay(pat.dtNasc) : '';
     document.getElementById('cvr-patient-meta').textContent = [pat?.cpf, age].filter(Boolean).join(' · ');
     document.getElementById('cvr-vaccine-name').textContent = vac ? vac.nome : '—';

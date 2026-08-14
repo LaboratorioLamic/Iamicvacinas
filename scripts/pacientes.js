@@ -3,6 +3,29 @@
 const PATIENTS_PAGE_SIZE = 20;
 let patientsCurrentPage = 1;
 
+// Alerta do paciente (dados incompletos / sem WhatsApp).
+// sizeClass ajusta tamanho conforme o contexto; withLabel mostra a descrição ao lado do ícone.
+function patientAlertBadge(p, sizeClass = 'h-6 w-6 text-xs', withLabel = false) {
+    if (!p) return '';
+    let label = '', style = '';
+    let pulse = '';
+    if (p.dadosIncompletos) {
+        label = 'Cadastro incompleto';
+        style = 'background:#fee2e2;color:#dc2626';
+        pulse = ' animate-pulse';
+    } else if (!p.contato) {
+        label = 'Sem WhatsApp cadastrado';
+        style = 'background:#fef3c7;color:#d97706';
+    } else {
+        return '';
+    }
+    const title = p.dadosIncompletos ? 'Cadastro incompleto — cadastre o responsável' : 'Sem número de WhatsApp cadastrado';
+    if (!withLabel) {
+        return `<span title="${title}" class="rounded-md inline-flex items-center justify-center shrink-0 ${sizeClass}${pulse}" style="${style}"><i class="fas fa-triangle-exclamation"></i></span>`;
+    }
+    return `<span title="${title}" class="rounded-md inline-flex items-center gap-1.5 px-2 py-0.5 shrink-0 font-black uppercase tracking-wider ${sizeClass}${pulse}" style="${style}"><i class="fas fa-triangle-exclamation"></i>${label}</span>`;
+}
+
 function renderPatients(resetPage = true) {
     const btnNovoPac = document.getElementById('btn-novo-paciente');
     if (btnNovoPac) btnNovoPac.style.display = (currentUser && (isCurrentUserAdmin() || hasPerm('adicionar_paciente'))) ? '' : 'none';
@@ -27,9 +50,7 @@ function renderPatients(resetPage = true) {
 
         grid.innerHTML += `<div class="bg-white border border-slate-200 p-3 rounded-xl shadow-sm hover:shadow-md transition relative flex flex-col gap-2 group">
             <div class="absolute top-2 right-2 flex items-center gap-1">
-                ${p.dadosIncompletos
-                    ? `<span title="Dados incompletos — cadastre o responsável" class="h-6 w-6 rounded-md flex items-center justify-center text-xs shrink-0 animate-pulse" style="background:#fee2e2;color:#dc2626"><i class="fas fa-triangle-exclamation"></i></span>`
-                    : (!p.contato ? `<span title="Sem número de WhatsApp cadastrado" class="h-6 w-6 rounded-md flex items-center justify-center text-xs shrink-0" style="background:#fef3c7;color:#d97706"><i class="fas fa-triangle-exclamation"></i></span>` : '')}
+                ${patientAlertBadge(p)}
                 ${permBtn('editar_paciente', `<button onclick="editPatient(${p.id})" class="text-slate-300 hover:text-clinic-600 transition text-xs" title="Editar"><i class="fas fa-pen"></i></button>`)}
                 ${!hasAppointments ? permBtn('excluir_paciente', `<button onclick="deletePatient(${p.id})" class="text-slate-300 hover:text-red-500 transition text-xs" title="Excluir"><i class="fas fa-trash"></i></button>`) : ''}
             </div>
@@ -193,6 +214,7 @@ function viewPatientHistory(id) {
     const waLink = `https://wa.me/55${formatWa(p.contato || '')}`;
 
     document.getElementById('hist-patient-badges').innerHTML = `
+        ${patientAlertBadge(p, 'text-[9px]', true)}
         <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full"><i class="fas fa-birthday-cake text-[8px]"></i>${idade}</span>
         ${p.genero ? `<span class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full"><i class="fas ${p.genero === 'Feminino' ? 'fa-venus' : 'fa-mars'} text-[8px]"></i>${p.genero}</span>` : ''}
     `;

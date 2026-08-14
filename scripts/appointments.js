@@ -137,6 +137,7 @@ function openRecordModal() {
     document.getElementById('modal-lote-expiry-warning')?.classList.remove('active');
     document.getElementById('modal-vacina-sem-estoque')?.classList.remove('active');
     _toggleBtnProntuario(false);
+    updateRecordPatientAlert(null);
     document.getElementById('div-responsavel').style.display = 'none';
     document.getElementById('div-responsavel-placeholder').style.display = 'block';
     document.getElementById('div-motivo-cancelamento').style.display = 'none';
@@ -338,6 +339,31 @@ function _resetAndDisableVaccineFields() {
     resetDescontoUI();
 }
 
+// Alerta de cadastro incompleto / sem WhatsApp no formulário de agendamento.
+function updateRecordPatientAlert(p) {
+    const el = document.getElementById('reg-patient-alert');
+    if (!el) return;
+    let msg = '', style = '';
+    if (p && p.dadosIncompletos) {
+        msg = 'Cadastro incompleto';
+        style = 'background:#fee2e2;border-color:#fecaca;color:#dc2626';
+    } else if (p && !p.contato) {
+        msg = 'Sem número de WhatsApp cadastrado';
+        style = 'background:#fef3c7;border-color:#fde68a;color:#b45309';
+    }
+    if (!msg) {
+        el.classList.add('hidden');
+        el.classList.remove('flex');
+        el.innerHTML = '';
+        el.removeAttribute('style');
+        return;
+    }
+    el.setAttribute('style', style);
+    el.innerHTML = `<i class="fas fa-triangle-exclamation"></i><span>${msg}</span>`;
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+}
+
 function autoFillPatient() {
     const val = document.getElementById('reg-patient-search').value;
     const normVal = normalizeStr(val);
@@ -351,6 +377,7 @@ function autoFillPatient() {
         document.getElementById('reg-dtnasc').value = p.dtNasc;
         updateIdadeField();
         document.getElementById('reg-contato').value = formatPhone(p.contato);
+        updateRecordPatientAlert(p);
         if(p.responsavel) {
             document.getElementById('div-responsavel').style.display = 'block';
             document.getElementById('div-responsavel-placeholder').style.display = 'none';
@@ -376,6 +403,7 @@ function autoFillPatient() {
     document.getElementById('reg-dtnasc').value = '';
     document.getElementById('reg-idade').value = '';
     document.getElementById('reg-contato').value = '';
+    updateRecordPatientAlert(null);
     document.getElementById('div-responsavel').style.display = 'none';
     document.getElementById('div-responsavel-placeholder').style.display = 'block';
     document.getElementById('reg-responsavel').value = '';
@@ -1122,6 +1150,8 @@ function viewRecord(id) {
 
     // Paciente
     document.getElementById('vr-patient-name').textContent = pat ? pat.nome : '—';
+    const vrAlertEl = document.getElementById('vr-patient-alert');
+    if (vrAlertEl) vrAlertEl.innerHTML = (typeof patientAlertBadge === 'function') ? patientAlertBadge(pat, 'text-[9px]', true) : '';
     const age = pat && pat.dtNasc ? getAgeDisplay(pat.dtNasc) : '';
     document.getElementById('vr-patient-meta').textContent = [pat?.cpf, age].filter(Boolean).join(' · ');
 
@@ -1292,6 +1322,7 @@ function editRecord(id) {
     document.getElementById('reg-id').value = '';
     document.getElementById('hidden-patient-id').value = '';
     _toggleBtnProntuario(false);
+    updateRecordPatientAlert(null);
     document.getElementById('div-responsavel').style.display = 'none';
     document.getElementById('div-responsavel-placeholder').style.display = 'block';
     document.getElementById('div-motivo-cancelamento').style.display = 'none';
@@ -1439,6 +1470,7 @@ function duplicarAgendamento() {
             document.getElementById('reg-cpf').value     = p.cpf;
             document.getElementById('reg-dtnasc').value  = p.dtNasc;
             document.getElementById('reg-contato').value = formatPhone(p.contato);
+            updateRecordPatientAlert(p);
             if (p.responsavel) {
                 document.getElementById('div-responsavel').style.display = 'block';
                 document.getElementById('div-responsavel-placeholder').style.display = 'none';
