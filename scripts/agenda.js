@@ -351,6 +351,14 @@ function _wkLayoutLanes(groups) {
     flush();
 }
 
+// Dia visível da semana no celular (0 = domingo). null = usa o dia de hoje.
+let _wkMobileDay = null;
+
+function setWeeklyMobileDay(i) {
+    _wkMobileDay = i;
+    renderWeekly();
+}
+
 function renderWeekly() {
     const board = document.getElementById('weekly-board');
     if (!board) return;
@@ -511,24 +519,37 @@ function renderWeekly() {
     const showNow = nowMin >= WK_START_HOUR * 60 && nowMin <= WK_END_HOUR * 60;
     const nowTop = (nowMin - WK_START_HOUR * 60) * _wkPxPerMin();
 
+    // No celular a semana inteira não cabe: mostramos um dia por vez, escolhido
+    // na faixa de chips acima do quadro (_wkMobileDay).
+    const _wkMob = typeof isMobileView === 'function' && isMobileView();
+    if (_wkMob && (_wkMobileDay === null || _wkMobileDay < 0 || _wkMobileDay > 6)) _wkMobileDay = new Date().getDay();
+    const visDays = _wkMob ? [days[_wkMobileDay]] : days;
+    const gridCols = `56px repeat(${visDays.length},minmax(0,1fr))`;
+    const dayChips = _wkMob ? `<div class="m-wk-days">${days.map(d => `
+        <button type="button" class="m-wk-day m-compact ${d.i === _wkMobileDay ? 'active' : ''}" onclick="setWeeklyMobileDay(${d.i})">
+            <span>${DAY_NAMES[d.i]}</span>
+            <span class="m-wk-num">${d.day.getDate()}</span>
+        </button>`).join('')}</div>` : '';
+
     board.innerHTML = `
+    ${dayChips}
     <div class="wk-wrap flex flex-col w-full rounded-2xl border overflow-hidden" style="border-color:${C.lineStrong};background:${C.bg};">
-        <div class="wk-head grid shrink-0" style="grid-template-columns:56px repeat(7,minmax(0,1fr));background:${C.head};border-bottom:1px solid ${C.lineStrong};">
+        <div class="wk-head grid shrink-0" style="grid-template-columns:${gridCols};background:${C.head};border-bottom:1px solid ${C.lineStrong};">
             <div></div>
-            ${days.map(d => `<div class="px-1 py-1">${headHtml(d)}</div>`).join('')}
+            ${visDays.map(d => `<div class="px-1 py-1">${headHtml(d)}</div>`).join('')}
         </div>
-        <div class="wk-allday grid shrink-0" style="grid-template-columns:56px repeat(7,minmax(0,1fr));border-bottom:1px solid ${C.lineStrong};background:${_isDark ? '#0b1220' : '#fcfcfd'};">
+        <div class="wk-allday grid shrink-0" style="grid-template-columns:${gridCols};border-bottom:1px solid ${C.lineStrong};background:${_isDark ? '#0b1220' : '#fcfcfd'};">
             <div class="flex items-start justify-end pr-1.5 pt-1.5">
                 <span class="text-[8px] font-black uppercase tracking-wider" style="color:${C.muted}">Sem hora</span>
             </div>
-            ${days.map(d => `<div class="p-1 min-h-[34px]" style="border-left:1px solid ${C.line};"
+            ${visDays.map(d => `<div class="p-1 min-h-[34px]" style="border-left:1px solid ${C.line};"
                 ondragover="${d.closed ? '' : 'weeklyDragOver(event)'}" ondragleave="weeklyDragLeave(event)"
                 ondrop="${d.closed ? '' : `weeklyDrop(event,'${d.dateStr}','')`}">${noTimeHtml(d)}</div>`).join('')}
         </div>
         <div class="wk-scroll flex-1 overflow-y-auto">
-            <div class="grid relative" style="grid-template-columns:56px repeat(7,minmax(0,1fr));">
+            <div class="grid relative" style="grid-template-columns:${gridCols};">
                 <div class="relative" style="height:${gridH}px;background:${C.gutter};">${hoursCol}</div>
-                ${days.map(d => `<div class="relative" style="height:${gridH}px;border-left:1px solid ${C.line};${d.closed ? `background:repeating-linear-gradient(45deg,${C.closed},${C.closed} 6px,transparent 6px,transparent 12px);` : ''}">
+                ${visDays.map(d => `<div class="relative" style="height:${gridH}px;border-left:1px solid ${C.line};${d.closed ? `background:repeating-linear-gradient(45deg,${C.closed},${C.closed} 6px,transparent 6px,transparent 12px);` : ''}">
                     <div class="absolute inset-0">${gridLines}</div>
                     ${dropZones(d)}
                     ${d.groups.filter(g => g.min != null).map(g => groupCardHtml(d, g)).join('')}
@@ -542,7 +563,9 @@ function renderWeekly() {
 
     const _setWeeklyHeight = () => {
         const rect = board.getBoundingClientRect();
-        if (rect.top > 0) board.style.height = `${window.innerHeight - rect.top - 16}px`;
+        // No celular a barra inferior de navegação ocupa o rodapé da tela
+        const bottomGap = _wkMob ? 92 : 16;
+        if (rect.top > 0) board.style.height = `${window.innerHeight - rect.top - bottomGap}px`;
         const wrap = board.querySelector('.wk-wrap');
         if (wrap) wrap.style.height = '100%';
     };
@@ -942,7 +965,14 @@ function renderCalendar() {
 
     const body = document.getElementById('calendar-body');
     body.innerHTML = '';
-    for (let i = 0; i < first; i++) body.appendChild(Object.assign(document.createElement('div'), {className: 'min-h-[100px]'}));
+    // No celular o mês vira lista (um dia por linha): as células de
+    // preenchimento até o primeiro dia da semana não fazem sentido.
+    const mList = typeof isMobileView === 'function' && isMobileView();
+    body.classList.toggle('m-cal-list', !!mList);
+    if (!mList) {
+        for (let i = 0; i < first; i++) body.appendChild(Object.assign(document.createElement('div'), {className: 'min-h-[100px]'}));
+    }
+    const WDAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
     // Agrupa por data numa única passada, em vez de um appointments.filter() por
     // célula do mês (31 varreduras completas do array a cada render).
@@ -963,10 +993,15 @@ function renderCalendar() {
         const dayApps = appsByDate.get(dateStr) || [];
 
         const cell = document.createElement('div');
+        // Na lista do celular o dia da semana precisa vir junto do número
+        // (sem a grade, a coluna já não identifica o dia)
+        const dayLabel = mList
+            ? `${d}<span class="m-cal-wd">${WDAYS[dateObj.getDay()]}</span>`
+            : `${d}`;
 
         if (isSunday) {
             cell.className = `min-h-[100px] rounded-lg border p-1.5 bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed flex flex-col`;
-            cell.innerHTML = `<div class="text-right text-xs font-black text-slate-300 mb-1">${d}</div><div class="text-[9px] font-black text-slate-300 mt-auto w-full text-center">DOMINGO</div>`;
+            cell.innerHTML = `<div class="text-right text-xs font-black text-slate-300 mb-1">${dayLabel}</div><div class="text-[9px] font-black text-slate-300 mt-auto w-full text-center">DOMINGO</div>`;
         } else {
             cell.className = `min-h-[100px] rounded-lg border p-1.5 bg-white hover:border-clinic-400 hover:shadow-md transition cursor-pointer flex flex-col relative ${dateStr === todayStr ? 'border-clinic-500 ring-2 ring-clinic-300' : 'border-slate-200'}`;
             cell.onclick = () => openDayModal(dateStr, d, month, year);
@@ -976,7 +1011,7 @@ function renderCalendar() {
             cell.ondrop      = e => monthCellDrop(e, dateStr);
 
             if (isHoliday) {
-                cell.innerHTML = `<div class="text-right text-xs font-black mb-1 ${dateStr===todayStr?'text-clinic-600':'text-slate-400'}">${d}</div><div class="text-[9px] font-black text-red-500 bg-red-50 text-center rounded py-1 mt-auto border border-red-200 shadow-sm">FERIADO</div>`;
+                cell.innerHTML = `<div class="text-right text-xs font-black mb-1 ${dateStr===todayStr?'text-clinic-600':'text-slate-400'}">${dayLabel}</div><div class="text-[9px] font-black text-red-500 bg-red-50 text-center rounded py-1 mt-auto border border-red-200 shadow-sm">FERIADO</div>`;
             } else {
                 const emAndamento = dayApps.filter(a => a.status === 'Em negociação').length;
                 const agendadosTodos = dayApps.filter(a => a.status === 'Agendado');
@@ -986,15 +1021,16 @@ function renderCalendar() {
                 const cancelados = dayApps.filter(a => a.status === 'Perdido').length;
                 const semLote = agendadosTodos.filter(a => !a.loteId).length;
 
+                // .cal-sum: no celular estas faixas viram pontos coloridos (css/mobile.css)
                 let summary = '';
-                if(semLote)     summary += `<div class="text-[9px] font-black text-pink-700 bg-pink-50 border border-pink-200 rounded px-1 mb-0.5 truncate shadow-sm" title="Agendamentos sem lote reservado"><i class="fas fa-exclamation-triangle"></i> ${semLote} AGENDADO(S) SEM LOTE</div>`;
-                if(emAndamento) summary += `<div class="text-[9px] font-black text-cyan-700 bg-cyan-50 border border-cyan-100 rounded px-1 mb-0.5 truncate shadow-sm">${emAndamento} NEGOCIANDO</div>`;
-                if(atrasados)   summary += `<div class="text-[9px] font-black text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 mb-0.5 truncate shadow-sm"><i class="fas fa-exclamation-triangle"></i> ${atrasados} ATRASADO(S)</div>`;
-                if(agendados)   summary += `<div class="text-[9px] font-black text-blue-700 bg-blue-50 border border-blue-100 rounded px-1 mb-0.5 truncate shadow-sm">${agendados} AGENDADO(S)</div>`;
-                if(aplicados)   summary += `<div class="text-[9px] font-black text-green-700 bg-green-50 border border-green-100 rounded px-1 mb-0.5 truncate shadow-sm">${aplicados} APLICADO(S)</div>`;
-                if(cancelados)  summary += `<div class="text-[9px] font-black text-red-700 bg-red-50 border border-red-100 rounded px-1 mb-0.5 truncate shadow-sm">${cancelados} PERDIDO(S)</div>`;
+                if(semLote)     summary += `<div class="cal-sum text-[9px] font-black text-pink-700 bg-pink-50 border border-pink-200 rounded px-1 mb-0.5 truncate shadow-sm" title="Agendamentos sem lote reservado"><i class="fas fa-exclamation-triangle"></i> ${semLote} AGENDADO(S) SEM LOTE</div>`;
+                if(emAndamento) summary += `<div class="cal-sum text-[9px] font-black text-cyan-700 bg-cyan-50 border border-cyan-100 rounded px-1 mb-0.5 truncate shadow-sm">${emAndamento} NEGOCIANDO</div>`;
+                if(atrasados)   summary += `<div class="cal-sum text-[9px] font-black text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 mb-0.5 truncate shadow-sm"><i class="fas fa-exclamation-triangle"></i> ${atrasados} ATRASADO(S)</div>`;
+                if(agendados)   summary += `<div class="cal-sum text-[9px] font-black text-blue-700 bg-blue-50 border border-blue-100 rounded px-1 mb-0.5 truncate shadow-sm">${agendados} AGENDADO(S)</div>`;
+                if(aplicados)   summary += `<div class="cal-sum text-[9px] font-black text-green-700 bg-green-50 border border-green-100 rounded px-1 mb-0.5 truncate shadow-sm">${aplicados} APLICADO(S)</div>`;
+                if(cancelados)  summary += `<div class="cal-sum text-[9px] font-black text-red-700 bg-red-50 border border-red-100 rounded px-1 mb-0.5 truncate shadow-sm">${cancelados} PERDIDO(S)</div>`;
 
-                cell.innerHTML = `<div class="text-right text-xs font-black mb-1 ${dateStr===todayStr?'text-clinic-600':'text-slate-400'}">${d}</div><div class="flex flex-col gap-[1px]">${summary}</div>`;
+                cell.innerHTML = `<div class="text-right text-xs font-black mb-1 ${dateStr===todayStr?'text-clinic-600':'text-slate-400'}">${dayLabel}</div><div class="cal-sum-wrap flex flex-col gap-[1px]">${summary}</div>`;
             }
         }
         body.appendChild(cell);
@@ -1985,6 +2021,7 @@ function renderKanbanGrouped() {
                 draggable="true"
                 ondragstart="kanbanGroupDragStart(event,${patId},'${colKeyEsc}')"
                 ondragend="kanbanGroupDragEnd(event)"
+                data-pat="${patId}" data-status="${colKeyEsc}"
                 class="kanban-group-card rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing select-none"
                 style="border:2px solid ${hasSemLote ? _dl('#fbcfe8','#831843') : hasDelayed ? _dl('#fecaca','#7f1d1d') : hasToday ? _dl('#fde68a','#78350f') : groupCol.border};background:${_dl('#fff','#1e293b')};">
                 <div class="px-3 pt-2 pb-1.5 flex flex-col gap-1.5" style="background:${groupCol.light};border-bottom:1px solid ${groupCol.border};">
@@ -1997,6 +2034,7 @@ function renderKanbanGrouped() {
                             <p class="text-[9px]" style="color:${_dl('#94a3b8','#475569')}">${pat.cpf}${age ? ' · ' + age : ''}</p>
                         </div>
                         ${hasContactAlert ? `<button onclick="event.stopPropagation();viewPatientHistory(${patId});if(typeof switchProntuarioTab==='function')switchProntuarioTab('contato');" title="Contato agendado em alerta" class="h-6 w-6 rounded-md flex items-center justify-center transition text-xs shrink-0 animate-pulse" style="background:${_dl('#fee2e2','#450a0a')};color:${_dl('#dc2626','#f87171')}"><i class="fas fa-bell"></i></button>` : ''}
+                        <span class="kb-mob-move shrink-0"></span>
                         <i class="fas fa-grip-vertical text-xs shrink-0" style="color:${_dl('#cbd5e1','#334155')}"></i>
                     </div>
                     <div class="flex items-center gap-2">

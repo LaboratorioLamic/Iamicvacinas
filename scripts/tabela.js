@@ -170,8 +170,8 @@ function renderTable() {
         const waBg  = _tblDark ? 'background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.25)' : 'background:#dcfce7;color:#16a34a';
 
         return `<tr onclick="viewRecord(${a.id})" class="cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-clinic-50 hover:shadow-md active:translate-y-0 active:bg-clinic-100 group">
-            <td class="p-4 font-bold text-slate-700 whitespace-nowrap group-hover:text-clinic-700">${a.data.split('-').reverse().join('/')}${a.hora ? ' <span class="text-[10px] text-slate-400 font-bold">'+a.hora+'</span>' : ''} ${isDelayed?'<i class="fas fa-exclamation-triangle text-yellow-500 ml-1" title="Atrasado"></i>':''}</td>
-            <td class="p-4">
+            <td data-label="Data" class="p-4 font-bold text-slate-700 whitespace-nowrap group-hover:text-clinic-700">${a.data.split('-').reverse().join('/')}${a.hora ? ' <span class="text-[10px] text-slate-400 font-bold">'+a.hora+'</span>' : ''} ${isDelayed?'<i class="fas fa-exclamation-triangle text-yellow-500 ml-1" title="Atrasado"></i>':''}</td>
+            <td data-label="Paciente" class="p-4">
                 <div class="flex items-center gap-2">
                     <a href="https://wa.me/55${formatWa(pat.contato)}" target="_blank" onclick="event.stopPropagation()" class="h-7 w-7 shrink-0 rounded-lg flex items-center justify-center transition shadow-sm hover:bg-green-500 hover:text-white" style="${waBg}" title="WhatsApp"><i class="fab fa-whatsapp text-sm"></i></a>
                     <div>
@@ -180,12 +180,12 @@ function renderTable() {
                     </div>
                 </div>
             </td>
-            <td class="p-4">
+            <td data-label="Vacina" class="p-4">
                 <div class="font-bold whitespace-nowrap">${vac.nome}</div>
                 <div class="text-[10px] font-black text-clinic-600 bg-clinic-50 inline-block px-1 rounded">${a.doseAtual}</div>
             </td>
-            <td class="p-4 text-center"><span class="px-2 py-1 rounded text-[10px] font-black uppercase whitespace-nowrap" style="${stStyle}">${isDelayed ? 'Atrasado' : a.status}</span></td>
-            <td class="p-4 text-center" onclick="event.stopPropagation()">
+            <td data-label="Status" class="p-4 text-center"><span class="px-2 py-1 rounded text-[10px] font-black uppercase whitespace-nowrap" style="${stStyle}">${isDelayed ? 'Atrasado' : a.status}</span></td>
+            <td data-label="Ações" class="p-4 text-center" onclick="event.stopPropagation()">
                 <div class="flex justify-center gap-2 flex-wrap">
                     ${a.status === 'Em negociação' ? permBtn('criar_agendamento', `<button onclick="openAgendarModal(${a.id})" class="h-8 w-8 bg-blue-500 text-white hover:bg-blue-600 rounded flex items-center justify-center transition shadow-sm" title="Agendar"><i class="fas fa-calendar-check"></i></button>`) : ''}
                     ${a.status === 'Agendado' ? permBtn('aplicar', `<button onclick="openConcluirModal(${a.id})" class="h-8 w-8 bg-green-500 text-white hover:bg-green-600 rounded flex items-center justify-center transition shadow-sm" title="Aplicar"><i class="fas fa-syringe"></i></button>`) : ''}

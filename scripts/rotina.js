@@ -31,7 +31,7 @@ const ROTINA_STATUS_LABEL = {
     cancelada: 'Cancelada', outro_local: 'Outro local', outra_vacina: 'Outra vacina', nao_definido: 'Não definido'
 };
 
-function _rotinaTodayISO() { return new Date().toISOString().split('T')[0]; }
+function _rotinaTodayISO() { return toLocalISO(new Date()); }
 
 function _rotinaDoseOrdinal(doseStr) {
     if (!doseStr) return null;
@@ -46,7 +46,7 @@ function _rotinaDoseOrdinal(doseStr) {
 function _rotinaDateBucket(dateStr) {
     const today = _rotinaTodayISO();
     const in30 = new Date(); in30.setHours(0,0,0,0); in30.setDate(in30.getDate() + 30);
-    const in30Str = in30.toISOString().split('T')[0];
+    const in30Str = toLocalISO(in30);
     if (dateStr < today) return 'atrasada';
     if (dateStr <= in30Str) return 'a_vencer';
     return 'proxima';
@@ -344,7 +344,7 @@ function _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAp
         if (!intervalo || intervalo <= 0) intervalo = 30;
         const baseDate = new Date(lastAppliedApp.data + 'T00:00:00');
         const calcDate = new Date(baseDate); calcDate.setDate(calcDate.getDate() + intervalo);
-        const dateStr = calcDate.toISOString().split('T')[0];
+        const dateStr = toLocalISO(calcDate);
         return {
             label: `${nextOrdinal}ª Dose`,
             date: dateStr,

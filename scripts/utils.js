@@ -325,3 +325,16 @@ function cpniMapEntryNome(entry) {
 function cpniSetMapEntry(map, key, nome, vaccineId) {
     map[key] = { nome, vaccineId };
 }
+
+// ─── DATA LOCAL EM ISO (YYYY-MM-DD) ──────────────────────────────────────────
+// date.toISOString() converte para UTC antes de formatar. Num fuso negativo
+// (Brasil, UTC-3) uma data criada à meia-noite local vira o DIA ANTERIOR em UTC,
+// deslocando aprazamentos em 1 dia e classificando doses como atrasadas cedo
+// demais. Esta função formata os componentes locais, sem passar por UTC.
+function toLocalISO(date) {
+    if (!date) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}

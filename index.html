@@ -14,6 +14,7 @@
 
     <script src="scripts/config.js"></script>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile.css">
 </head>
 <body class="bg-[#eef2f7] font-sans text-slate-800 min-h-screen flex flex-col">
 
@@ -716,7 +717,7 @@
 
         <section id="tab-agenda" class="tab-content active container mx-auto">
             <!-- Sub-navegação interna -->
-            <div class="flex items-center gap-2 mb-4">
+            <div class="flex items-center gap-2 mb-4 m-chips">
                 <button onclick="switchAgendaView('kanban')" id="btn-agendaview-kanban"
                     class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-navy-800 bg-navy-900 text-white">
                     <i class="fas fa-columns text-sm"></i> CRM
@@ -858,7 +859,7 @@
                     <!-- Shared Filters Header -->
                     <div class="p-5 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center">
                         <h2 class="text-xl font-black text-navy-900 uppercase">Relação de Agendamentos</h2>
-                        <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
+                        <div class="flex flex-wrap gap-2 w-full md:w-auto items-center m-filterbar">
 
                             <!-- Busca -->
                             <div class="relative flex items-center">
@@ -1068,7 +1069,7 @@
                         </div>
                     </div>
                     <!-- Planilhas View -->
-                    <div id="view-planilhas" class="overflow-x-auto hidden">
+                    <div id="view-planilhas" class="overflow-x-auto tbl-cards hidden">
                         <table class="w-full text-left border-collapse">
                             <thead class="bg-navy-900 text-white text-[10px] uppercase font-black">
                                 <tr id="table-header-row">
@@ -1093,7 +1094,7 @@
             <div id="agendaview-oportunidades" class="hidden">
 
                 <!-- Sub-abas -->
-                <div class="flex items-center gap-2 mb-4">
+                <div class="flex items-center gap-2 mb-4 m-chips">
                     <button onclick="switchOppSubTab('aprazamento')" id="btn-opp-sub-aprazamento"
                         class="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition shadow border border-navy-800 bg-navy-900 text-white">
                         <i class="fas fa-syringe text-sm"></i> Aprazamento
@@ -1427,7 +1428,7 @@
             <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
                 <div class="p-6 bg-slate-50 border-b border-slate-200 flex flex-wrap gap-4 justify-between items-center">
                     <h2 class="text-xl font-black text-navy-900 uppercase">Cadastro de Pacientes</h2>
-                    <div class="flex gap-4 items-center">
+                    <div class="flex gap-4 items-center m-actions">
                         <button onclick="openAuditModal('paciente', null, 'Rastreabilidade de Pacientes')" class="h-9 w-9 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 transition shadow-sm flex items-center justify-center" title="Rastreabilidade de pacientes (criações e exclusões)">
                             <i class="fas fa-history text-sm"></i>
                         </button>
@@ -1617,7 +1618,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="overflow-x-auto p-4">
+                            <div class="overflow-x-auto tbl-cards p-4">
                                 <table class="w-full text-left border-collapse border border-slate-100 rounded-lg">
                                     <thead class="bg-slate-100 text-slate-600 text-[10px] uppercase font-black">
                                         <tr>
@@ -1697,7 +1698,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="overflow-x-auto p-4">
+                            <div class="overflow-x-auto tbl-cards p-4">
                                 <table class="w-full text-left border-collapse border border-slate-100 rounded-lg">
                                     <thead class="bg-slate-100 text-slate-600 text-[10px] uppercase font-black">
                                         <tr>
@@ -1772,7 +1773,7 @@
                                     <button onclick="openMovModal('saida')" class="px-4 py-2 bg-orange-600 text-white rounded-xl hover:bg-orange-700 font-black text-xs shadow-lg transition"><i class="fas fa-arrow-up mr-2"></i>Saída</button>
                                 </div>
                             </div>
-                            <div class="overflow-x-auto p-4">
+                            <div class="overflow-x-auto tbl-cards p-4">
                                 <table class="w-full text-left border-collapse border border-slate-100 rounded-lg">
                                     <thead class="bg-slate-100 text-slate-600 text-[10px] uppercase font-black">
                                         <tr>
@@ -4375,7 +4376,7 @@
                                 <i class="fas fa-circle text-red-400 text-[8px] mr-1"></i> Inativos
                             </button>
                         </div>
-                        <div class="overflow-x-auto rounded-xl border border-slate-100 shadow-sm">
+                        <div class="overflow-x-auto tbl-cards rounded-xl border border-slate-100 shadow-sm">
                             <table class="w-full text-left border-collapse">
                                 <thead class="bg-navy-900 text-white text-[10px] uppercase font-black">
                                     <tr>
@@ -5476,6 +5477,7 @@
     <script src="scripts/backup.js"></script>
     <script src="scripts/cpni.js"></script>
     <script src="scripts/cpni-correcao.js"></script>
+    <script src="scripts/mobile.js"></script>
     <script src="scripts/init.js"></script>
 </body>
 </html>

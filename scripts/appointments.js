@@ -751,7 +751,7 @@ function updateSuggestedDate() {
 
         const baseDate = new Date(prevApps[0].data + 'T00:00:00');
         baseDate.setMonth(baseDate.getMonth() + reforcoCfg.meses);
-        const isoDate = baseDate.toISOString().split('T')[0];
+        const isoDate = toLocalISO(baseDate);
 
         spanEl.innerText = isoDate.split('-').reverse().join('/');
         spanEl.setAttribute('data-iso', isoDate);
@@ -779,7 +779,7 @@ function updateSuggestedDate() {
 
         const baseDate = new Date(prevApps[0].data + 'T00:00:00');
         baseDate.setMonth(baseDate.getMonth() + esqRepete.repeteMeses);
-        const isoDate = baseDate.toISOString().split('T')[0];
+        const isoDate = toLocalISO(baseDate);
 
         spanEl.innerText = isoDate.split('-').reverse().join('/');
         spanEl.setAttribute('data-iso', isoDate);
@@ -832,7 +832,7 @@ function updateSuggestedDate() {
 
     const baseDate = new Date(baseApp.data + 'T00:00:00');
     baseDate.setDate(baseDate.getDate() + intervalo);
-    const isoDate  = baseDate.toISOString().split('T')[0];
+    const isoDate  = toLocalISO(baseDate);
 
     spanEl.innerText = isoDate.split('-').reverse().join('/');
     spanEl.setAttribute('data-iso', isoDate);

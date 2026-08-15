@@ -176,8 +176,10 @@ function calcAprazamento() {
                             if (!intervalo || intervalo <= 0) intervalo = 30;
                             const baseDate = new Date(lastBase.data + 'T00:00:00');
                             const calcDate = new Date(baseDate); calcDate.setDate(calcDate.getDate() + intervalo);
-                            // Se a data sugerida já passou, usa hoje como base para não mostrar data no passado distante
-                            suggestedDate = calcDate < today ? today : calcDate;
+                            // Data real de aprazamento, mesmo no passado: é ela que marca a dose
+                            // como 'vencida' e mantém coerência com a Rotina e o modal da Agenda.
+                            // NÃO fixar em hoje — isso mascarava atrasos como se fossem do dia.
+                            suggestedDate = calcDate;
                         }
                         opps.push({ type:'proxima_dose', vaccine:vac, dose:nextDoseStr, suggestedDate, revenue: parseBRL(String(vac.valor||'0'))||0, urgency:_urgency(suggestedDate,today,in30) });
                     }
@@ -639,8 +641,8 @@ function _renderMicroAprazamento(patient, opp) {
     const urgCls = _urgencyClasses(urg);
     const bCls   = urgCls.split(' ').find(c=>c.startsWith('border-')) || 'border-slate-200';
     const icon   = _typeIcon(opp.type);
-    const dateStr = opp.suggestedDate ? opp.suggestedDate.toISOString().split('T')[0].split('-').reverse().join('/') : '—';
-    const isoDate = opp.suggestedDate ? opp.suggestedDate.toISOString().split('T')[0] : '';
+    const dateStr = opp.suggestedDate ? toLocalISO(opp.suggestedDate).split('-').reverse().join('/') : '—';
+    const isoDate = opp.suggestedDate ? toLocalISO(opp.suggestedDate) : '';
 
     const daysLabel = opp.suggestedDate ? (() => {
         const t = new Date(); t.setHours(0,0,0,0);
@@ -916,7 +918,7 @@ function agendarOportunidade(patId, vacId, dose, dataIso) {
 
         setTimeout(() => {
             document.getElementById('reg-dose').value = dose;
-            document.getElementById('reg-data').value = new Date().toISOString().split('T')[0];
+            document.getElementById('reg-data').value = toLocalISO(new Date());
             updateSuggestedDate();
         }, 80);
     }, 120);
