@@ -161,22 +161,27 @@ body.is-mobile #notification-container {
 }
 body.is-mobile .notification { width: 100% !important; max-width: 100% !important; }
 
-/* Painéis dos sinos viram folhas inferiores */
+/* Painéis dos sinos descem a partir da topbar (o gatilho está lá em cima) */
 body.is-mobile #contacts-panel,
 body.is-mobile #semlote-panel,
 body.is-mobile #expiry-panel {
     position: fixed !important;
-    top: auto !important;
+    top: calc(var(--m-topbar-h) + 6px) !important;
+    bottom: auto !important;
     left: 0 !important;
     right: 0 !important;
-    bottom: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    max-height: 75dvh !important;
-    border-radius: 20px 20px 0 0 !important;
-    padding-bottom: var(--m-safe-b);
+    max-height: calc(100dvh - var(--m-topbar-h) - 6px - var(--m-nav-h) - var(--m-safe-b)) !important;
+    border-radius: 0 0 20px 20px !important;
+    padding-bottom: 0;
     z-index: 520;
+    animation: mSheetDown 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
+@keyframes mSheetDown { from { transform: translateY(-6%); opacity: 0.6; } to { transform: translateY(0); opacity: 1; } }
+body.lite-mode.is-mobile #contacts-panel,
+body.lite-mode.is-mobile #semlote-panel,
+body.lite-mode.is-mobile #expiry-panel { animation: none; }
 
 /* ── 6. Modais → bottom sheets ──────────────────────────────────────────── */
 body.is-mobile .modal.active {
