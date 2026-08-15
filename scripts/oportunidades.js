@@ -3,7 +3,7 @@
 let _oppSubTab = 'aprazamento'; // 'aprazamento' | 'oferta'
 
 let _oppFilter = {
-    aprazamento: { search: '', vacina: '', vacinaIds: new Set(), urgencia: '', proxDias: 30, ticketMin: '', ticketMax: '' },
+    aprazamento: { search: '', vacina: '', vacinaIds: new Set(), urgencia: '', proxDias: 30, vencDias: 30, ticketMin: '', ticketMax: '' },
     oferta:      { search: '', vacina: '', vacinaIds: new Set(), ticketMin: '', ticketMax: '',
                    idadeMinAnos: '', idadeMinMeses: '', idadeMaxAnos: '', idadeMaxMeses: '',
                    genero: '', fidMin: '', fidMax: '' }
@@ -458,7 +458,20 @@ function _renderAprazamento() {
     const f = _oppFilter.aprazamento;
 
     let groups = calcAprazamento();
-    if (f.urgencia) groups = groups.map(pg => ({ ...pg, opps: pg.opps.filter(o=>o.urgency===f.urgencia) })).filter(pg=>pg.opps.length);
+    if (f.urgencia) {
+        // "Vencidas" recorta a janela retroativa: só doses vencidas há até vencDias.
+        let keep = o => o.urgency === f.urgencia;
+        if (f.urgencia === 'vencida') {
+            const limite = new Date(); limite.setHours(0,0,0,0);
+            limite.setDate(limite.getDate() - (Number(f.vencDias) || 30));
+            keep = o => {
+                if (o.urgency !== 'vencida' || !o.suggestedDate) return false;
+                const d = new Date(o.suggestedDate); d.setHours(0,0,0,0);
+                return d >= limite;
+            };
+        }
+        groups = groups.map(pg => ({ ...pg, opps: pg.opps.filter(keep) })).filter(pg=>pg.opps.length);
+    }
     groups = _applyCommonFilters(groups, 'aprazamento');
     _updateAprPrazoBadge();
     groups.forEach(pg => pg.opps.sort((a,b)=>(urgOrder[a.urgency]??9)-(urgOrder[b.urgency]??9)));
@@ -1133,6 +1146,8 @@ function openAprPrazoPopover(btn) {
 
     const diasEl = document.getElementById('apr-prazo-dias');
     if (diasEl) diasEl.value = _oppFilter.aprazamento.proxDias || 30;
+    const vencEl = document.getElementById('apr-prazo-venc-dias');
+    if (vencEl) vencEl.value = _oppFilter.aprazamento.vencDias || 30;
     _renderAprPrazoSelection();
 
     const rect = btn.getBoundingClientRect();
@@ -1186,9 +1201,19 @@ function onAprPrazoDiasChange() {
     if (_oppFilter.aprazamento.urgencia === 'proxima') renderOportunidadesReset();
 }
 
+function onAprPrazoVencDiasChange() {
+    const val = parseInt(document.getElementById('apr-prazo-venc-dias')?.value) || 30;
+    _oppFilter.aprazamento.vencDias = Math.max(1, val);
+    _updateAprPrazoBadge();
+    if (_oppFilter.aprazamento.urgencia === 'vencida') renderOportunidadesReset();
+}
+
 function clearAprPrazo() {
     _oppFilter.aprazamento.urgencia = '';
     _oppFilter.aprazamento.proxDias = 30;
+    _oppFilter.aprazamento.vencDias = 30;
+    const vencEl = document.getElementById('apr-prazo-venc-dias');
+    if (vencEl) vencEl.value = 30;
     const diasEl = document.getElementById('apr-prazo-dias');
     if (diasEl) diasEl.value = 30;
     _renderAprPrazoSelection();
@@ -1218,7 +1243,7 @@ function _updateAprPrazoBadge() {
     }
 
     if (lbl) {
-        const labels = { vencida:'Vencidas', proxima:`Próximas (${f.proxDias}d)`, futura:'Futuras', sem_data:'Sem data' };
+        const labels = { vencida:`Vencidas (${f.vencDias}d)`, proxima:`Próximas (${f.proxDias}d)`, futura:'Futuras', sem_data:'Sem data' };
         lbl.textContent = hasFilter ? (labels[f.urgencia] || 'Prazo') : 'Prazo';
     }
 }
