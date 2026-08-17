@@ -2156,8 +2156,26 @@
                     </div>
                 </div>
 
-                <!-- Endereço do agendamento -->
+                <!-- Local da aplicação: define se o endereço é exigido -->
                 <div class="col-span-1 md:col-span-4 border-t border-slate-100 mt-1 pt-3">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="col-span-1 relative">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Local da Aplicação <span class="text-amber-500" title="Obrigatorio para o status Agendado">*</span></label>
+                            <input type="hidden" id="reg-local-aplicacao" value="">
+                            <button type="button" id="reg-local-btn" onclick="toggleLocalAplicacaoPop()"
+                                onblur="setTimeout(fecharLocalAplicacaoPop, 150)"
+                                class="w-full flex items-center gap-2.5 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg py-2 px-3 text-sm text-left transition focus:ring-2 focus:ring-clinic-500 outline-none">
+                                <i id="reg-local-btn-icone" class="fas fa-location-crosshairs text-slate-300 text-sm w-4 text-center shrink-0"></i>
+                                <span id="reg-local-btn-texto" class="flex-1 font-bold truncate text-slate-400">Selecione...</span>
+                                <i class="fas fa-chevron-down text-slate-300 text-[10px] shrink-0"></i>
+                            </button>
+                            <div id="reg-local-pop" class="hidden fixed z-[500] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Endereço do agendamento -->
+                <div class="col-span-1 md:col-span-4" id="reg-endereco-campos">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-location-dot text-slate-300"></i>Endereço</span>
                         <button type="button" onclick="toggleMapaEndereco()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-clinic-600 hover:text-white text-slate-600 text-[10px] font-black uppercase tracking-wide transition"><i class="fas fa-map-location-dot"></i> Mapa</button>
@@ -2474,6 +2492,11 @@
                         <i class="fas fa-location-dot vr-label-icon"></i>Endereço
                     </span>
 
+                    <div id="vr-end-local-row" class="flex flex-col gap-0.5">
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label">Local da Aplicação</span>
+                        <span id="vr-end-local" class="text-sm font-black vr-value uppercase"></span>
+                    </div>
+
                     <div id="vr-end-linha-row" class="flex flex-col gap-0.5">
                         <span class="text-[9px] font-black uppercase tracking-widest vr-label">Endereço</span>
                         <span id="vr-end-linha" class="text-sm font-black vr-value uppercase"></span>
@@ -2687,8 +2710,23 @@
             <div class="p-5 space-y-4 overflow-y-auto flex-1">
                 <div class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
                     <i class="fas fa-info-circle text-amber-500 text-xs shrink-0"></i>
-                    <p class="text-[11px] text-amber-700 font-bold">Vale para todas as vacinas do grupo. Campos com <span class="text-amber-600">*</span> são obrigatórios para o status Agendado.</p>
+                    <p class="text-[11px] text-amber-700 font-bold">Vale para todas as vacinas do grupo. Em atendimento <b>Domiciliar</b>, os campos com <span class="text-amber-600">*</span> são obrigatórios para o status Agendado.</p>
                 </div>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="col-span-1 relative">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Local da Aplicação <span class="text-amber-500" title="Obrigatorio para o status Agendado">*</span></label>
+                        <input type="hidden" id="grpend-local-aplicacao" value="">
+                        <button type="button" id="grpend-local-btn" onclick="toggleLocalAplicacaoPop()"
+                            onblur="setTimeout(fecharLocalAplicacaoPop, 150)"
+                            class="w-full flex items-center gap-2.5 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg py-2 px-3 text-sm text-left transition focus:ring-2 focus:ring-clinic-500 outline-none">
+                            <i id="grpend-local-btn-icone" class="fas fa-location-crosshairs text-slate-300 text-sm w-4 text-center shrink-0"></i>
+                            <span id="grpend-local-btn-texto" class="flex-1 font-bold truncate text-slate-400">Selecione...</span>
+                            <i class="fas fa-chevron-down text-slate-300 text-[10px] shrink-0"></i>
+                        </button>
+                        <div id="grpend-local-pop" class="hidden fixed z-[500] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden"></div>
+                    </div>
+                </div>
+                <div id="grpend-endereco-campos" class="space-y-4">
                 <div class="flex items-center justify-end">
                     <button type="button" onclick="toggleMapaEndereco()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-clinic-600 hover:text-white text-slate-600 text-[10px] font-black uppercase tracking-wide transition"><i class="fas fa-map-location-dot"></i> Mapa</button>
                 </div>
@@ -2751,6 +2789,7 @@
                     <iframe id="grpend-mapa-frame" src="" title="Mapa do endereço" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
                         class="w-full" style="height:260px;border:0;"></iframe>
                 </div>
+                </div><!-- /grpend-endereco-campos -->
             </div>
             <div class="p-5 pt-0 flex gap-3 shrink-0">
                 <button onclick="fecharEnderecoGrupo()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Cancelar</button>

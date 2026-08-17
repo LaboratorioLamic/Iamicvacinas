@@ -2290,6 +2290,11 @@ function openAgendarGrupoModal(patId, fromStatus, groupApps) {
 function _enderecoGrupoCompleto() {
     const end = _agendarGrupoPending && _agendarGrupoPending.endereco;
     if (!end) return false;
+    // Sem local escolhido ainda falta decidir — não conta como completo.
+    if (!end.localAplicacao) return false;
+    // Laboratório não exige endereço: basta o local estar definido.
+    if (typeof localAplicacaoExigeEndereco === 'function' &&
+        !localAplicacaoExigeEndereco(end.localAplicacao)) return true;
     if (typeof ENDERECO_OBRIGATORIOS === 'undefined') return true;
     return ENDERECO_OBRIGATORIOS.every(f => String(end[f.campo] || '').trim());
 }
@@ -2333,7 +2338,12 @@ function abrirEditorEndereco({ patId, endereco, titulo, aoSalvar, mensagem }) {
     preencherEnderecoForm(endereco);
     aplicarPadraoEndereco();
     document.getElementById('modal-endereco-grupo').classList.add('active');
-    setTimeout(() => document.getElementById('grpend-logradouro')?.focus(), 60);
+    // Sem local escolhido, o cursor vai para a escolha — o logradouro está oculto.
+    setTimeout(() => {
+        const alvo = (typeof getLocalAplicacao === 'function' && !getLocalAplicacao())
+            ? 'grpend-local-btn' : 'grpend-logradouro';
+        document.getElementById(alvo)?.focus();
+    }, 60);
 }
 
 // Devolve o controle dos IDs ao formulário de registro.

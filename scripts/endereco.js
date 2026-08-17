@@ -21,6 +21,41 @@ const ESTADOS_BR = [
     { uf: 'SP', nome: 'São Paulo' }, { uf: 'SE', nome: 'Sergipe' }, { uf: 'TO', nome: 'Tocantins' }
 ];
 
+// ─── LOCAL DA APLICAÇÃO ──────────────────────────────────────────────────────
+// Domiciliar exige endereço (é uma visita); Laboratório dispensa — o paciente
+// vem até a clínica, então os campos ficam ocultos e sem obrigatoriedade.
+// Começa sempre vazio: é uma escolha consciente por agendamento, não um padrão
+// herdado que passe batido. As classes vão escritas por extenso porque o
+// Tailwind via CDN não gera nomes montados em runtime.
+const LOCAL_APLICACAO_OPCOES = [
+    {
+        valor: 'Laboratório', icone: 'fa-flask', desc: 'Paciente vem à clínica',
+        btn: 'border-violet-200 bg-violet-50 hover:bg-violet-100',
+        btnIcone: 'text-violet-500', btnTexto: 'text-violet-800',
+        popSel: 'bg-violet-50', popIcone: 'bg-violet-100 text-violet-600', popCheck: 'text-violet-500'
+    },
+    {
+        valor: 'Domiciliar', icone: 'fa-house-chimney-medical', desc: 'Visita no endereço',
+        btn: 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100',
+        btnIcone: 'text-emerald-500', btnTexto: 'text-emerald-800',
+        popSel: 'bg-emerald-50', popIcone: 'bg-emerald-100 text-emerald-600', popCheck: 'text-emerald-500'
+    }
+];
+
+function _localAplicacaoOpcao(valor) {
+    return LOCAL_APLICACAO_OPCOES.find(o => o.valor === valor) || null;
+}
+
+function localAplicacaoValida(valor) {
+    return !!_localAplicacaoOpcao(valor);
+}
+
+// Só Laboratório dispensa endereço. Vazio ainda não decidiu — trata como
+// "sem exigência" para não pedir endereço antes da escolha.
+function localAplicacaoExigeEndereco(valor) {
+    return valor === 'Domiciliar';
+}
+
 // Prefixo dos IDs dos campos-alvo. O formulário de registro usa "reg"; outros
 // formulários (ex.: endereço do modal Agendar Grupo) trocam o prefixo enquanto
 // estão abertos, para reaproveitar CEP, sugestões, padrão e validação sem
@@ -30,6 +65,131 @@ let _endPrefixo = 'reg';
 function setEnderecoPrefixo(p) { _endPrefixo = p || 'reg'; }
 
 function _endEl(campo) { return document.getElementById(_endPrefixo + '-' + campo); }
+
+// O valor mora num input escondido; o botão é só a face visível do popover.
+function _localAplicacaoEl() { return document.getElementById(_endPrefixo + '-local-aplicacao'); }
+
+function getLocalAplicacao() {
+    const v = _localAplicacaoEl()?.value || '';
+    return localAplicacaoValida(v) ? v : '';
+}
+
+function setLocalAplicacao(valor) {
+    const el = _localAplicacaoEl();
+    if (!el) return;
+    // Valor desconhecido (ou ausente) volta ao estado não escolhido.
+    el.value = localAplicacaoValida(valor) ? valor : '';
+    _renderLocalAplicacaoBotao();
+    aplicarLocalAplicacao();
+}
+
+// Pinta o botão conforme a escolha. Sem escolha ele fica neutro e com o texto
+// de placeholder, para não parecer preenchido.
+function _renderLocalAplicacaoBotao() {
+    const btn = document.getElementById(_endPrefixo + '-local-btn');
+    if (!btn) return;
+    const opt = _localAplicacaoOpcao(getLocalAplicacao());
+    const icone = document.getElementById(_endPrefixo + '-local-btn-icone');
+    const texto = document.getElementById(_endPrefixo + '-local-btn-texto');
+
+    btn.className = 'w-full flex items-center gap-2.5 border rounded-lg py-2 px-3 text-sm text-left transition focus:ring-2 focus:ring-clinic-500 outline-none ' +
+        (opt ? opt.btn : 'border-slate-200 bg-white hover:bg-slate-50');
+    if (icone) {
+        icone.className = opt
+            ? `fas ${opt.icone} ${opt.btnIcone} text-sm w-4 text-center shrink-0`
+            : 'fas fa-location-crosshairs text-slate-300 text-sm w-4 text-center shrink-0';
+    }
+    if (texto) {
+        texto.textContent = opt ? opt.valor : 'Selecione...';
+        texto.className = opt
+            ? `flex-1 font-black truncate ${opt.btnTexto}`
+            : 'flex-1 font-bold truncate text-slate-400';
+    }
+}
+
+// Monta as opções do popover uma única vez por abertura.
+function _renderLocalAplicacaoOpcoes() {
+    const lista = document.getElementById(_endPrefixo + '-local-pop');
+    if (!lista) return;
+    const atual = getLocalAplicacao();
+    lista.innerHTML = LOCAL_APLICACAO_OPCOES.map(o => {
+        const sel = o.valor === atual;
+        return `<button type="button" onclick="selecionarLocalAplicacao('${o.valor}')"
+            class="w-full flex items-center gap-3 px-3 py-2.5 text-left transition border-b border-slate-100 last:border-0 ${sel ? o.popSel : 'hover:bg-slate-50'}">
+            <span class="h-8 w-8 rounded-lg ${o.popIcone} flex items-center justify-center shrink-0">
+                <i class="fas ${o.icone} text-xs"></i>
+            </span>
+            <span class="flex-1 min-w-0">
+                <span class="block text-[12px] font-black text-navy-900 truncate">${o.valor}</span>
+                <span class="block text-[10px] font-bold text-slate-400 truncate">${o.desc}</span>
+            </span>
+            ${sel ? `<i class="fas fa-check ${o.popCheck} text-xs shrink-0"></i>` : ''}
+        </button>`;
+    }).join('');
+}
+
+// O popover é `fixed` e posicionado por medida: dentro do modal ele nasceria
+// recortado pelo `overflow-hidden` do card e pelo scroll do corpo.
+function _posicionarLocalAplicacaoPop() {
+    const pop = document.getElementById(_endPrefixo + '-local-pop');
+    const btn = document.getElementById(_endPrefixo + '-local-btn');
+    if (!pop || !btn) return;
+    const r = btn.getBoundingClientRect();
+    const alturaPop = pop.offsetHeight || 0;
+    const margem = 8;
+    // Abre para cima quando não há espaço abaixo — o modal costuma ficar colado
+    // no rodapé da tela.
+    const abaixo = r.bottom + 4;
+    const cabeAbaixo = abaixo + alturaPop + margem <= window.innerHeight;
+    pop.style.left  = `${r.left}px`;
+    pop.style.width = `${r.width}px`;
+    pop.style.top   = cabeAbaixo ? `${abaixo}px` : `${Math.max(margem, r.top - 4 - alturaPop)}px`;
+}
+
+function toggleLocalAplicacaoPop() {
+    const pop = document.getElementById(_endPrefixo + '-local-pop');
+    if (!pop) return;
+    if (pop.classList.contains('hidden')) {
+        _renderLocalAplicacaoOpcoes();
+        pop.classList.remove('hidden');
+        // Só dá para medir a altura depois de visível.
+        _posicionarLocalAplicacaoPop();
+    } else pop.classList.add('hidden');
+}
+
+function fecharLocalAplicacaoPop() {
+    document.getElementById(_endPrefixo + '-local-pop')?.classList.add('hidden');
+}
+
+function selecionarLocalAplicacao(valor) {
+    setLocalAplicacao(valor);
+    fecharLocalAplicacaoPop();
+}
+
+// Sendo `fixed`, o popover não acompanha rolagem nem redimensionamento —
+// fecha junto para nunca ficar deslocado do botão. Captura na fase de captura
+// para pegar o scroll do corpo do modal, que não borbulha até window.
+['scroll', 'resize'].forEach(evt =>
+    window.addEventListener(evt, () => {
+        document.querySelectorAll('[id$="-local-pop"]').forEach(p => p.classList.add('hidden'));
+    }, true)
+);
+
+// Mostra/esconde os campos de endereço conforme o local. Enquanto nada foi
+// escolhido o bloco fica oculto: não faz sentido pedir endereço antes.
+function aplicarLocalAplicacao() {
+    const exige = localAplicacaoExigeEndereco(getLocalAplicacao());
+    const box = document.getElementById(_endPrefixo + '-endereco-campos');
+    if (box) box.classList.toggle('hidden', !exige);
+    // Mapa aberto perde o sentido sem endereço visível.
+    if (!exige) {
+        const mapaBox = document.getElementById(_endPrefixo + '-mapa-box');
+        const mapaFrame = document.getElementById(_endPrefixo + '-mapa-frame');
+        if (mapaBox) mapaBox.classList.add('hidden');
+        if (mapaFrame) mapaFrame.src = '';
+    }
+    return exige;
+}
 
 // Paciente dono das sugestões. Formulários sem o campo escondido do registro
 // (ex.: Agendar Grupo) declaram o paciente aqui.
@@ -284,14 +444,17 @@ function onEnderecoInputUpper(input) {
 // ─── COLETA / RESET ──────────────────────────────────────────────────────────
 
 function coletarEnderecoForm() {
-    const end = {};
-    let algum = false;
+    const local = getLocalAplicacao();
+    // Nada escolhido e nada digitado: não há endereço a gravar.
+    if (!local) return null;
+    // Laboratório não é visita: o endereço digitado antes não é gravado, só o local.
+    if (!localAplicacaoExigeEndereco(local)) return { localAplicacao: local };
+    const end = { localAplicacao: local };
     ENDERECO_CAMPOS.forEach(c => {
         const v = (_endEl(c)?.value || '').trim();
         end[c] = c === 'cep' ? v : v.toUpperCase();
-        if (end[c]) algum = true;
     });
-    return algum ? end : null;
+    return end;
 }
 
 function preencherEnderecoForm(end) {
@@ -302,15 +465,27 @@ function preencherEnderecoForm(end) {
         // Dado real do endereço não é padrão da clínica; vazio volta a ser elegível.
         delete el.dataset.padrao;
     });
+    // Registro antigo (anterior a este campo) com endereço de verdade era sempre
+    // uma visita domiciliar. Cidade/UF sozinhas não contam: são só o padrão da
+    // clínica, então o formulário ainda abre sem escolha feita.
+    const temEnderecoReal = !!(end && (end.logradouro || end.numero || end.bairro || end.cep));
+    setLocalAplicacao((end && end.localAplicacao) || (temEnderecoReal ? 'Domiciliar' : ''));
 }
 
 // Endereço para agendamentos criados fora do formulário (grupo de oportunidade,
 // descarte). Copia o das vacinas irmãs do grupo; sem elas, o mais usado pelo
 // paciente. Nunca fica sem cidade/UF.
 function enderecoParaNovoAgendamento(patId, irmaos) {
-    const doGrupo = (irmaos || []).map(a => a && a.endereco).find(e => e && (e.logradouro || e.cidade));
+    // Só conta como endereço da irmã o que tem rua/bairro/CEP de verdade —
+    // cidade/UF sozinhas são o padrão da clínica, não uma escolha.
+    const doGrupo = (irmaos || []).map(a => a && a.endereco)
+        .find(e => e && (e.logradouro || e.numero || e.bairro || e.cep || e.localAplicacao));
+    // Local segue as vacinas irmãs — é a mesma visita. Sem irmãs não há escolha
+    // a herdar: fica vazio até alguém decidir no formulário.
+    const local = (doGrupo && doGrupo.localAplicacao) || '';
+    if (local && !localAplicacaoExigeEndereco(local)) return { localAplicacao: local };
     const base = doGrupo || enderecoMaisFrequente(patId);
-    const end = {};
+    const end = { localAplicacao: local };
     ENDERECO_CAMPOS.forEach(c => { end[c] = (base && base[c]) || ''; });
     // Número herdado das vacinas irmãs é a mesma visita, então vale. Vindo do
     // histórico é chute — some, para ser digitado à mão.
@@ -353,6 +528,15 @@ const ENDERECO_OBRIGATORIOS = [
 
 function validarEnderecoObrigatorio(status) {
     if (status !== 'Agendado') return true;
+    // Sem local escolhido não dá para saber se o endereço é exigido: decide primeiro.
+    const local = getLocalAplicacao();
+    if (!local) {
+        showNotification('Escolha o <b>Local da Aplicação</b> para o status Agendado.', 'error');
+        document.getElementById(_endPrefixo + '-local-btn')?.focus();
+        return false;
+    }
+    // Laboratório dispensa endereço: não há visita para localizar.
+    if (!localAplicacaoExigeEndereco(local)) return true;
     const faltando = ENDERECO_OBRIGATORIOS.filter(f => !(_endEl(f.campo)?.value || '').trim());
     if (!faltando.length) return true;
     showNotification(
@@ -415,19 +599,27 @@ function toggleMapaEnderecoView() {
 // Resumo textual completo (com a referência) — usado no log de auditoria.
 function enderecoResumo(end) {
     if (!end) return '';
+    const local = end.localAplicacao || '';
+    if (local && !localAplicacaoExigeEndereco(local)) return local;
     const base = _enderecoParaMapaObj(end);
-    return end.referencia ? [base, `Ref.: ${end.referencia}`].filter(Boolean).join(' — ') : base;
+    const texto = end.referencia ? [base, `Ref.: ${end.referencia}`].filter(Boolean).join(' — ') : base;
+    return local ? [local, texto].filter(Boolean).join(' · ') : texto;
 }
 
 // Partes já formatadas para o card da visualização. Cada linha só aparece se
 // tiver conteúdo — endereço parcial não deixa rótulo órfão na tela.
 function enderecoPartes(end) {
     if (!end) return null;
+    const local = end.localAplicacao || '';
+    // Laboratório não tem endereço a exibir — o próprio local é a informação.
+    if (local && !localAplicacaoExigeEndereco(local)) {
+        return { linha: '', cidade: '', cep: '', referencia: '', local };
+    }
     const rua    = [end.logradouro, end.numero].filter(Boolean).join(', ');
     const linha  = [rua, end.bairro].filter(Boolean).join(' · ');
     const cidade = [end.cidade, end.estado].filter(Boolean).join(' / ');
     const cep    = end.cep || '';
     const ref    = end.referencia || '';
-    if (!linha && !cidade && !cep && !ref) return null;
-    return { linha, cidade, cep, referencia: ref };
+    if (!linha && !cidade && !cep && !ref) return local ? { linha: '', cidade: '', cep: '', referencia: '', local } : null;
+    return { linha, cidade, cep, referencia: ref, local };
 }

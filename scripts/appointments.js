@@ -1241,14 +1241,18 @@ function viewRecord(id) {
         }
     }
 
-    // Endereço — mapa sempre recolhido ao (re)abrir o modal
+    // Endereço — mapa já aberto ao (re)abrir o modal, quando há endereço
     const endRow = document.getElementById('vr-endereco-row');
     if (endRow) {
-        document.getElementById('vr-mapa-box')?.classList.add('hidden');
+        const _vrBox = document.getElementById('vr-mapa-box');
         const _vrFrame = document.getElementById('vr-mapa-frame');
-        if (_vrFrame) _vrFrame.src = '';
+        const _vrMapaUrl = (typeof _enderecoParaMapaObj === 'function' && typeof _mapaUrl === 'function')
+            ? (_enderecoParaMapaObj(a.endereco) ? _mapaUrl(_enderecoParaMapaObj(a.endereco)) : '')
+            : '';
+        if (_vrFrame) _vrFrame.src = _vrMapaUrl;
+        _vrBox?.classList.toggle('hidden', !_vrMapaUrl);
         const _vrChev = document.getElementById('vr-btn-mapa-chevron');
-        if (_vrChev) _vrChev.style.transform = '';
+        if (_vrChev) _vrChev.style.transform = _vrMapaUrl ? 'rotate(180deg)' : '';
 
         const partes = (typeof enderecoPartes === 'function') ? enderecoPartes(a.endereco) : null;
         if (partes) {
@@ -1257,10 +1261,13 @@ function viewRecord(id) {
                 document.getElementById(valId).textContent = txt || '';
                 document.getElementById(rowId).classList.toggle('hidden', !txt);
             };
+            setPart('vr-end-local-row',  'vr-end-local',  partes.local);
             setPart('vr-end-linha-row',  'vr-end-linha',  partes.linha);
             setPart('vr-end-cidade-row', 'vr-end-cidade', partes.cidade);
             setPart('vr-end-cep-row',    'vr-end-cep',    partes.cep);
             setPart('vr-end-ref-row',    'vr-end-ref',    partes.referencia);
+            // Sem endereço (Laboratório) não há o que mostrar no mapa.
+            document.getElementById('vr-btn-mapa')?.classList.toggle('hidden', !_vrMapaUrl);
             endRow.classList.remove('hidden');
         } else {
             endRow.classList.add('hidden');
