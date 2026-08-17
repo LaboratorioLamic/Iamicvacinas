@@ -282,7 +282,10 @@ function formatBRL(num) {
 }
 
 // ─── REFORÇOS (múltiplos, até 3) ──────────────────────────────────────────────
-// Vacina armazena v.reforcos = [{meses:12}, {meses:24}, ...] (até 3 itens).
+// Vacina armazena v.reforcos = [{meses:12, doseAtual:false}, ...] (até 3 itens).
+// meses 0 = reforço sem aprazamento em meses (nunca null: o Firebase apagaria a
+// chave e, se fosse a única do objeto, o próprio item do array).
+// doseAtual = o reforço é a dose atual do esquema "somente reforço" (0 doses).
 // v.reforco/v.reforcoMeses são mantidos como legado (derivados do 1º reforço)
 // para compatibilidade com dados antigos e código ainda não migrado.
 const REFORCO_MAX = 3;
@@ -303,7 +306,30 @@ function reforcoIndexFromLabel(doseStr) {
 // com fallback para o formato legado v.reforco/v.reforcoMeses).
 function getVaccineReforcos(v) {
     if (!v) return [];
-    if (Array.isArray(v.reforcos) && v.reforcos.length) return v.reforcos.slice(0, REFORCO_MAX);
+    const raw = v.reforcos;
+    // O Firebase Realtime Database descarta chaves com valor null: um reforço
+    // salvo como {meses: null} (o 1º reforço de um esquema "somente reforço",
+    // que não tem aprazamento em meses) virava um nó vazio e desaparecia do
+    // array, deslocando os rótulos ("Reforço" sumia e sobrava "2º Reforço").
+    // Por isso normalizamos aqui: objetos/arrays esparsos são reconstituídos e
+    // buracos voltam como reforço sem meses.
+    if (raw && typeof raw === 'object') {
+        const idxs = Object.keys(raw)
+            .map(k => parseInt(k, 10))
+            .filter(k => !isNaN(k));
+        if (idxs.length) {
+            const out = [];
+            for (let i = 0; i <= Math.max(...idxs) && out.length < REFORCO_MAX; i++) {
+                const r = raw[i];
+                // meses 0/ausente = reforço sem aprazamento em meses (null internamente).
+                out.push({
+                    meses: (r && r.meses) ? r.meses : null,
+                    doseAtual: !!(r && r.doseAtual)
+                });
+            }
+            return out;
+        }
+    }
     if (v.reforco) return [{ meses: v.reforcoMeses || null }];
     return [];
 }

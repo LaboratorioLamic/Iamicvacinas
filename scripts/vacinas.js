@@ -204,12 +204,15 @@ function updateEsquemaDoses(idx, val) {
         _esquemas[idx].repete = false;
         _esquemas[idx].repeteMeses = null;
         // Somente reforço exige ao menos 1 reforço; o 1º não tem intervalo em meses.
-        if (!_reforcos.length) _reforcos.push({ meses: null });
+        if (!_reforcos.length) _reforcos.push({ meses: null, doseAtual: true });
         _reforcos[0].meses = null;
+        _reforcos[0].doseAtual = true;
         renderEsquemas();
         renderReforcos();
         return;
     }
+    // Saiu de "somente reforço": o 1º reforço volta a aceitar aprazamento em meses.
+    if (_reforcos.length) _reforcos[0].doseAtual = false;
     if (!_esquemas[idx].intervalos) _esquemas[idx].intervalos = [];
     // Pré-preenche intervalos faltantes com o default exibido na UI (30 dias),
     // garantindo que o modelo salvo == o que o admin vê.
@@ -219,6 +222,7 @@ function updateEsquemaDoses(idx, val) {
     _esquemas[idx].intervalos.length = Math.max(0, n - 1);
     if (n !== 1) { _esquemas[idx].repete = false; _esquemas[idx].repeteMeses = null; }
     renderEsquemas();
+    renderReforcos();
 }
 
 function updateEsquemaIntervalo(idx, posIdx, val) {
@@ -272,7 +276,7 @@ function renderReforcos() {
     else {
         if (hint) hint.classList.add('hidden');
         container.innerHTML = _reforcos.map((r, idx) => {
-            const isDoseAtual = somenteReforco && idx === 0;
+            const isDoseAtual = idx === 0 && (somenteReforco || !!r.doseAtual);
             const campoHtml = isDoseAtual
                 ? `<span class="text-[10px] font-black text-indigo-600 uppercase">Dose atual — sem intervalo em meses</span>`
                 : `<label class="text-[10px] font-black text-slate-400 uppercase">Após</label>
@@ -292,7 +296,7 @@ function renderReforcos() {
 
 function addReforco() {
     if (_reforcos.length >= REFORCO_MAX) return;
-    _reforcos.push({ meses: null });
+    _reforcos.push({ meses: null, doseAtual: false });
     renderReforcos();
 }
 
@@ -359,7 +363,10 @@ function editVaccine(id) {
     document.getElementById('vac-id').value = v.id;
     document.getElementById('vac-nome').value = v.nome;
     document.getElementById('vac-mnemonico').value = v.mnemonico || '';
-    _reforcos = getVaccineReforcos(v).map(r => ({ meses: r.meses != null ? r.meses : null }));
+    _reforcos = getVaccineReforcos(v).map(r => ({
+        meses: r.meses != null ? r.meses : null,
+        doseAtual: !!r.doseAtual
+    }));
     _setDoseZero(v.doseZero);
     document.getElementById('vac-dose-zero-anos').value = v.doseZeroMinAnos != null ? v.doseZeroMinAnos : '';
     document.getElementById('vac-dose-zero-meses').value = v.doseZeroMinMeses != null ? v.doseZeroMinMeses : '';
@@ -426,7 +433,14 @@ function saveVaccine(e) {
     const primeiroEsquema = _esquemas.find(esq => esq.minAnos != null);
     const idadeMinimaAnos = primeiroEsquema ? (primeiroEsquema.minAnos || 0) : 0;
     const idadeMinimaMeses = primeiroEsquema ? (primeiroEsquema.minMeses || 0) : 0;
-    const reforcos = _reforcos.slice(0, REFORCO_MAX).map(r => ({ meses: r.meses != null ? r.meses : null }));
+    // meses: 0 (não null) para reforço sem aprazamento — o Firebase remove chaves
+    // nulas e um reforço {meses:null} seria apagado do array ao salvar, sumindo da
+    // tela. 0 é gravado normalmente e lido como "sem intervalo em meses".
+    const reforcos = _reforcos.slice(0, REFORCO_MAX).map((r, i) => ({
+        meses: r.meses != null ? r.meses : 0,
+        // Marca explícita do 1º reforço que É a dose atual (esquema com 0 doses).
+        doseAtual: somenteReforco && i === 0
+    }));
     const v = {
         id: id ? Number(id) : Date.now(), nome: document.getElementById('vac-nome').value.toUpperCase(),
         mnemonico: document.getElementById('vac-mnemonico').value.toUpperCase().trim() || null,
