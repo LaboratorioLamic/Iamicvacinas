@@ -102,6 +102,8 @@ function _patientFitsVaccine(patient, vac) {
 }
 
 function _firstDoseLabel(vac, patient) {
+    // Vacina somente reforço: o 1º marco é o próprio Reforço (é a dose atual).
+    if (isVaccineSomenteReforco(vac)) return reforcoLabel(1);
     const esq = getEsquemaPaciente(vac, patient ? patient.dtNasc : null);
     const n = esq ? (esq.numDoses || 1) : (vac.numDoses || 1);
     return n === 1 ? 'Dose Única' : '1ª Dose';
@@ -142,7 +144,7 @@ function calcAprazamento() {
             const applied   = byVac[vacId]; // apenas Aplicado
             const active    = activeApps.filter(a => a.vaccineId == vacId); // ativas (suprimem)
             const esq       = getEsquemaPaciente(vac, patient.dtNasc);
-            const numDoses  = esq ? (esq.numDoses || 1) : (vac.numDoses || 1);
+            const numDoses  = esq ? (esquemaSemDoses(esq) ? 0 : (esq.numDoses || 1)) : (vac.numDoses || 1);
 
             // Case 1 — próxima dose
             // Usa o máximo de doses entre todos os esquemas da vacina, não só o esquema atual
@@ -205,7 +207,9 @@ function calcAprazamento() {
             // sem registro cuja base (reforço anterior aplicado, ou esquema
             // completo p/ o 1º) já exista.
             const reforcos = getVaccineReforcos(vac);
-            const completedEsquema = numDoses===1
+            const completedEsquema = numDoses===0
+                ? true // somente reforço: não há esquema primário a completar
+                : numDoses===1
                 ? applied.some(a=>a.doseAtual==='Dose Única'||a.doseAtual==='1ª Dose')
                 : applied.some(a=>a.doseAtual===`${numDoses}ª Dose`);
             for (let ri = 0; ri < reforcos.length; ri++) {

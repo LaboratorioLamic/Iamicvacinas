@@ -2841,6 +2841,8 @@ function _buildOportDoseOptionsHtml(vac, dtNasc, dataStr, currentDose) {
     const esqsToUse = esqs.length ? esqs : (vac.esquemas && vac.esquemas.length ? [vac.esquemas[0]] : [{ numDoses: vac.numDoses || 1 }]);
     const doseOptions = new Set();
     esqsToUse.forEach(e => {
+        // Esquema somente reforço (0 doses): não oferta dose primária nem Dose Única
+        if (typeof esquemaSemDoses === 'function' && esquemaSemDoses(e)) return;
         const n = e.numDoses || 1;
         if (n === 1) doseOptions.add('__dose_unica__');
         else for (let i = 1; i <= n; i++) doseOptions.add(i);

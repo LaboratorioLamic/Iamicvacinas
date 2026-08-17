@@ -305,7 +305,11 @@ function _rotinaHasAppliedBelow(byOrdinal, ordinal, patient, apps) {
 
 // Calcula a próxima dose/reforço ainda sem nenhum registro no sistema.
 function _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAppliedApp, esqRepete) {
-    if (maxAppliedOrdinal < 0 || !lastAppliedApp) return null;
+    // Vacina somente reforço (esquema com 0 doses): não há dose numerada, a base
+    // da sugestão é o próprio reforço já aplicado.
+    const somenteReforco = (typeof isVaccineSomenteReforco === 'function') && isVaccineSomenteReforco(vac);
+    if (!lastAppliedApp) return null;
+    if (maxAppliedOrdinal < 0 && !somenteReforco) return null;
     // Vacina desativada: não sugere próxima dose/reforço, só mantém o histórico já aplicado.
     if (vac.ativo === false) return null;
 
@@ -326,9 +330,10 @@ function _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAp
     }
 
     const esq = (typeof getEsquemaPaciente === 'function') ? getEsquemaPaciente(vac, patient.dtNasc) : null;
+    const _nd = e => (typeof esquemaSemDoses === 'function' && esquemaSemDoses(e)) ? 0 : (e.numDoses || 1);
     const totalDoses = (vac.esquemas && vac.esquemas.length)
-        ? Math.max(...vac.esquemas.map(e => e.numDoses || 1))
-        : (esq ? (esq.numDoses || 1) : (vac.numDoses || 1));
+        ? Math.max(...vac.esquemas.map(_nd))
+        : (esq ? _nd(esq) : (vac.numDoses || 1));
 
     // Já existe registro (mesmo que só previsto) para a próxima dose numerada? _rotinaBuildVaccineRow já cobre isso.
     const nextOrdinal = maxAppliedOrdinal + 1;
@@ -360,7 +365,9 @@ function _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAp
     // base (reforço anterior aplicado, ou esquema completo p/ o 1º) já exista.
     const reforcos = getVaccineReforcos(vac);
     if (reforcos.length) {
-        const completed = totalDoses === 1
+        const completed = totalDoses === 0
+            ? true // somente reforço: não há esquema primário a completar
+            : totalDoses === 1
             ? apps.some(a => (a.doseAtual === 'Dose Única' || a.doseAtual === '1ª Dose') && (a.status === 'Aplicado' || (a.status === 'Perdido' && a.aplicadaOutroLocal)))
             : maxAppliedOrdinal >= totalDoses;
         for (let i = 0; i < reforcos.length; i++) {

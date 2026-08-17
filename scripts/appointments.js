@@ -602,6 +602,8 @@ function autoFillVaccine(preserveDose) {
                 const doseOptions = new Set();
                 const esqsToUse = esqs.length ? esqs : (v.esquemas && v.esquemas.length ? [v.esquemas[0]] : [{ numDoses: v.numDoses || 1 }]);
                 esqsToUse.forEach(e => {
+                    // Esquema somente reforço (0 doses): não oferta dose primária nem Dose Única
+                    if (esquemaSemDoses(e)) return;
                     const n = e.numDoses || 1;
                     if (n === 1) {
                         doseOptions.add('__dose_unica__');

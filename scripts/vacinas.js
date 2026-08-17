@@ -39,7 +39,7 @@ function renderVaccines() {
         if (v.esquemas && v.esquemas.length) {
             schema = v.esquemas.map(esq => {
                 const faixa = esq.minAnos != null ? formatFaixaEtaria(esq) : 'Qualquer idade';
-                return `${faixa}: ${esq.numDoses || 1}D`;
+                return `${faixa}: ${esquemaSemDoses(esq) ? 'somente reforço' : `${esq.numDoses || 1}D`}`;
             }).join('<br>');
             const nReforcos = getVaccineReforcos(v).length;
             if (nReforcos) schema += nReforcos > 1 ? ` + ${nReforcos} Reforços` : ' + Reforço';
@@ -54,6 +54,7 @@ function renderVaccines() {
         if (v.esquemas && v.esquemas.length > 0) {
             idadeMinStr = v.esquemas.map(esq => {
                 const faixa = formatFaixaEtaria(esq);
+                if (esquemaSemDoses(esq)) return `${faixa} — somente reforço`;
                 const nd = esq.numDoses || 1;
                 return `${faixa} — ${nd} dose${nd > 1 ? 's' : ''}`;
             }).join('<br>');
@@ -130,7 +131,9 @@ function renderEsquemas() {
     container.innerHTML = _esquemas.map((esq, idx) => {
         const faixaStr = esq.minAnos != null ? formatFaixaEtaria(esq) : 'Faixa não definida';
         const hasFaixa = esq.minAnos != null;
-        const numD = esq.numDoses || 1;
+        const numD = esq.numDoses === 0 ? 0 : (esq.numDoses || 1);
+        // "0 doses" (somente reforço) só é ofertado quando existe um único esquema.
+        const permiteZero = _esquemas.length === 1;
         let intervalosHtml = '';
         if (numD > 1) {
             const cols = numD - 1 === 1 ? 'grid-cols-1' : numD - 1 === 2 ? 'grid-cols-2' : 'grid-cols-3';
@@ -150,6 +153,7 @@ function renderEsquemas() {
                 <div class="flex items-center gap-1 flex-shrink-0">
                     <label class="text-[10px] font-bold text-slate-400 uppercase">Doses:</label>
                     <select onchange="updateEsquemaDoses(${idx},this.value)" class="border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-clinic-500 outline-none">
+                        ${permiteZero ? `<option value="0" ${numD===0?'selected':''}>0</option>` : ''}
                         <option value="1" ${numD==1?'selected':''}>1</option>
                         <option value="2" ${numD==2?'selected':''}>2</option>
                         <option value="3" ${numD==3?'selected':''}>3</option>
@@ -172,23 +176,40 @@ function renderEsquemas() {
                 <button type="button" onclick="removeEsquema(${idx})" class="flex-shrink-0 h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition" title="Remover esquema"><i class="fas fa-trash text-[10px]"></i></button>
             </div>
             ${intervalosHtml}
+            ${numD === 0 ? `<p class="mt-2 text-[10px] font-bold text-indigo-600 leading-snug"><i class="fas fa-circle-info mr-1"></i>Somente reforço: nenhuma dose primária. Obrigatório cadastrar ao menos 1 reforço, e o 1º reforço é a dose atual (sem intervalo em meses).</p>` : ''}
         </div>`;
     }).join('');
 }
 
 function addEsquemaVacinal() {
+    // 0 doses só existe com esquema único: ao adicionar um segundo, o esquema
+    // "somente reforço" volta para 1 dose.
+    _esquemas.forEach(esq => { if (esquemaSemDoses(esq)) { esq.numDoses = 1; esq.intervalos = []; } });
     _esquemas.push({ minAnos: null, minMeses: null, maxAnos: null, maxMeses: null, numDoses: 1, intervalos: [] });
     renderEsquemas();
+    renderReforcos();
 }
 
 function removeEsquema(idx) {
     _esquemas.splice(idx, 1);
     renderEsquemas();
+    renderReforcos();
 }
 
 function updateEsquemaDoses(idx, val) {
     const n = Number(val);
     _esquemas[idx].numDoses = n;
+    if (n === 0) {
+        _esquemas[idx].intervalos = [];
+        _esquemas[idx].repete = false;
+        _esquemas[idx].repeteMeses = null;
+        // Somente reforço exige ao menos 1 reforço; o 1º não tem intervalo em meses.
+        if (!_reforcos.length) _reforcos.push({ meses: null });
+        _reforcos[0].meses = null;
+        renderEsquemas();
+        renderReforcos();
+        return;
+    }
     if (!_esquemas[idx].intervalos) _esquemas[idx].intervalos = [];
     // Pré-preenche intervalos faltantes com o default exibido na UI (30 dias),
     // garantindo que o modelo salvo == o que o admin vê.
@@ -245,17 +266,26 @@ function renderReforcos() {
     const hint = document.getElementById('reforcos-empty-hint');
     const btnAdd = document.getElementById('btn-add-reforco');
     if (!container) return;
+    // Esquema somente reforço (0 doses): o 1º reforço é a dose atual, sem intervalo.
+    const somenteReforco = _esquemas.length === 1 && esquemaSemDoses(_esquemas[0]);
     if (!_reforcos.length) { container.innerHTML = ''; if (hint) hint.classList.remove('hidden'); }
     else {
         if (hint) hint.classList.add('hidden');
-        container.innerHTML = _reforcos.map((r, idx) => `<div class="flex items-center gap-2 border-2 border-indigo-200 rounded-xl p-2.5 bg-indigo-50/40">
-            <span class="flex-shrink-0 text-[10px] font-black text-indigo-700 uppercase px-2 py-1 bg-white rounded-lg border border-indigo-200">${reforcoLabel(idx + 1)}</span>
-            <label class="text-[10px] font-black text-slate-400 uppercase">Após</label>
+        container.innerHTML = _reforcos.map((r, idx) => {
+            const isDoseAtual = somenteReforco && idx === 0;
+            const campoHtml = isDoseAtual
+                ? `<span class="text-[10px] font-black text-indigo-600 uppercase">Dose atual — sem intervalo em meses</span>`
+                : `<label class="text-[10px] font-black text-slate-400 uppercase">Após</label>
             <input type="number" min="1" step="1" placeholder="12" inputmode="numeric" value="${r.meses != null ? r.meses : ''}" onchange="updateReforcoMeses(${idx}, this.value)" class="w-16 border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-clinic-500 outline-none text-sm font-bold text-center">
-            <span class="text-[10px] font-black text-slate-400 uppercase">meses (opcional)</span>
+            <span class="text-[10px] font-black text-slate-400 uppercase">meses (opcional)</span>`;
+            const removivel = !(isDoseAtual && _reforcos.length === 1);
+            return `<div class="flex items-center gap-2 border-2 border-indigo-200 rounded-xl p-2.5 bg-indigo-50/40">
+            <span class="flex-shrink-0 text-[10px] font-black text-indigo-700 uppercase px-2 py-1 bg-white rounded-lg border border-indigo-200">${reforcoLabel(idx + 1)}</span>
+            ${campoHtml}
             <div class="flex-1"></div>
-            <button type="button" onclick="removeReforco(${idx})" class="flex-shrink-0 h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition" title="Remover reforço"><i class="fas fa-trash text-[10px]"></i></button>
-        </div>`).join('');
+            ${removivel ? `<button type="button" onclick="removeReforco(${idx})" class="flex-shrink-0 h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition" title="Remover reforço"><i class="fas fa-trash text-[10px]"></i></button>` : `<span class="flex-shrink-0 h-7 w-7 flex items-center justify-center rounded-lg bg-slate-100 text-slate-300" title="Obrigatório no esquema somente reforço"><i class="fas fa-lock text-[10px]"></i></span>`}
+        </div>`;
+        }).join('');
     }
     if (btnAdd) btnAdd.disabled = _reforcos.length >= REFORCO_MAX;
 }
@@ -267,11 +297,18 @@ function addReforco() {
 }
 
 function removeReforco(idx) {
+    const somenteReforco = _esquemas.length === 1 && esquemaSemDoses(_esquemas[0]);
+    if (somenteReforco && idx === 0 && _reforcos.length === 1) {
+        showNotification('Esquema com 0 doses exige ao menos 1 reforço.', 'error');
+        return;
+    }
     _reforcos.splice(idx, 1);
     renderReforcos();
 }
 
 function updateReforcoMeses(idx, val) {
+    const somenteReforco = _esquemas.length === 1 && esquemaSemDoses(_esquemas[0]);
+    if (somenteReforco && idx === 0) { _reforcos[0].meses = null; return; }
     _reforcos[idx].meses = parseInt(val, 10) || null;
 }
 
@@ -323,7 +360,6 @@ function editVaccine(id) {
     document.getElementById('vac-nome').value = v.nome;
     document.getElementById('vac-mnemonico').value = v.mnemonico || '';
     _reforcos = getVaccineReforcos(v).map(r => ({ meses: r.meses != null ? r.meses : null }));
-    renderReforcos();
     _setDoseZero(v.doseZero);
     document.getElementById('vac-dose-zero-anos').value = v.doseZeroMinAnos != null ? v.doseZeroMinAnos : '';
     document.getElementById('vac-dose-zero-meses').value = v.doseZeroMinMeses != null ? v.doseZeroMinMeses : '';
@@ -336,6 +372,8 @@ function editVaccine(id) {
         _esquemas = [{ minAnos: v.idadeMinimaAnos || 0, minMeses: v.idadeMinimaMeses || 0, maxAnos: null, maxMeses: null, numDoses: v.numDoses || 1, intervalos }];
     }
     renderEsquemas();
+    // Depois dos esquemas: o layout do 1º reforço depende de haver esquema com 0 doses.
+    renderReforcos();
     const btnDel = document.getElementById('btn-delete-vacina');
     if (btnDel) {
         const canDel = isCurrentUserAdmin() || hasPerm('criar_produtos');
@@ -356,14 +394,23 @@ function saveVaccine(e) {
     e.preventDefault();
     if (!_esquemas.length) { showNotification('Adicione ao menos um esquema vacinal antes de salvar.', 'error'); return; }
     if (_esquemas.some(esq => esq.repete && !esq.repeteMeses)) { showNotification('Informe o intervalo em meses para o campo "Repete" antes de salvar.', 'error'); return; }
+    // Somente reforço (0 doses): permitido apenas com esquema único e ao menos 1 reforço.
+    const somenteReforco = _esquemas.length === 1 && esquemaSemDoses(_esquemas[0]);
+    if (_esquemas.some(esquemaSemDoses) && !somenteReforco) {
+        showNotification('Esquema com 0 doses só é permitido quando há um único esquema vacinal.', 'error'); return;
+    }
+    if (somenteReforco && !_reforcos.length) {
+        showNotification('Esquema com 0 doses exige ao menos 1 reforço.', 'error'); return;
+    }
+    if (somenteReforco) _reforcos[0].meses = null; // 1º reforço = dose atual
     // Dose única = inferida automaticamente: algum esquema tem apenas 1 dose
-    const doseUnica = _esquemas.some(esq => (esq.numDoses || 1) === 1);
+    const doseUnica = _esquemas.some(esq => (esq.numDoses || 1) === 1 && !esquemaSemDoses(esq));
     const id = document.getElementById('vac-id').value;
     const existing = vaccines.find(x => x.id == id);
     // Normaliza intervalos de cada esquema: preenche slots faltantes com 30 (default UI)
     // para que o que foi exibido seja de fato persistido.
     _esquemas.forEach(esq => {
-        const nd = esq.numDoses || 1;
+        const nd = esquemaSemDoses(esq) ? 0 : (esq.numDoses || 1);
         if (!esq.intervalos) esq.intervalos = [];
         for (let i = 0; i < nd - 1; i++) {
             if (esq.intervalos[i] == null) esq.intervalos[i] = 30;
@@ -371,8 +418,9 @@ function saveVaccine(e) {
         esq.intervalos.length = Math.max(0, nd - 1);
     });
     // numDoses e intervalos derivados do maior esquema (retrocompatibilidade com agendamentos)
-    const maiorEsquema = _esquemas.length ? _esquemas.reduce((a, b) => (b.numDoses || 1) > (a.numDoses || 1) ? b : a, _esquemas[0]) : null;
-    const n = maiorEsquema ? (maiorEsquema.numDoses || 1) : 1;
+    const _nd = esq => esquemaSemDoses(esq) ? 0 : (esq.numDoses || 1);
+    const maiorEsquema = _esquemas.length ? _esquemas.reduce((a, b) => _nd(b) > _nd(a) ? b : a, _esquemas[0]) : null;
+    const n = maiorEsquema ? _nd(maiorEsquema) : 1;
     const intervalosBase = maiorEsquema && maiorEsquema.intervalos && maiorEsquema.intervalos.length ? maiorEsquema.intervalos : [];
     // Retrocompatibilidade de idadeMinima
     const primeiroEsquema = _esquemas.find(esq => esq.minAnos != null);

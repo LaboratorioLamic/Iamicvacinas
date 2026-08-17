@@ -308,6 +308,21 @@ function getVaccineReforcos(v) {
     return [];
 }
 
+// ─── ESQUEMA SOMENTE REFORÇO (numDoses = 0) ──────────────────────────────────
+// Um esquema com numDoses === 0 não possui doses primárias: a faixa etária serve
+// apenas para delimitar quem pode receber os reforços. Só é permitido quando a
+// vacina tem exatamente 1 esquema e ao menos 1 reforço; nesse caso o 1º reforço é
+// a própria dose atual (sem intervalo em meses a partir de uma dose anterior).
+function esquemaSemDoses(esq) {
+    return !!esq && Number(esq.numDoses) === 0;
+}
+
+function isVaccineSomenteReforco(v) {
+    if (!v) return false;
+    const esqs = v.esquemas || [];
+    return esqs.length === 1 && esquemaSemDoses(esqs[0]) && getVaccineReforcos(v).length > 0;
+}
+
 // ─── cpniImunoMap: { [nomeImunoNormalizado]: {nome, vaccineId} } ─────────────
 // Formato legado (antes de guardar o nome legível do imuno): valor era só o
 // vaccineId (number). Os helpers abaixo leem/escrevem de forma compatível com
