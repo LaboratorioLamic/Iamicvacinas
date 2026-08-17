@@ -2325,11 +2325,14 @@ function _renderAgendarGrupoEndereco() {
 // nada sobre grupo ou agendamento avulso.
 let _enderecoEditor = null;
 
-function abrirEditorEndereco({ patId, endereco, titulo, aoSalvar, mensagem }) {
+// `status` diz para que status o endereço está sendo preenchido: só "Agendado"
+// exige Local da Aplicação (e, conforme o local, o endereço). Os fluxos de
+// agendamento não passam nada e ficam no padrão.
+function abrirEditorEndereco({ patId, endereco, titulo, aoSalvar, mensagem, status }) {
     // Enquanto este modal está aberto ele é o dono dos IDs-alvo de endereco.js.
     setEnderecoPrefixo('grpend');
     setEnderecoPacienteId(patId);
-    _enderecoEditor = { aoSalvar, mensagem };
+    _enderecoEditor = { aoSalvar, mensagem, status: status || 'Agendado' };
 
     const pat = patients.find(p => p.id == patId);
     const nomeEl = document.getElementById('endereco-grupo-paciente');
@@ -2361,8 +2364,10 @@ function fecharEnderecoGrupo() {
 
 function salvarEnderecoGrupo() {
     if (!_enderecoEditor) { _encerrarEnderecoGrupo(); return; }
-    // Mesma exigência do status Agendado no formulário de registro.
-    if (typeof validarEnderecoObrigatorio === 'function' && !validarEnderecoObrigatorio('Agendado')) return;
+    // Mesma regra do formulário de registro: a exigência vale para o status
+    // em que o endereço está sendo preenchido — fora de "Agendado", nada é obrigatório.
+    if (typeof validarEnderecoObrigatorio === 'function'
+        && !validarEnderecoObrigatorio(_enderecoEditor.status)) return;
     const end = coletarEnderecoForm();
     const { aoSalvar, mensagem } = _enderecoEditor;
     _encerrarEnderecoGrupo();

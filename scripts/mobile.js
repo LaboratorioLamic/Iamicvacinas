@@ -202,6 +202,9 @@ function _mKanbanApply() {
             title="Mover para outra etapa"><i class="fas fa-arrow-right-arrow-left"></i>Mover</button>`;
         slot.dataset.ready = '1';
     });
+
+    _mDisableHtml5Drag();
+    _mBindSwipes();
 }
 
 function _mKanbanSyncDots() {
@@ -220,6 +223,240 @@ function mobileKanbanShowCol(key) {
     _mKanbanCol = key;
     board.scrollTo({ left: col.offsetLeft - board.offsetLeft, behavior: 'smooth' });
     _mKanbanSyncDots();
+}
+
+// ─── SWIPE HORIZONTAL GENÉRICO ────────────────────────────────────────────────
+// Reconhece o arrasto lateral por toque e chama onSwipe(-1 | +1). Só dispara
+// quando o gesto é claramente horizontal (|dx| > |dy|), para não roubar a
+// rolagem vertical da página.
+const M_SWIPE_MIN_PX = 45;   // curto o bastante para um polegar, longo o bastante para não disparar sem querer
+
+// onSwipe(dir)  — gesto concluído: troca de item
+// onMove(dx)    — a cada quadro do arrasto horizontal, para acompanhar o dedo
+// onCancel()    — gesto abandonado (curto demais, ou virou rolagem vertical)
+function attachHorizontalSwipe(el, onSwipe, onMove, onCancel) {
+    if (!el || el.dataset.mHswipe === '1') return;
+    el.dataset.mHswipe = '1';
+    let x0 = 0, y0 = 0, tracking = false, decided = false, horizontal = false, raf = 0;
+
+    const encerrar = () => {
+        tracking = false;
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    };
+
+    el.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1) { encerrar(); return; }
+        x0 = e.touches[0].clientX;
+        y0 = e.touches[0].clientY;
+        tracking = true; decided = false; horizontal = false;
+    }, { passive: true });
+
+    el.addEventListener('touchmove', e => {
+        if (!tracking || e.touches.length !== 1) return;
+        const dx = e.touches[0].clientX - x0;
+        const dy = e.touches[0].clientY - y0;
+        // A direção é decidida uma única vez, no início do movimento
+        if (!decided && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+            decided = true;
+            horizontal = Math.abs(dx) > Math.abs(dy);
+        }
+        // Gesto vertical: solta o controle e deixa a página rolar
+        if (decided && !horizontal) {
+            encerrar();
+            if (onCancel) onCancel();
+            return;
+        }
+        // Um quadro por frame: o dedo dispara touchmove bem mais rápido que o repaint
+        if (decided && horizontal && onMove && !raf) {
+            raf = requestAnimationFrame(() => { raf = 0; onMove(dx); });
+        }
+    }, { passive: true });
+
+    const finalizar = e => {
+        if (!tracking || !horizontal) { encerrar(); return; }
+        encerrar();
+        const t = e.changedTouches && e.changedTouches[0];
+        const dx = t ? t.clientX - x0 : 0;
+        if (Math.abs(dx) < M_SWIPE_MIN_PX) { if (onCancel) onCancel(); return; }
+        onSwipe(dx < 0 ? 1 : -1);   // arrastar para a esquerda avança
+    };
+
+    el.addEventListener('touchend', finalizar, { passive: true });
+    el.addEventListener('touchcancel', () => { encerrar(); if (onCancel) onCancel(); }, { passive: true });
+}
+
+// ─── KANBAN: swipe entre colunas ──────────────────────────────────────────────
+function mobileKanbanStep(dir) {
+    const board = document.getElementById('kanban-board');
+    const cols = _mKanbanCols();
+    if (!board || !cols.length) return;
+    // A coluna de partida vem da posição real do scroll, não de _mKanbanCol:
+    // o scroll nativo por snap já pode ter andado antes do touchend, e a
+    // variável só é atualizada 80ms depois.
+    const inicio = board.scrollLeft;
+    let i = cols.reduce((best, c, idx) => {
+        const d = Math.abs((c.offsetLeft - board.offsetLeft) - inicio);
+        return d < best.d ? { d, idx } : best;
+    }, { d: Infinity, idx: 0 }).idx;
+    // Desfaz o esticão de borda, se o gesto terminou numa ponta
+    mobileKanbanDragCancel();
+    const next = cols[Math.min(cols.length - 1, Math.max(0, i + dir))];
+    if (next) mobileKanbanShowCol(next.dataset.col);
+}
+
+// Duração das transições de troca de item (kanban e semanal)
+const M_WK_SLIDE_MS = 190;
+
+// No modo leve (body.lite-mode) e com "reduzir movimento" ligado no aparelho a
+// troca é instantânea: as transições do CSS já estão desligadas lá.
+function _mSemAnimacao() {
+    return document.body.classList.contains('lite-mode')
+        || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+// Nas pontas o scroll nativo não tem para onde ir e o gesto parece travado:
+// o quadro inteiro cede um pouco, indicando que aquela é a última coluna.
+function mobileKanbanDrag(dx) {
+    if (_mSemAnimacao()) return;
+    const board = document.getElementById('kanban-board');
+    if (!board) return;
+    const fim = board.scrollWidth - board.clientWidth;
+    const naPonta = (dx < 0 && board.scrollLeft >= fim - 1) || (dx > 0 && board.scrollLeft <= 1);
+    if (!naPonta) {
+        // Saiu da ponta no meio do gesto: tira o deslocamento na hora, sem
+        // transição — animar a cada frame do arrasto engasgaria o movimento.
+        if (board.style.transform) { board.style.transition = 'none'; board.style.transform = ''; }
+        return;
+    }
+    board.style.transition = 'none';
+    board.style.transform = `translateX(${dx * 0.2}px)`;
+}
+
+function mobileKanbanDragCancel() {
+    const board = document.getElementById('kanban-board');
+    if (!board || !board.style.transform) return;
+    board.style.transition = `transform ${M_WK_SLIDE_MS}ms cubic-bezier(0.32, 0.72, 0, 1)`;
+    board.style.transform = '';
+    setTimeout(() => { if (board.isConnected) board.style.transition = ''; }, M_WK_SLIDE_MS);
+}
+
+// ─── AGENDA SEMANAL: swipe entre dias ─────────────────────────────────────────
+// A semana mostra um dia por vez (_wkMobileDay em scripts/agenda.js). Diferente
+// do kanban — que tem os vizinhos no DOM e rola por snap — aqui só existe o dia
+// atual, então a transição é feita à mão: o quadro segue o dedo, sai pela borda
+// e o dia novo entra pelo lado oposto.
+function _mWkPainel() {
+    const board = document.getElementById('weekly-board');
+    return board ? board.querySelector('.wk-wrap') : null;
+}
+
+function _mWeeklyChips() {
+    return Array.from(document.querySelectorAll('.m-wk-days .m-wk-day'));
+}
+
+// Índice do dia visível e limites: nas pontas o arrasto tem resistência, para
+// o usuário sentir que não há para onde ir.
+function _mWeeklyPos() {
+    const chips = _mWeeklyChips();
+    let i = chips.findIndex(c => c.classList.contains('active'));
+    if (i < 0) i = 0;
+    return { chips, i };
+}
+
+function mobileWeeklyDrag(dx) {
+    if (_mSemAnimacao()) return;
+    const painel = _mWkPainel();
+    if (!painel) return;
+    const { chips, i } = _mWeeklyPos();
+    if (!chips.length) return;
+    // Sem vizinho naquele lado: o arrasto vira um esticão curto (efeito de borda)
+    const naPonta = (dx < 0 && i >= chips.length - 1) || (dx > 0 && i <= 0);
+    const desloc = naPonta ? dx * 0.25 : dx;
+    painel.style.transition = 'none';
+    painel.style.transform = `translateX(${desloc}px)`;
+    painel.style.willChange = 'transform';
+}
+
+function mobileWeeklyDragCancel() {
+    const painel = _mWkPainel();
+    if (!painel) return;
+    painel.style.transition = `transform ${M_WK_SLIDE_MS}ms cubic-bezier(0.32, 0.72, 0, 1)`;
+    painel.style.transform = 'translateX(0)';
+    setTimeout(() => {
+        if (!painel.isConnected) return;
+        painel.style.transition = '';
+        painel.style.willChange = '';
+    }, M_WK_SLIDE_MS);
+}
+
+function mobileWeeklyStep(dir) {
+    if (typeof setWeeklyMobileDay !== 'function') return;
+    const { chips, i } = _mWeeklyPos();
+    if (!chips.length) return;
+    const alvo = Math.min(chips.length - 1, Math.max(0, i + dir));
+    // Já está na ponta: só devolve o quadro ao lugar
+    if (alvo === i) { mobileWeeklyDragCancel(); return; }
+
+    const painel = _mWkPainel();
+    const largura = painel ? painel.offsetWidth : 0;
+
+    const trocar = () => {
+        setWeeklyMobileDay(alvo);
+        // renderWeekly() reconstrói o quadro: o novo painel entra pelo lado oposto
+        const novo = _mSemAnimacao() ? null : _mWkPainel();
+        if (novo) {
+            novo.style.transition = 'none';
+            novo.style.transform = `translateX(${dir > 0 ? largura : -largura}px)`;
+            // Dois frames: o primeiro aplica a posição inicial, o segundo anima
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                if (!novo.isConnected) return;
+                novo.style.transition = `transform ${M_WK_SLIDE_MS}ms cubic-bezier(0.32, 0.72, 0, 1)`;
+                novo.style.transform = 'translateX(0)';
+                setTimeout(() => {
+                    if (!novo.isConnected) return;
+                    novo.style.transition = '';
+                    novo.style.transform = '';
+                    novo.style.willChange = '';
+                }, M_WK_SLIDE_MS);
+            }));
+        }
+        // Mantém o dia escolhido visível na faixa de chips
+        _mWeeklyChips()[alvo]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    };
+
+    if (!painel || !largura || _mSemAnimacao()) { trocar(); return; }
+    // Primeiro o dia atual termina de sair pela borda, aí o novo entra
+    painel.style.transition = `transform ${M_WK_SLIDE_MS}ms cubic-bezier(0.32, 0.72, 0, 1)`;
+    painel.style.transform = `translateX(${dir > 0 ? -largura : largura}px)`;
+    setTimeout(trocar, M_WK_SLIDE_MS);
+}
+
+// Os dois quadros são recriados a cada render: o gancho roda de novo e o
+// dataset.mHswipe evita listeners duplicados.
+function _mBindSwipes() {
+    if (!isMobileView()) return;
+    // Kanban: as colunas vizinhas já estão no DOM e o scroll nativo com
+    // scroll-snap dá a animação de passagem — basta o passo no fim do gesto.
+    attachHorizontalSwipe(
+        document.getElementById('kanban-board'),
+        mobileKanbanStep,
+        mobileKanbanDrag,
+        mobileKanbanDragCancel
+    );
+    attachHorizontalSwipe(
+        document.getElementById('weekly-board'),
+        mobileWeeklyStep,
+        mobileWeeklyDrag,
+        mobileWeeklyDragCancel
+    );
+}
+
+// O arrasto HTML5 (draggable) engole o toque e impede o swipe; no celular o
+// movimento entre etapas é feito pelo botão "Mover".
+function _mDisableHtml5Drag() {
+    if (!isMobileView()) return;
+    document.querySelectorAll('#kanban-board [draggable="true"], #weekly-board [draggable="true"]')
+        .forEach(el => { el.setAttribute('draggable', 'false'); });
 }
 
 // ─── FOLHA "MOVER PARA" ───────────────────────────────────────────────────────
@@ -294,6 +531,7 @@ function _applyMobileMode() {
         setMobileNavActive();
         _watchTables();
         _mKanbanApply();
+        _mBindSwipes();
     } else {
         // Volta ao layout desktop sem resíduos
         document.querySelectorAll('.m-filterbar.m-filters-open').forEach(b => b.classList.remove('m-filters-open'));
@@ -339,6 +577,17 @@ MOBILE_MQ.addEventListener('change', () => {
         window.renderKanban = function (...args) {
             const r = _renderKanban.apply(this, args);
             if (isMobileView()) _mKanbanApply();
+            return r;
+        };
+    }
+
+    // O quadro semanal é reescrito por inteiro a cada render (inclusive ao
+    // trocar de dia): religa o swipe e desarma o draggable dos cards.
+    const _renderWeekly = window.renderWeekly;
+    if (typeof _renderWeekly === 'function') {
+        window.renderWeekly = function (...args) {
+            const r = _renderWeekly.apply(this, args);
+            if (isMobileView()) { _mDisableHtml5Drag(); _mBindSwipes(); }
             return r;
         };
     }

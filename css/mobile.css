@@ -22,10 +22,33 @@
 @media (max-width: 768px) {
 
 /* ── 1. Base ────────────────────────────────────────────────────────────── */
-html, body {
+/* IMPORTANTE: nada aqui pode criar um contexto de scroll travado.
+   `overflow-x:hidden` em <html> transforma o <body> no scroller do viewport e,
+   somado a `overscroll-behavior-y:none`, mata a rolagem por toque em vários
+   navegadores mobile. O clip horizontal fica só no <body>, com o eixo Y
+   explicitamente visível. */
+html {
     max-width: 100%;
-    overflow-x: hidden;
-    overscroll-behavior-y: none;
+    overflow-x: clip;
+    overflow-y: visible;
+    height: auto;
+    -webkit-overflow-scrolling: touch;
+}
+body {
+    max-width: 100%;
+    overflow-x: clip;
+    overflow-y: visible !important;
+    height: auto !important;
+    min-height: 100%;
+    position: static !important;
+    overscroll-behavior-y: auto;
+    touch-action: pan-y pinch-zoom;
+}
+/* Sem suporte a overflow:clip (Safari < 16), o hidden fica só no body —
+   nunca no <html>, para não roubar o scroller do viewport */
+@supports not (overflow: clip) {
+    html { overflow-x: visible; }
+    body { overflow-x: hidden; }
 }
 body.is-mobile {
     -webkit-tap-highlight-color: rgba(37, 99, 235, 0.12);
@@ -36,7 +59,10 @@ body.is-mobile main {
     padding-top: calc(var(--m-topbar-h) + 0.5rem) !important;
     padding-bottom: calc(var(--m-nav-h) + var(--m-safe-b) + 1rem) !important;
     overflow: visible !important;
-    min-height: auto;
+    min-height: 0 !important;
+    height: auto !important;
+    flex: 1 1 auto;
+    touch-action: pan-y pinch-zoom;
 }
 body.is-mobile .container { max-width: 100%; padding-left: 0; padding-right: 0; }
 
@@ -823,6 +849,54 @@ body.is-mobile .modal.active > div:has(> .flex-1) { height: 92dvh; }
 /* Nada pode empurrar a página horizontalmente */
 body.is-mobile main img,
 body.is-mobile main canvas { max-width: 100%; height: auto; }
+
+/* ── 21. Rolagem por toque nos contêineres internos ─────────────────────── */
+/* Qualquer área com rolagem própria precisa de inércia e de aceitar o gesto
+   vertical; sem isto o toque é engolido e nada desce. */
+body.is-mobile .overflow-y-auto,
+body.is-mobile .overflow-auto,
+body.is-mobile [style*="overflow-y"],
+body.is-mobile .modal.active > div > .overflow-y-auto,
+body.is-mobile .modal.active > div > .flex-1,
+body.is-mobile #m-action-sheet > div:last-child,
+body.is-mobile .dash-pop,
+body.is-mobile .dash-pop-list,
+body.is-mobile #contacts-panel,
+body.is-mobile #semlote-panel,
+body.is-mobile #expiry-panel,
+body.is-mobile [id$="-panel-list"] {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y pinch-zoom;
+    overscroll-behavior-y: contain;
+}
+/* Listas horizontais (kanban, chips do almoxarifado, dias da semana) mantêm
+   o gesto no eixo X sem bloquear o Y da página */
+body.is-mobile #kanban-board,
+body.is-mobile .m-wk-days,
+body.is-mobile #alm-sidebar nav { touch-action: pan-x pan-y pinch-zoom; }
+/* O quadro semanal troca de dia por arrasto lateral (scripts/mobile.js): o
+   gesto X precisa chegar ao listener, e o Y continua rolando a página */
+body.is-mobile #weekly-board { touch-action: pan-x pan-y pinch-zoom; }
+/* Sem arrasto HTML5 no toque: os cards são desmarcados por JS, aqui só se
+   garante que o navegador não inicie a seleção/arraste nativo do card */
+body.is-mobile #kanban-board .kanban-group-card,
+body.is-mobile #weekly-board .wk-event {
+    -webkit-user-drag: none;
+    user-select: none;
+}
+/* Dica visual de que dá para arrastar entre dias */
+body.is-mobile .m-wk-days { scroll-snap-type: x proximity; }
+body.is-mobile .m-wk-day { scroll-snap-align: center; }
+/* A troca de dia é animada por transform (scripts/mobile.js): o quadro precisa
+   ser um bloco só, e o que sai não pode vazar para fora do board */
+body.is-mobile #weekly-board { overflow-x: clip; }
+body.is-mobile #weekly-board .wk-wrap { will-change: auto; }
+/* O arrasto entre colunas do kanban usa o scroll nativo com snap; a inércia
+   suave vale também para o passo programático (mobileKanbanShowCol) */
+body.is-mobile #kanban-board { scroll-behavior: smooth; }
+/* Sem animação no modo leve */
+body.lite-mode.is-mobile #weekly-board .wk-wrap { transition: none !important; }
+body.lite-mode.is-mobile #kanban-board { scroll-behavior: auto; }
 
 } /* fim @media (max-width:768px) */
 
