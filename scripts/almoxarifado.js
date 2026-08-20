@@ -69,6 +69,91 @@ function getVaccineEstoque(vaccineId) {
     }, { total:0, aplicado:0, reservado:0, saidaManual:0, disponivel:0, lotesAtivos:0, lotesTotal:0 });
 }
 
+// ─── CUSTO DO LOTE ────────────────────────────────────────────────────────────
+// O custo é informado como TOTAL da nota fiscal (lote.custoTotal), junto da
+// quantidade que originou esse valor (lote.custoQtd). O unitário é derivado —
+// assim a valorização do estoque acompanha o consumo das doses.
+function getLoteCusto(loteId) {
+    const l = vaccineLots.find(x => x.id == loteId);
+    return getLoteCustoFrom(l, loteId);
+}
+
+function getLoteCustoFrom(l, loteId) {
+    const vazio = { informado: false, total: null, qtd: 0, unit: null, valorDisponivel: null, valorReservado: null, valorEstoque: null };
+    if (!l) return vazio;
+    const total = Number(l.custoTotal);
+    if (l.custoTotal == null || l.custoTotal === '' || !isFinite(total)) return vazio;
+    const qtd = Number(l.custoQtd) || 0;
+    const unit = qtd > 0 ? total / qtd : null;
+    const est = getLoteEstoque(loteId != null ? loteId : l.id);
+    return {
+        informado: true,
+        total,
+        qtd,
+        unit,
+        valorDisponivel: unit != null ? unit * est.disponivel : null,
+        valorReservado:  unit != null ? unit * est.reservado  : null,
+        valorEstoque:    unit != null ? unit * (est.disponivel + est.reservado) : null
+    };
+}
+
+// Custo consolidado de uma vacina (todos os lotes com custo informado).
+// unitMedio é ponderado pelas doses ainda em estoque — não média simples.
+function getVaccineCusto(vaccineId) {
+    const acc = { informado: false, lotesComCusto: 0, totalNotas: 0, valorDisponivel: 0, valorEstoque: 0, dosesComCusto: 0, unitMedio: null };
+    vaccineLots.filter(l => l.vaccineId == vaccineId).forEach(l => {
+        const c = getLoteCustoFrom(l);
+        if (!c.informado || c.unit == null) return;
+        const est = getLoteEstoque(l.id);
+        acc.informado = true;
+        acc.lotesComCusto++;
+        acc.totalNotas      += c.total;
+        acc.valorDisponivel += c.valorDisponivel;
+        acc.valorEstoque    += c.valorEstoque;
+        acc.dosesComCusto   += est.disponivel + est.reservado;
+    });
+    if (acc.dosesComCusto > 0) acc.unitMedio = acc.valorEstoque / acc.dosesComCusto;
+    return acc;
+}
+
+// Valor total imobilizado em estoque (todos os lotes que tenham custo)
+function getEstoqueValorTotal() {
+    let valor = 0, informado = false;
+    vaccineLots.forEach(l => {
+        const c = getLoteCustoFrom(l);
+        if (c.informado && c.valorEstoque != null) { valor += c.valorEstoque; informado = true; }
+    });
+    return { valor, informado };
+}
+
+// Mostra/esconde os campos de custo conforme permissão e atualiza o preview
+// do unitário enquanto o usuário digita o total da nota.
+function aplicarVisibilidadeCusto() {
+    const pode = (typeof canSeeCusto === 'function') && canSeeCusto();
+    ['novo-lote-custo-wrap', 'fab-lote-custo-wrap', 'edit-lote-custo-wrap'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden', !pode);
+    });
+}
+
+function _custoQtdBase(prefixo) {
+    if (prefixo === 'edit') {
+        const l = vaccineLots.find(x => x.id == document.getElementById('edit-lote-id').value);
+        if (!l) return 0;
+        return Number(l.custoQtd) || getLoteEntradas(l.id);
+    }
+    return parseInt(document.getElementById(prefixo + '-lote-qtd').value, 10) || 0;
+}
+
+function atualizarCustoUnitPreview(prefixo) {
+    const lbl = document.getElementById(prefixo + '-lote-custo-unit');
+    if (!lbl) return;
+    const total = parseCusto(document.getElementById(prefixo + '-lote-custo').value);
+    const qtd = _custoQtdBase(prefixo);
+    if (total == null || qtd <= 0) { lbl.innerHTML = '&nbsp;'; return; }
+    lbl.textContent = `${fmtCusto(total / qtd)} por dose · ${qtd} dose(s)`;
+}
+
 // Disponível considerando que um agendamento já reserva 1 dose deste lote
 // (usado para validar edição sem contar a própria reserva em dobro)
 function getLoteDisponivelParaAgendamento(loteId, ignoreAppointmentId) {
@@ -229,6 +314,15 @@ function renderEstoqueDashboard() {
     setText('estoque-kpi-sem', kSem);
     setText('estoque-kpi-vencidos', lotesVencidos);
     setText('estoque-kpi-vencendo', lotesVencendo);
+    const kpiValorBox = document.getElementById('estoque-kpi-valor-box');
+    if (kpiValorBox) {
+        const podeC = (typeof canSeeCusto === 'function') && canSeeCusto();
+        kpiValorBox.classList.toggle('hidden', !podeC);
+        if (podeC) {
+            const tot = getEstoqueValorTotal();
+            setText('estoque-kpi-valor', tot.informado ? fmtCusto(tot.valor) : '—');
+        }
+    }
 
     // Cards por produto
     const grid = document.getElementById('estoque-body');
@@ -327,6 +421,8 @@ function renderEstoqueDashboard() {
         const proximaValidade = lotesVac.filter(l => l.validade).sort((a, b) => new Date(a.validade) - new Date(b.validade))[0];
         const proxVal = proximaValidade ? proximaValidade.validade.split('-').reverse().join('/') : null;
         const valorStr = v.valor ? `R$ ${String(v.valor).replace('R$','').trim()}` : null;
+        const custoVac = ((typeof canSeeCusto === 'function') && canSeeCusto()) ? getVaccineCusto(v.id) : null;
+        const custoStr = (custoVac && custoVac.informado && custoVac.unitMedio != null) ? fmtCusto(custoVac.unitMedio) : null;
 
         const alertaHtml = (lotesVencidos > 0 || lotesVencendo > 0) ? `
             <div class="flex flex-wrap gap-1 mt-2">
@@ -398,6 +494,7 @@ function renderEstoqueDashboard() {
                         <i class="fas fa-layer-group text-[8px]"></i>${e.lotesAtivos} lote${e.lotesAtivos !== 1 ? 's' : ''}
                     </span>
                     ${proxVal ? `<span class="${tema.metaColor} text-[8px] font-black flex items-center gap-0.5 truncate"><i class="fas fa-calendar-alt text-[8px]"></i>${proxVal}</span>` : ''}
+                    ${custoStr ? `<span class="${tema.metaColor} text-[8px] font-black flex items-center gap-0.5 truncate" title="Custo médio por dose em estoque"><i class="fas fa-tag text-[8px]"></i>${custoStr}</span>` : ''}
                 </div>
                 ${valorStr ? `<span class="${tema.valor} font-black text-[9px] ${tema.valorBg} border ${tema.badge.split(' ').slice(2).join(' ')} px-1.5 py-0.5 rounded-lg whitespace-nowrap">${valorStr}</span>` : ''}
             </div>
@@ -484,6 +581,8 @@ function setLoteFilter(tipo) {
 function renderAlmoxLotes() {
     const tbody = document.getElementById('alm-lotes-body');
     if (!tbody) return;
+    const thCusto = document.getElementById('alm-lotes-th-custo');
+    if (thCusto) thCusto.classList.toggle('hidden', !((typeof canSeeCusto === 'function') && canSeeCusto()));
     const today = new Date(); today.setHours(0,0,0,0);
 
     const allLotes = vaccineLots.map(l => {
@@ -500,7 +599,8 @@ function renderAlmoxLotes() {
     });
 
     if (!filtered.length) {
-        tbody.innerHTML = `<tr><td colspan="10" class="p-8 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">Nenhum lote encontrado</td></tr>`;
+        const _cols = ((typeof canSeeCusto === 'function') && canSeeCusto()) ? 11 : 10;
+        tbody.innerHTML = `<tr><td colspan="${_cols}" class="p-8 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">Nenhum lote encontrado</td></tr>`;
         return;
     }
 
@@ -511,6 +611,7 @@ function renderAlmoxLotes() {
 
     tbody.innerHTML = filtered.map(({ lote, vaccine, vaccineName, estoque }) => {
         const ativo = lote.status === 'aberto';
+        const _podeCusto = (typeof canSeeCusto === 'function') && canSeeCusto();
         const exp = lote.validade ? new Date(lote.validade + 'T00:00:00') : null;
         const twoMonths = new Date(today); twoMonths.setMonth(twoMonths.getMonth() + 2);
         const vencido   = exp && exp < today;
@@ -536,6 +637,12 @@ function renderAlmoxLotes() {
             <td class="p-3 text-center text-xs font-bold text-orange-600">${saidaTotal}</td>
             <td class="p-3 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-black ${dispCls}">${estoque.disponivel}</span></td>
             <td class="p-3 text-center text-xs font-bold text-slate-700">${totalDisp}</td>
+            ${_podeCusto ? (() => {
+                const c = getLoteCustoFrom(lote);
+                return `<td class="p-3 text-center text-xs">${c.informado
+                    ? `<span class="font-black text-amber-600">${fmtCusto(c.unit)}</span><span class="block text-[9px] text-slate-400 font-bold">Total ${fmtCusto(c.total)}</span>`
+                    : '<span class="text-slate-300 font-bold">—</span>'}</td>`;
+            })() : ''}
             <td class="p-3">${validadeCel}</td>
             <td class="p-3 text-center">
                 <span class="px-2 py-1 rounded-full text-[10px] font-black uppercase ${ativo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${ativo ? 'Ativo' : 'Inativo'}</span>
@@ -562,6 +669,9 @@ function openAddLoteModal() {
     document.getElementById('fab-lote-numero').value = '';
     document.getElementById('fab-lote-validade').value = '';
     document.getElementById('fab-lote-qtd').value = '';
+    document.getElementById('fab-lote-custo').value = '';
+    aplicarVisibilidadeCusto();
+    atualizarCustoUnitPreview('fab');
     document.getElementById('modal-add-lote-fab').classList.add('active');
 }
 
@@ -619,20 +729,27 @@ function salvarFabLote() {
     const qtd = parseInt(document.getElementById('fab-lote-qtd').value) || 0;
     const fornecedor = document.getElementById('fab-lote-fornecedor').value.trim();
     const nota = document.getElementById('fab-lote-nota').value.trim();
+    const custoTotal = (typeof canSeeCusto === 'function' && canSeeCusto()) ? parseCusto(document.getElementById('fab-lote-custo').value) : null;
     if (!numero || !validade) { showNotification('Preencha número e validade.', 'error'); return; }
+    if (custoTotal != null && custoTotal < 0) { showNotification('O custo do lote não pode ser negativo.', 'error'); return; }
+    // Sem quantidade não há como derivar o custo por dose
+    if (custoTotal != null && qtd <= 0) { showNotification('Informe a quantidade inicial para registrar o custo do lote.', 'error'); return; }
     const newId = Date.now();
     const novoLote = { id: newId, vaccineId, numero, fabricante, validade, status: 'aberto', fornecedor, nota };
+    if (custoTotal != null) { novoLote.custoTotal = custoTotal; novoLote.custoQtd = qtd; }
     vaccineLots.push(novoLote);
     if (qtd > 0) {
         stockMovements.push({ id: Date.now() + 1, loteId: newId, vaccineId: vaccineId, tipo: 'entrada', qtd: qtd, motivo: 'Cadastro inicial', descarte: false, data: new Date().toISOString(), usuario: currentUser ? currentUser.nome : '—' });
     }
     const v = vaccines.find(x => x.id == vaccineId);
-    logAudit('Criado', 'lote', String(vaccineId), `Lote ${numero}`, `Vacina: ${v ? v.nome : vaccineId} | Validade: ${validade} | Qtd: ${qtd}${fornecedor ? ' | Fornecedor: ' + fornecedor : ''}${nota ? ' | NF: ' + nota : ''}`);
+    logAudit('Criado', 'lote', String(vaccineId), `Lote ${numero}`, `Vacina: ${v ? v.nome : vaccineId} | Validade: ${validade} | Qtd: ${qtd}${fornecedor ? ' | Fornecedor: ' + fornecedor : ''}${nota ? ' | NF: ' + nota : ''}${custoTotal != null ? ' | Custo: ' + fmtCusto(custoTotal) : ''}`);
     saveAll(); renderAlmoxLotes(); updateExpiryBadge();
     document.getElementById('modal-add-lote-fab').classList.remove('active');
     document.getElementById('fab-lote-fabricante').value = '';
     document.getElementById('fab-lote-fornecedor').value = '';
     document.getElementById('fab-lote-nota').value = '';
+    document.getElementById('fab-lote-custo').value = '';
+    atualizarCustoUnitPreview('fab');
     refreshVaccineViewModal(vaccineId);
     showNotification('Lote cadastrado com sucesso!', 'success');
 }
@@ -1148,6 +1265,16 @@ function openVaccineViewModal(vaccineId) {
     const tipoTxt = multiEsquema ? 'Multi amostra' : v.doseUnica ? 'Dose única' : nReforcosInfo > 1 ? `Multidose c/ ${nReforcosInfo} reforços` : nReforcosInfo === 1 ? 'Multidose c/ reforço' : 'Multidose';
     document.getElementById('vv-info-tipo').textContent = tipoTxt;
     document.getElementById('vv-info-valor').textContent = v.valor ? `R$ ${String(v.valor).replace('R$','').trim()}` : '—';
+    const vvCustoBox = document.getElementById('vv-info-custo-box');
+    if (vvCustoBox) {
+        const podeC = (typeof canSeeCusto === 'function') && canSeeCusto();
+        vvCustoBox.classList.toggle('hidden', !podeC);
+        if (podeC) {
+            const c = getVaccineCusto(vaccineId);
+            document.getElementById('vv-info-custo').textContent = (c.informado && c.unitMedio != null) ? `${fmtCusto(c.unitMedio)} / dose` : '—';
+            document.getElementById('vv-info-custo-estoque').textContent = c.informado ? `${fmtCusto(c.valorEstoque)} em estoque` : '';
+        }
+    }
 
     if (multiEsquema) {
         // Doses: uma linha por esquema
@@ -1271,6 +1398,11 @@ function renderVVLotes() {
                 <div class="text-right">
                     <span class="px-2.5 py-1 rounded-full text-xs font-black ${dispCls}">${est.disponivel} disp.</span>
                     <p class="text-[9px] text-slate-400 font-bold mt-0.5">${est.reservado} reserv. · ${est.disponivel + est.reservado} total</p>
+                    ${(() => {
+                        if (!((typeof canSeeCusto === 'function') && canSeeCusto())) return '';
+                        const c = getLoteCustoFrom(l);
+                        return `<p class="text-[9px] font-black text-amber-600 mt-0.5"><i class="fas fa-tag mr-0.5"></i>${c.informado ? `${fmtCusto(c.unit)}/dose` : '—'}</p>`;
+                    })()}
                 </div>
             </div>`;
         }).join('');
@@ -1370,6 +1502,9 @@ function openAddLoteFromVaccineView() {
     document.getElementById('fab-lote-numero').value = '';
     document.getElementById('fab-lote-validade').value = '';
     document.getElementById('fab-lote-qtd').value = '';
+    document.getElementById('fab-lote-custo').value = '';
+    aplicarVisibilidadeCusto();
+    atualizarCustoUnitPreview('fab');
     document.getElementById('modal-add-lote-fab').classList.add('active');
 }
 

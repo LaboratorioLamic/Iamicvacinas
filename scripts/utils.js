@@ -379,3 +379,30 @@ function toLocalISO(date) {
     const d = String(date.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
 }
+
+// ─── CUSTO DE LOTE ─────────────────────────────────────────────────
+// Nomes próprios porque fmtBRL (state.js) e parseBRL (acima) já existem e
+// tratam ausência de valor como zero — aqui é preciso distinguir "sem custo
+// cadastrado" de "custo zero", senão lotes antigos apareceriam como R$ 0,00.
+function fmtCusto(n) {
+    const v = Number(n);
+    if (n == null || n === '' || !isFinite(v)) return '—';
+    return fmtBRL(v);
+}
+
+// Converte texto digitado ("1.234,56", "1234.56", "R$ 90") em number.
+// Retorna null se vazio/inválido — nunca 0.
+function parseCusto(str) {
+    if (str == null) return null;
+    let s = String(str).replace(/[R$\s]/g, '').trim();
+    if (!s) return null;
+    if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+    const v = parseFloat(s);
+    return isFinite(v) ? v : null;
+}
+
+// Custo do lote é dado sensível: só admin ou quem edita lotes enxerga.
+function canSeeCusto() {
+    if (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) return true;
+    return (typeof hasPerm === 'function') && hasPerm('edicao_lotes');
+}
