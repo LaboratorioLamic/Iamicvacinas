@@ -557,7 +557,7 @@ function renderLoteLists() {
                     <span class="text-indigo-600"><i class="fas fa-lock mr-0.5"></i>Reserv: ${est.reservado}</span>
                     <span class="text-slate-400"><i class="fas fa-layer-group mr-0.5"></i>Total: ${est.disponivel + est.reservado}</span>
                 </p>
-                ${custo ? `<p class="text-[10px] font-bold mt-0.5 text-amber-600"><i class="fas fa-tag mr-0.5"></i>Custo: ${custo.informado ? `${fmtCusto(custo.unit)}/dose · Total ${fmtCusto(custo.total)}` : '—'}</p>` : ''}
+                ${custo ? `<p class="text-[10px] font-bold mt-0.5 text-amber-600"><i class="fas fa-tag mr-0.5"></i>Custo unitário: ${custo.informado ? `${fmtCusto(custo.unit)}/dose` : '—'}</p>` : ''}
                 ${emUso ? '<p class="text-[9px] text-slate-400 font-bold mt-0.5"><i class="fas fa-link mr-1"></i>Em uso em agendamentos</p>' : ''}
             </div>
             <div class="flex gap-2" onclick="event.stopPropagation()">
@@ -584,19 +584,19 @@ function addLote() {
     const quantidade = parseInt(document.getElementById('novo-lote-qtd').value, 10) || 0;
     const fornecedor = document.getElementById('novo-lote-fornecedor').value.trim();
     const nota = document.getElementById('novo-lote-nota').value.trim();
-    const custoTotal = (typeof canSeeCusto === 'function' && canSeeCusto()) ? parseCusto(document.getElementById('novo-lote-custo').value) : null;
+    const custoUnit = (typeof canSeeCusto === 'function' && canSeeCusto()) ? parseCusto(document.getElementById('novo-lote-custo').value) : null;
     if (!numero || !validade) { showNotification('Informe o número do lote e a validade.', 'error'); return; }
-    if (custoTotal != null && custoTotal < 0) { showNotification('O custo do lote não pode ser negativo.', 'error'); return; }
+    if (custoUnit != null && custoUnit < 0) { showNotification('O custo unitário não pode ser negativo.', 'error'); return; }
     if (quantidade <= 0) { showNotification('Informe a quantidade inicial do lote (maior que zero).', 'error'); return; }
     if (!currentLoteModalVaccineId) return;
     const newId = Date.now();
     const novoLote = { id: newId, vaccineId: currentLoteModalVaccineId, numero, fabricante, validade, status: 'aberto', fornecedor, nota };
-    // Custo é gravado como total da nota + a qtd que o originou; o unitário é derivado
-    if (custoTotal != null) { novoLote.custoTotal = custoTotal; novoLote.custoQtd = quantidade; }
+    // Custo é gravado como unitário (valor de uma dose); o total é derivado
+    if (custoUnit != null) novoLote.custoUnit = custoUnit;
     vaccineLots.push(novoLote);
     stockMovements.push({ id: newId + 1, loteId: newId, vaccineId: currentLoteModalVaccineId, tipo: 'entrada', qtd: quantidade, motivo: 'Cadastro inicial', descarte: false, data: new Date().toISOString(), usuario: currentUser ? currentUser.nome : '—' });
     const vacLote = vaccines.find(v => v.id == currentLoteModalVaccineId);
-    logAudit('Criado', 'lote', String(currentLoteModalVaccineId), `Lote ${numero}`, `Vacina: ${vacLote ? vacLote.nome : '—'} | Validade: ${validade} | Qtd inicial: ${quantidade}${fornecedor ? ' | Fornecedor: ' + fornecedor : ''}${nota ? ' | NF: ' + nota : ''}${custoTotal != null ? ' | Custo: ' + fmtCusto(custoTotal) : ''}`);
+    logAudit('Criado', 'lote', String(currentLoteModalVaccineId), `Lote ${numero}`, `Vacina: ${vacLote ? vacLote.nome : '—'} | Validade: ${validade} | Qtd inicial: ${quantidade}${fornecedor ? ' | Fornecedor: ' + fornecedor : ''}${nota ? ' | NF: ' + nota : ''}${custoUnit != null ? ' | Custo unitário: ' + fmtCusto(custoUnit) : ''}`);
     document.getElementById('novo-lote-fabricante').value = '';
     document.getElementById('novo-lote-numero').value = '';
     document.getElementById('novo-lote-validade').value = '';
@@ -929,7 +929,8 @@ function editLoteFromView() {
     document.getElementById('edit-lote-validade').value = l.validade;
     document.getElementById('edit-lote-fornecedor').value = l.fornecedor || '';
     document.getElementById('edit-lote-nota').value = l.nota || '';
-    document.getElementById('edit-lote-custo').value = l.custoTotal != null ? String(l.custoTotal).replace('.', ',') : '';
+    const _cUnit = (typeof getLoteCustoUnit === 'function') ? getLoteCustoUnit(l) : (l.custoUnit != null ? Number(l.custoUnit) : null);
+    document.getElementById('edit-lote-custo').value = _cUnit != null ? String(_cUnit).replace('.', ',') : '';
     if (typeof aplicarVisibilidadeCusto === 'function') aplicarVisibilidadeCusto();
     atualizarCustoUnitPreview('edit');
     document.getElementById('modal-edit-lote').classList.add('active');
@@ -1001,12 +1002,13 @@ function salvarEdicaoLote() {
     const fornecedor = document.getElementById('edit-lote-fornecedor').value.trim();
     const nota = document.getElementById('edit-lote-nota').value.trim();
     const podeCusto = (typeof canSeeCusto === 'function') && canSeeCusto();
-    const custoTotal = podeCusto ? parseCusto(document.getElementById('edit-lote-custo').value) : null;
+    const custoUnit = podeCusto ? parseCusto(document.getElementById('edit-lote-custo').value) : null;
     if (!numero || !validade) { showNotification('Preencha o número e a validade.', 'error'); return; }
-    if (custoTotal != null && custoTotal < 0) { showNotification('O custo do lote não pode ser negativo.', 'error'); return; }
+    if (custoUnit != null && custoUnit < 0) { showNotification('O custo unitário não pode ser negativo.', 'error'); return; }
     const idx = vaccineLots.findIndex(l => l.id == id);
     if (idx === -1) return;
     const old = {...vaccineLots[idx]};
+    const _oldUnit = (typeof getLoteCustoUnit === 'function') ? getLoteCustoUnit(old) : null;
     vaccineLots[idx].fabricante = fabricante;
     vaccineLots[idx].numero = numero;
     vaccineLots[idx].validade = validade;
@@ -1015,13 +1017,13 @@ function salvarEdicaoLote() {
     // Só mexe no custo se o usuário tem permissão de vê-lo — do contrário o
     // campo veio vazio por estar oculto e apagaria um valor já cadastrado.
     if (podeCusto) {
-        if (custoTotal == null) { delete vaccineLots[idx].custoTotal; delete vaccineLots[idx].custoQtd; }
-        else {
-            vaccineLots[idx].custoTotal = custoTotal;
-            vaccineLots[idx].custoQtd = Number(old.custoQtd) || getLoteEntradas(vaccineLots[idx].id) || 0;
-        }
+        // Formato legado (total + qtd) é descartado ao salvar — passa a valer o unitário
+        delete vaccineLots[idx].custoTotal;
+        delete vaccineLots[idx].custoQtd;
+        if (custoUnit == null) delete vaccineLots[idx].custoUnit;
+        else vaccineLots[idx].custoUnit = custoUnit;
     }
-    logAudit('Editado', 'lote', String(vaccineLots[idx].vaccineId), `Lote ${numero}`, `Número: ${old.numero}→${numero} | Validade: ${old.validade}→${validade}${fornecedor !== (old.fornecedor||'') ? ' | Fornecedor: →' + fornecedor : ''}${nota !== (old.nota||'') ? ' | NF: →' + nota : ''}${podeCusto && custoTotal !== (old.custoTotal != null ? old.custoTotal : null) ? ` | Custo: ${fmtCusto(old.custoTotal)}→${fmtCusto(custoTotal)}` : ''}`);
+    logAudit('Editado', 'lote', String(vaccineLots[idx].vaccineId), `Lote ${numero}`, `Número: ${old.numero}→${numero} | Validade: ${old.validade}→${validade}${fornecedor !== (old.fornecedor||'') ? ' | Fornecedor: →' + fornecedor : ''}${nota !== (old.nota||'') ? ' | NF: →' + nota : ''}${podeCusto && custoUnit !== _oldUnit ? ` | Custo unitário: ${fmtCusto(_oldUnit)}→${fmtCusto(custoUnit)}` : ''}`);
     saveAll(); renderLoteLists(); updateExpiryBadge();
     document.getElementById('modal-edit-lote').classList.remove('active');
     showNotification('Lote atualizado com sucesso!', 'success');

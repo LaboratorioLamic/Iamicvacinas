@@ -1722,7 +1722,7 @@
                                             <th class="p-3 text-center">Saída</th>
                                             <th class="p-3 text-center">Disponível</th>
                                             <th class="p-3 text-center">Estoque</th>
-                                            <th id="alm-lotes-th-custo" class="p-3 text-center hidden">Custo</th>
+                                            <th id="alm-lotes-th-custo" class="p-3 text-center hidden">Custo unit.</th>
                                             <th class="p-3">Validade</th>
                                             <th class="p-3 text-center">Situação</th>
                                             <th class="p-3 text-center">Ações</th>
@@ -3754,10 +3754,10 @@
                         <input type="number" id="fab-lote-qtd" min="1" placeholder="0" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-center">
                     </div>
                 </div>
-                <!-- 5. Custo total do lote (nota fiscal) -->
+                <!-- 5. Custo unitário da vacina (por dose) -->
                 <div id="fab-lote-custo-wrap" class="hidden">
-                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Custo Total do Lote (R$)</label>
-                    <input type="text" id="fab-lote-custo" inputmode="decimal" placeholder="Ex: 1.250,00" oninput="atualizarCustoUnitPreview('fab')" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold">
+                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Custo Unitário (R$ / dose)</label>
+                    <input type="text" id="fab-lote-custo" inputmode="decimal" placeholder="Ex: 12,50" title="Valor pago por dose da vacina" oninput="atualizarCustoUnitPreview('fab')" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold">
                     <p id="fab-lote-custo-unit" class="text-[10px] font-black text-slate-400 mt-1">&nbsp;</p>
                 </div>
                 <div class="flex gap-3 pt-1">
@@ -3807,7 +3807,7 @@
                     <input type="text" id="novo-lote-nota" placeholder="N° Nota Fiscal" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-bold">
                 </div>
                 <div id="novo-lote-custo-wrap" class="hidden mt-2">
-                    <input type="text" id="novo-lote-custo" inputmode="decimal" placeholder="Custo total do lote (R$)" title="Valor total pago pelo lote, conforme nota fiscal" oninput="atualizarCustoUnitPreview('novo')" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-bold">
+                    <input type="text" id="novo-lote-custo" inputmode="decimal" placeholder="Custo unitário (R$ / dose)" title="Valor pago por dose da vacina" oninput="atualizarCustoUnitPreview('novo')" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-bold">
                     <p id="novo-lote-custo-unit" class="text-[10px] font-black text-slate-400 mt-1">&nbsp;</p>
                 </div>
             </div>
@@ -4180,11 +4180,11 @@
                 <!-- Custo do lote (restrito) -->
                 <div id="view-lote-custo-row" class="hidden grid grid-cols-3 gap-2 mt-2">
                     <div class="bg-white/10 rounded-xl p-2.5 text-center border border-white/10">
-                        <p class="text-[9px] font-black text-amber-200 uppercase tracking-widest">Custo / Dose</p>
+                        <p class="text-[9px] font-black text-amber-200 uppercase tracking-widest">Custo Unitário</p>
                         <p id="view-lote-custo-unit" class="text-sm font-black mt-0.5">—</p>
                     </div>
                     <div class="bg-white/10 rounded-xl p-2.5 text-center border border-white/10">
-                        <p class="text-[9px] font-black text-amber-200 uppercase tracking-widest">Custo do Lote</p>
+                        <p class="text-[9px] font-black text-amber-200 uppercase tracking-widest">Total do Lote</p>
                         <p id="view-lote-custo-total" class="text-sm font-black mt-0.5">—</p>
                     </div>
                     <div class="bg-white/10 rounded-xl p-2.5 text-center border border-white/10">
@@ -4246,8 +4246,8 @@
                     </div>
                 </div>
                 <div id="edit-lote-custo-wrap" class="hidden">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Custo Total do Lote (R$)</label>
-                    <input type="text" id="edit-lote-custo" inputmode="decimal" placeholder="Ex: 1.250,00" oninput="atualizarCustoUnitPreview('edit')" class="w-full border border-slate-200 rounded-xl py-2 px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-clinic-500">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Custo Unitário (R$ / dose)</label>
+                    <input type="text" id="edit-lote-custo" inputmode="decimal" placeholder="Ex: 12,50" title="Valor pago por dose da vacina" oninput="atualizarCustoUnitPreview('edit')" class="w-full border border-slate-200 rounded-xl py-2 px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-clinic-500">
                     <p id="edit-lote-custo-unit" class="text-[10px] font-black text-slate-400 mt-1">&nbsp;</p>
                 </div>
             </div>
