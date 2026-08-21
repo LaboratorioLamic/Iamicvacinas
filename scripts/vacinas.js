@@ -506,6 +506,7 @@ function openLoteModal(vaccineId) {
     const v = vaccines.find(x => x.id == vaccineId);
     document.getElementById('lote-modal-vaccine-name').innerText = v ? v.nome : '';
     document.getElementById('novo-lote-fabricante').value = '';
+    document.getElementById('novo-lote-fabnome').value = '';
     document.getElementById('novo-lote-numero').value = '';
     document.getElementById('novo-lote-validade').value = '';
     document.getElementById('novo-lote-custo').value = '';
@@ -550,8 +551,8 @@ function renderLoteLists() {
         <div class="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer" onclick="editLote(${l.id})">
             <div>
                 <p class="font-black text-navy-900 text-sm">Lote: ${l.numero}</p>
-                ${(l.fabricante || l.fornecedor) ? `<p class="text-[10px] text-slate-400 font-bold mt-0.5">${[l.fabricante, l.fornecedor].filter(Boolean).join(' · ')}</p>` : ''}
-                <p class="text-[10px] text-slate-500 font-bold ${(l.fabricante || l.fornecedor) ? '' : 'mt-0.5'}">Validade: ${l.validade.split('-').reverse().join('/')} ${badgeHtml}</p>
+                ${(l.fabricante || l.fabricanteNome || l.fornecedor) ? `<p class="text-[10px] text-slate-400 font-bold mt-0.5">${[l.fabricante, l.fabricanteNome, l.fornecedor].filter(Boolean).join(' · ')}</p>` : ''}
+                <p class="text-[10px] text-slate-500 font-bold ${(l.fabricante || l.fabricanteNome || l.fornecedor) ? '' : 'mt-0.5'}">Validade: ${l.validade.split('-').reverse().join('/')} ${badgeHtml}</p>
                 <p class="text-[10px] font-bold mt-1 flex gap-2">
                     <span class="text-green-600"><i class="fas fa-box-open mr-0.5"></i>Disp: ${est.disponivel}</span>
                     <span class="text-indigo-600"><i class="fas fa-lock mr-0.5"></i>Reserv: ${est.reservado}</span>
@@ -579,6 +580,7 @@ function renderLoteLists() {
 function addLote() {
     if (!checkPerm('edicao_lotes')) return;
     const fabricante = document.getElementById('novo-lote-fabricante').value.trim();
+    const fabricanteNome = document.getElementById('novo-lote-fabnome').value.trim();
     const numero = document.getElementById('novo-lote-numero').value.trim().toUpperCase();
     const validade = document.getElementById('novo-lote-validade').value;
     const quantidade = parseInt(document.getElementById('novo-lote-qtd').value, 10) || 0;
@@ -590,14 +592,15 @@ function addLote() {
     if (quantidade <= 0) { showNotification('Informe a quantidade inicial do lote (maior que zero).', 'error'); return; }
     if (!currentLoteModalVaccineId) return;
     const newId = Date.now();
-    const novoLote = { id: newId, vaccineId: currentLoteModalVaccineId, numero, fabricante, validade, status: 'aberto', fornecedor, nota };
+    const novoLote = { id: newId, vaccineId: currentLoteModalVaccineId, numero, fabricante, fabricanteNome, validade, status: 'aberto', fornecedor, nota };
     // Custo é gravado como unitário (valor de uma dose); o total é derivado
     if (custoUnit != null) novoLote.custoUnit = custoUnit;
     vaccineLots.push(novoLote);
     stockMovements.push({ id: newId + 1, loteId: newId, vaccineId: currentLoteModalVaccineId, tipo: 'entrada', qtd: quantidade, motivo: 'Cadastro inicial', descarte: false, data: new Date().toISOString(), usuario: currentUser ? currentUser.nome : '—' });
     const vacLote = vaccines.find(v => v.id == currentLoteModalVaccineId);
-    logAudit('Criado', 'lote', String(currentLoteModalVaccineId), `Lote ${numero}`, `Vacina: ${vacLote ? vacLote.nome : '—'} | Validade: ${validade} | Qtd inicial: ${quantidade}${fornecedor ? ' | Fornecedor: ' + fornecedor : ''}${nota ? ' | NF: ' + nota : ''}${custoUnit != null ? ' | Custo unitário: ' + fmtCusto(custoUnit) : ''}`);
+    logAudit('Criado', 'lote', String(currentLoteModalVaccineId), `Lote ${numero}`, `Vacina: ${vacLote ? vacLote.nome : '—'} | Validade: ${validade} | Qtd inicial: ${quantidade}${fabricanteNome ? ' | Fabricante: ' + fabricanteNome : ''}${fornecedor ? ' | Fornecedor: ' + fornecedor : ''}${nota ? ' | NF: ' + nota : ''}${custoUnit != null ? ' | Custo unitário: ' + fmtCusto(custoUnit) : ''}`);
     document.getElementById('novo-lote-fabricante').value = '';
+    document.getElementById('novo-lote-fabnome').value = '';
     document.getElementById('novo-lote-numero').value = '';
     document.getElementById('novo-lote-validade').value = '';
     document.getElementById('novo-lote-qtd').value = '';
@@ -702,16 +705,19 @@ function editLote(loteId) {
     document.getElementById('view-lote-vacina').innerHTML = v ? `${v.nome}${v.mnemonico ? ` <span class="inline-flex items-center bg-white/15 text-white/80 border border-white/20 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case">${v.mnemonico}</span>` : ''}` : '—';
 
     const fabRow  = document.getElementById('view-lote-fabricante-row');
+    const fabNomeRow = document.getElementById('view-lote-fabnome-row');
     const fornRow = document.getElementById('view-lote-fornecedor-row');
     const notaRow = document.getElementById('view-lote-nota-row');
     const metaRow = document.getElementById('view-lote-meta-row');
     if (l.fabricante) { document.getElementById('view-lote-fabricante').textContent = l.fabricante; fabRow.classList.remove('hidden'); }
     else { fabRow.classList.add('hidden'); }
+    if (l.fabricanteNome) { document.getElementById('view-lote-fabnome').textContent = l.fabricanteNome; fabNomeRow.classList.remove('hidden'); }
+    else { fabNomeRow.classList.add('hidden'); }
     if (l.fornecedor) { document.getElementById('view-lote-fornecedor').textContent = l.fornecedor; fornRow.classList.remove('hidden'); }
     else { fornRow.classList.add('hidden'); }
     if (l.nota) { document.getElementById('view-lote-nota').textContent = l.nota; notaRow.classList.remove('hidden'); }
     else { notaRow.classList.add('hidden'); }
-    if (l.fabricante || l.fornecedor || l.nota) { metaRow.classList.remove('hidden'); metaRow.classList.add('flex'); }
+    if (l.fabricante || l.fabricanteNome || l.fornecedor || l.nota) { metaRow.classList.remove('hidden'); metaRow.classList.add('flex'); }
     else { metaRow.classList.add('hidden'); metaRow.classList.remove('flex'); }
 
     document.getElementById('view-lote-disp').textContent = est.disponivel;
@@ -925,6 +931,7 @@ function editLoteFromView() {
     if (!l) return;
     document.getElementById('edit-lote-id').value = l.id;
     document.getElementById('edit-lote-fabricante').value = l.fabricante || '';
+    document.getElementById('edit-lote-fabnome').value = l.fabricanteNome || '';
     document.getElementById('edit-lote-numero').value = l.numero;
     document.getElementById('edit-lote-validade').value = l.validade;
     document.getElementById('edit-lote-fornecedor').value = l.fornecedor || '';
@@ -997,6 +1004,7 @@ function confirmDeleteLoteAppointment() {
 function salvarEdicaoLote() {
     const id = document.getElementById('edit-lote-id').value;
     const fabricante = document.getElementById('edit-lote-fabricante').value.trim();
+    const fabricanteNome = document.getElementById('edit-lote-fabnome').value.trim();
     const numero = document.getElementById('edit-lote-numero').value.trim().toUpperCase();
     const validade = document.getElementById('edit-lote-validade').value;
     const fornecedor = document.getElementById('edit-lote-fornecedor').value.trim();
@@ -1010,6 +1018,7 @@ function salvarEdicaoLote() {
     const old = {...vaccineLots[idx]};
     const _oldUnit = (typeof getLoteCustoUnit === 'function') ? getLoteCustoUnit(old) : null;
     vaccineLots[idx].fabricante = fabricante;
+    vaccineLots[idx].fabricanteNome = fabricanteNome;
     vaccineLots[idx].numero = numero;
     vaccineLots[idx].validade = validade;
     vaccineLots[idx].fornecedor = fornecedor;
@@ -1023,7 +1032,7 @@ function salvarEdicaoLote() {
         if (custoUnit == null) delete vaccineLots[idx].custoUnit;
         else vaccineLots[idx].custoUnit = custoUnit;
     }
-    logAudit('Editado', 'lote', String(vaccineLots[idx].vaccineId), `Lote ${numero}`, `Número: ${old.numero}→${numero} | Validade: ${old.validade}→${validade}${fornecedor !== (old.fornecedor||'') ? ' | Fornecedor: →' + fornecedor : ''}${nota !== (old.nota||'') ? ' | NF: →' + nota : ''}${podeCusto && custoUnit !== _oldUnit ? ` | Custo unitário: ${fmtCusto(_oldUnit)}→${fmtCusto(custoUnit)}` : ''}`);
+    logAudit('Editado', 'lote', String(vaccineLots[idx].vaccineId), `Lote ${numero}`, `Número: ${old.numero}→${numero} | Validade: ${old.validade}→${validade}${fabricanteNome !== (old.fabricanteNome||'') ? ' | Fabricante: →' + fabricanteNome : ''}${fornecedor !== (old.fornecedor||'') ? ' | Fornecedor: →' + fornecedor : ''}${nota !== (old.nota||'') ? ' | NF: →' + nota : ''}${podeCusto && custoUnit !== _oldUnit ? ` | Custo unitário: ${fmtCusto(_oldUnit)}→${fmtCusto(custoUnit)}` : ''}`);
     saveAll(); renderLoteLists(); updateExpiryBadge();
     document.getElementById('modal-edit-lote').classList.remove('active');
     showNotification('Lote atualizado com sucesso!', 'success');

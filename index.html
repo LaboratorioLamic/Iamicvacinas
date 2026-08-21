@@ -3721,16 +3721,21 @@
                     <input type="hidden" id="fab-lote-vaccine">
                     <div id="fab-lote-vaccine-dropdown" class="hidden absolute z-10 w-full bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto"></div>
                 </div>
-                <!-- 2. Fabricante / Nº do Lote -->
+                <!-- 2. Nome de Fábrica / Fabricante -->
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Nome de Fábrica</label>
                         <input type="text" id="fab-lote-fabricante" placeholder="Ex: BUTANTAN" oninput="this.value=this.value.toUpperCase()" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold uppercase">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Nº do Lote</label>
-                        <input type="text" id="fab-lote-numero" placeholder="Ex: AB1234" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 uppercase font-bold">
+                        <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Fabricante</label>
+                        <input type="text" id="fab-lote-fabnome" placeholder="Ex: INSTITUTO BUTANTAN" title="Nome do fabricante da vacina" oninput="this.value=this.value.toUpperCase()" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold uppercase">
                     </div>
+                </div>
+                <!-- 2b. Nº do Lote -->
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Nº do Lote</label>
+                    <input type="text" id="fab-lote-numero" placeholder="Ex: AB1234" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 uppercase font-bold">
                 </div>
                 <!-- 3. Fornecedor / N° Nota -->
                 <div class="grid grid-cols-2 gap-2">
@@ -3795,7 +3800,10 @@
                 <p class="text-[10px] font-black text-blue-700 uppercase mb-2"><i class="fas fa-plus-circle mr-1"></i> Cadastrar Novo Lote</p>
                 <div class="grid grid-cols-2 gap-2 mb-2">
                     <input type="text" id="novo-lote-fabricante" placeholder="NOME DE FÁBRICA..." oninput="this.value=this.value.toUpperCase()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-bold uppercase">
-                    <input type="text" id="novo-lote-numero" placeholder="Nº do lote..." class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase font-bold">
+                    <input type="text" id="novo-lote-fabnome" placeholder="FABRICANTE..." title="Nome do fabricante da vacina" oninput="this.value=this.value.toUpperCase()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-bold uppercase">
+                </div>
+                <div class="mb-2">
+                    <input type="text" id="novo-lote-numero" placeholder="Nº do lote..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase font-bold">
                 </div>
                 <div class="flex gap-2 mb-2">
                     <input type="date" id="novo-lote-validade" class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
@@ -4147,6 +4155,7 @@
                             <h3 id="view-lote-numero" class="font-black text-xl tracking-tight leading-tight font-mono">—</h3>
                             <div id="view-lote-meta-row" class="hidden items-center gap-3 flex-wrap mt-1">
                                 <span id="view-lote-fabricante-row" class="hidden text-[10px] text-white/70 font-black uppercase tracking-widest"><i class="fas fa-industry mr-1"></i><span id="view-lote-fabricante"></span></span>
+                                <span id="view-lote-fabnome-row" class="hidden text-[10px] text-white/70 font-black uppercase tracking-widest" title="Fabricante"><i class="fas fa-flask mr-1"></i><span id="view-lote-fabnome"></span></span>
                                 <span id="view-lote-fornecedor-row" class="hidden text-[10px] text-white/60 font-black uppercase tracking-widest"><i class="fas fa-truck mr-1"></i><span id="view-lote-fornecedor"></span></span>
                                 <span id="view-lote-nota-row" class="hidden text-[10px] text-white/60 font-black uppercase tracking-widest"><i class="fas fa-file-invoice mr-1"></i>NF <span id="view-lote-nota"></span></span>
                             </div>
@@ -4223,9 +4232,15 @@
             <h3 class="font-black text-navy-900 text-base uppercase tracking-tight mb-4"><i class="fas fa-pen text-blue-500 mr-2"></i>Editar Lote</h3>
             <input type="hidden" id="edit-lote-id">
             <div class="space-y-3 mb-5">
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Nome de Fábrica</label>
-                    <input type="text" id="edit-lote-fabricante" oninput="this.value=this.value.toUpperCase()" class="w-full border border-slate-200 rounded-xl py-2 px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-clinic-500 uppercase">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Nome de Fábrica</label>
+                        <input type="text" id="edit-lote-fabricante" oninput="this.value=this.value.toUpperCase()" class="w-full border border-slate-200 rounded-xl py-2 px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-clinic-500 uppercase">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Fabricante</label>
+                        <input type="text" id="edit-lote-fabnome" title="Nome do fabricante da vacina" oninput="this.value=this.value.toUpperCase()" class="w-full border border-slate-200 rounded-xl py-2 px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-clinic-500 uppercase">
+                    </div>
                 </div>
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Número do Lote</label>
