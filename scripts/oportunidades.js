@@ -592,6 +592,59 @@ function renderOportunidadesReset() {
     renderOportunidades();
 }
 
+// O botão de atualizar da barra de filtros também zera os filtros da aba ativa:
+// re-renderizar mantendo tudo selecionado não é o que se espera de um "reset".
+function resetOportunidadesFiltros() {
+    const tab = _oppSubTab;
+    const f   = _oppFilter[tab];
+
+    f.search = '';
+    f.vacina = '';
+    f.vacinaIds.clear();
+    f.ticketMin = '';
+    f.ticketMax = '';
+
+    const bar = document.getElementById(`opp-filters-${tab}`);
+    const searchEl = bar ? bar.querySelector('input[type="text"]') : null;
+    if (searchEl) searchEl.value = '';
+
+    ['opp-ticket-min','opp-ticket-max'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+    });
+    closeTicketPopover();
+    _updateTicketBadge(tab);
+
+    if (tab === 'aprazamento') {
+        f.urgencia = '';
+        f.proxDias = 30;
+        f.vencDias = 30;
+        const diasEl = document.getElementById('apr-prazo-dias');      if (diasEl) diasEl.value = 30;
+        const vencEl = document.getElementById('apr-prazo-venc-dias'); if (vencEl) vencEl.value = 30;
+        const vacSearch = document.getElementById('apr-vacina-search');
+        if (vacSearch) { vacSearch.value = ''; filterAprVacinaList(''); }
+        _renderAprPrazoSelection();
+        _updateAprPrazoBadge();
+        _updateAprVacinaBadge();
+        closeAprPrazoPopover();
+        closeAprVacinaPopover();
+    } else {
+        f.idadeMinAnos = f.idadeMinMeses = f.idadeMaxAnos = f.idadeMaxMeses = '';
+        f.genero = '';
+        f.fidMin = f.fidMax = '';
+        ['ofe-idade-min-anos','ofe-idade-min-meses','ofe-idade-max-anos','ofe-idade-max-meses','ofe-fid-min','ofe-fid-max']
+            .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        _updateGeneroSelection('');
+        ['idade','genero','fidelidade'].forEach(t => _closeOfertaPop(t));
+        const vacSearch = document.getElementById('ofe-vacina-search');
+        if (vacSearch) { vacSearch.value = ''; filterOfertaVacinaList(''); }
+        _updateOfertaVacinaBadge();
+        _updateOfertaFilterBadges();
+        closeOfertaVacinaPopover();
+    }
+
+    renderOportunidadesReset();
+}
+
 // ── Cards ─────────────────────────────────────────────────────────────────────
 
 function _renderPatientCard({ patient, opps }, tab) {
