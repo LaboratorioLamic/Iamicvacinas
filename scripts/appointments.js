@@ -1163,6 +1163,17 @@ function viewRecord(id) {
     const prontuarioBtn = document.getElementById('vr-btn-prontuario');
     prontuarioBtn.onclick = (e) => { e.stopPropagation(); closeViewRecord(); if (typeof viewPatientHistory === 'function') viewPatientHistory(a.patientId); };
 
+    // Rastreabilidade: o modal de auditoria tem z-index menor, então fecha este antes de abrir.
+    const histBtn = document.getElementById('vr-btn-historico');
+    if (histBtn) histBtn.onclick = (e) => {
+        e.stopPropagation();
+        closeViewRecord();
+        if (typeof openAuditModal === 'function') {
+            openAuditModal('agendamento', a.id,
+                `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a.doseAtual || '—'}`);
+        }
+    };
+
     // Vacina
     document.getElementById('vr-vaccine-name').innerHTML = vac ? `${vac.nome}${vac.mnemonico ? ` <span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case">${vac.mnemonico}</span>` : ''}` : '—';
     document.getElementById('vr-dose').textContent = a.doseAtual || '—';
@@ -1819,6 +1830,7 @@ function addNewReason() {
     const val = document.getElementById('new-reason-input').value.trim();
     if(val) {
         cancelReasons.push(val);
+        logAudit('Criado', 'sistema', 'motivos', 'Motivo de Perda', val);
         document.getElementById('new-reason-input').value = '';
         saveAll(); renderCancelReasons(); showNotification('Motivo adicionado!', 'success');
     }
@@ -1827,6 +1839,8 @@ function addNewReason() {
 function editReason(i) {
     const newVal = prompt('Editar motivo:', cancelReasons[i]);
     if(newVal && newVal.trim()) {
+        logAudit('Editado', 'sistema', 'motivos', 'Motivo de Perda', null,
+            [{ field: 'Motivo', de: cancelReasons[i], para: newVal.trim() }]);
         cancelReasons[i] = newVal.trim();
         saveAll(); renderCancelReasons(); showNotification('Motivo editado com sucesso', 'success');
     }
@@ -1834,6 +1848,7 @@ function editReason(i) {
 
 function deleteReason(i) {
     showConfirmDanger('Excluir este motivo definitivamente?', () => {
+        logAudit('Excluído', 'sistema', 'motivos', 'Motivo de Perda', cancelReasons[i]);
         cancelReasons.splice(i, 1);
         saveAll(); renderCancelReasons(); showNotification('Motivo excluído', 'success');
     });

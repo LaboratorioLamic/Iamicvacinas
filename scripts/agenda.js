@@ -675,6 +675,7 @@ function confirmWeeklyDrop() {
     const { ids, targetDate, targetHora } = _weeklyPendingDrop;
     _weeklyPendingDrop = null;
     document.getElementById('modal-weekly-drop').classList.remove('active');
+    const _auditBefore = auditSnapshotAppointments(ids);
     let moved = 0;
     ids.forEach(id => {
         const idx = appointments.findIndex(a => String(a.id) === String(id));
@@ -684,6 +685,7 @@ function confirmWeeklyDrop() {
         if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         moved++;
     });
+    logAppointmentAuditMany(_auditBefore);
     if (moved) {
         saveAll();
         renderWeekly();
@@ -1300,6 +1302,7 @@ function toggleHoliday(dateStr) {
     const idx = holidays.indexOf(dateStr);
     if(idx > -1) {
         holidays.splice(idx, 1);
+        logAudit('Excluído', 'sistema', 'feriados', 'Feriado', `Data: ${dateStr.split('-').reverse().join('/')}`);
         showNotification('Feriado removido!', 'success');
     } else {
         if(appointments.some(a => a.data === dateStr)) {
@@ -1307,6 +1310,7 @@ function toggleHoliday(dateStr) {
             return;
         }
         holidays.push(dateStr);
+        logAudit('Criado', 'sistema', 'feriados', 'Feriado', `Data: ${dateStr.split('-').reverse().join('/')}`);
         showNotification('Dia marcado como feriado.', 'warning');
     }
     saveAll(); renderCalendar();
@@ -1346,7 +1350,9 @@ function openRecordModalWithDate() {
 function setQuickStatus(id, status) {
     let idx = appointments.findIndex(a=>a.id==id);
     if(idx > -1) {
+        const _auditBefore = { ...appointments[idx] };
         appointments[idx].status = status;
+        logAppointmentAudit(_auditBefore, appointments[idx]);
         if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
         saveAll(); renderCalendar(); renderTable(); renderDashboard();
@@ -1398,6 +1404,11 @@ let _agendarEndereco = null;
 
 function _enderecoAgendarCompleto() {
     if (!_agendarEndereco) return false;
+    // Sem local escolhido ainda falta decidir — não conta como completo.
+    if (!_agendarEndereco.localAplicacao) return false;
+    // Laboratório não é visita: basta o local estar definido, não há endereço a exigir.
+    if (typeof localAplicacaoExigeEndereco === 'function' &&
+        !localAplicacaoExigeEndereco(_agendarEndereco.localAplicacao)) return true;
     if (typeof ENDERECO_OBRIGATORIOS === 'undefined') return true;
     return ENDERECO_OBRIGATORIOS.every(f => String(_agendarEndereco[f.campo] || '').trim());
 }
@@ -1477,13 +1488,17 @@ function confirmAgendar() {
     // Endereço completo é pré-requisito do status Agendado.
     if (!_enderecoAgendarCompleto()) {
         const end = _agendarEndereco || {};
-        const faltando = (typeof ENDERECO_OBRIGATORIOS !== 'undefined' ? ENDERECO_OBRIGATORIOS : [])
-            .filter(f => !String(end[f.campo] || '').trim())
-            .map(f => f.label);
-        showNotification(
-            `Endereço incompleto: preencha <b>${faltando.join(', ')}</b> para agendar.`,
-            'error'
-        );
+        if (!end.localAplicacao) {
+            showNotification('Escolha o <b>Local da Aplicação</b> para agendar.', 'error');
+        } else {
+            const faltando = (typeof ENDERECO_OBRIGATORIOS !== 'undefined' ? ENDERECO_OBRIGATORIOS : [])
+                .filter(f => !String(end[f.campo] || '').trim())
+                .map(f => f.label);
+            showNotification(
+                `Endereço incompleto: preencha <b>${faltando.join(', ')}</b> para agendar.`,
+                'error'
+            );
+        }
         _piscarEnderecoAgendar();
         return;
     }
@@ -1509,10 +1524,12 @@ function confirmAgendar() {
                 return;
             }
         }
+        const _auditBefore = { ...appointments[idx] };
         appointments[idx].status = 'Agendado';
         appointments[idx].data = data;
         appointments[idx].pedido = pedido;
         appointments[idx].endereco = { ..._agendarEndereco };
+        logAppointmentAudit(_auditBefore, appointments[idx]);
         pendingAgendarId = null;
         _agendarEndereco = null;
         document.getElementById('modal-agendar').classList.remove('active');
@@ -1656,11 +1673,13 @@ function confirmConcluir() {
             }
         }
         const lot = vaccineLots.find(l => l.id == loteId);
+        const _auditBefore = { ...appointments[idx] };
         appointments[idx].status = 'Aplicado';
         appointments[idx].loteId = Number(loteId);
         appointments[idx].lote = lot ? lot.numero.toUpperCase() : '';
         appointments[idx].aplicador = aplicador.toUpperCase();
         appointments[idx].data = data;
+        logAppointmentAudit(_auditBefore, appointments[idx]);
         pendingConcluirId = null;
         document.getElementById('modal-concluir').classList.remove('active');
         if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
@@ -1840,7 +1859,9 @@ function kanbanDrop(event, targetStatus) {
     } else {
         const idx = appointments.findIndex(x => x.id == id);
         if (idx > -1) {
+            const _auditBefore = { ...appointments[idx] };
             appointments[idx].status = targetStatus;
+            logAppointmentAudit(_auditBefore, appointments[idx]);
             if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
             if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
             saveAll(); renderCalendar(); renderDashboard();
@@ -1883,8 +1904,10 @@ function confirmKanbanCancel() {
     }
     const idx = appointments.findIndex(x => x.id == _kanbanPendingCancelId);
     if (idx > -1) {
+        const _auditBefore = { ...appointments[idx] };
         appointments[idx].status = 'Perdido';
         appointments[idx].motivoCancelamento = reason;
+        logAppointmentAudit(_auditBefore, appointments[idx]);
         closeKanbanCancelModal();
         if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
@@ -2212,6 +2235,7 @@ function _handleGroupDrop(patId, fromStatus, targetStatus) {
         return;
     }
 
+    const _auditBefore = auditSnapshotAppointments(groupApps.map(a => a.id));
     groupApps.forEach(a => {
         const idx = appointments.findIndex(x => x.id == a.id);
         if (idx > -1) {
@@ -2219,6 +2243,7 @@ function _handleGroupDrop(patId, fromStatus, targetStatus) {
             if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         }
     });
+    logAppointmentAuditMany(_auditBefore);
     if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
     saveAll(); renderCalendar(); renderDashboard();
     renderKanban();
@@ -2625,6 +2650,7 @@ function confirmAgendarGrupo() {
         }
     }
 
+    const _auditBefore = auditSnapshotAppointments(activeApps.map(a => a.id));
     activeApps.forEach(app => {
         const idx = appointments.findIndex(a => a.id == app.id);
         if (idx > -1) {
@@ -2642,6 +2668,7 @@ function confirmAgendarGrupo() {
             if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         }
     });
+    logAppointmentAuditMany(_auditBefore);
 
     if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
     saveAll(); renderCalendar(); renderTable(); renderDashboard();
@@ -3131,10 +3158,12 @@ function confirmEditarOportunidade() {
                     : null
             };
             appointments.push(novoApp);
+            logAppointmentAudit(null, novoApp);
             if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(novoApp);
         } else {
             const idx = appointments.findIndex(a => a.id == app.id);
             if (idx === -1) return;
+            const _auditBefore = { ...appointments[idx] };
             appointments[idx].vaccineId = app.vaccineId;
             appointments[idx].doseAtual = doseVal;
             appointments[idx].pedido = pedidoVal;
@@ -3143,6 +3172,7 @@ function confirmEditarOportunidade() {
             appointments[idx].valorCheio = valorCheio;
             appointments[idx].descontoPct = descontoPct;
             appointments[idx].cortesia = cortesia;
+            logAppointmentAudit(_auditBefore, appointments[idx]);
             if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         }
     });
@@ -3608,6 +3638,7 @@ function confirmAplicarGrupo() {
         pedidoMap[app.id] = pedido;
     }
 
+    const _auditBefore = auditSnapshotAppointments(activeApps.map(a => a.id));
     activeApps.forEach(app => {
         const idx = appointments.findIndex(a => a.id == app.id);
         if (idx > -1) {
@@ -3623,6 +3654,7 @@ function confirmAplicarGrupo() {
             if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         }
     });
+    logAppointmentAuditMany(_auditBefore);
 
     if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
     saveAll(); renderCalendar(); renderTable(); renderDashboard(); renderKanban();
@@ -3692,6 +3724,7 @@ function confirmMoverGrupoPerdido() {
     if (!_moverGrupoPerdidoPending) return;
 
     const { apps } = _moverGrupoPerdidoPending;
+    const _auditBefore = auditSnapshotAppointments(apps.map(a => a.id));
     apps.forEach(a => {
         const idx = appointments.findIndex(x => x.id == a.id);
         if (idx > -1) {
@@ -3700,6 +3733,7 @@ function confirmMoverGrupoPerdido() {
             if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         }
     });
+    logAppointmentAuditMany(_auditBefore);
 
     if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
     saveAll(); renderCalendar(); renderDashboard();

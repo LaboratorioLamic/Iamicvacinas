@@ -72,6 +72,7 @@ function toggleUserActive(id) {
     const u = appUsers.find(x => x.id == id);
     if (!u) return;
     u.ativo = u.ativo === false ? true : false;
+    logAudit('Editado', 'usuario', u.id, u.nome, `Usuário ${u.ativo ? 'ativado' : 'inativado'}`);
     saveUsersData();
     renderUsersList();
     showNotification(`Usuário ${u.ativo ? 'ativado' : 'inativado'} com sucesso.`, u.ativo ? 'success' : 'warning');
@@ -265,6 +266,8 @@ function checkDeleteUserConfirm() {
 
 function confirmDeleteUser() {
     if (!_pendingDeleteUserId) return;
+    const _delUser = appUsers.find(u => String(u.id) === String(_pendingDeleteUserId));
+    if (_delUser) logAudit('Excluído', 'usuario', _delUser.id, _delUser.nome, _delUser.login ? `Login: ${_delUser.login}` : null);
     appUsers = appUsers.filter(u => String(u.id) !== String(_pendingDeleteUserId));
     _pendingDeleteUserId = null;
     saveUsersData();
@@ -501,6 +504,9 @@ function deleteGroup(id) {
     const inUse = appUsers.some(u => u.grupoId == id);
     if (inUse) { showNotification('Não é possível excluir: grupo possui usuários vinculados.', 'error'); return; }
     showConfirmDanger('Excluir este grupo definitivamente?', () => {
+        const _delGroup = appGroups.find(g => String(g.id) === String(id));
+        if (_delGroup) logAudit('Excluído', 'grupo', _delGroup.id, _delGroup.nome,
+            `${(_delGroup.permissions || []).length} permissão(ões)`);
         appGroups = appGroups.filter(g => String(g.id) !== String(id));
         if (appSettings.defaultGroupId == id) {
             appSettings.defaultGroupId = null;
@@ -523,6 +529,8 @@ function setDefaultGroup(id) {
     saveAppSettings();
     renderGroupsList();
     const g = appGroups.find(x => x.id == id);
+    logAudit('Editado', 'sistema', 'autocadastro', 'Autocadastro',
+        appSettings.defaultGroupId ? `Grupo padrão: ${g ? g.nome : id}` : 'Grupo padrão removido');
     if (appSettings.defaultGroupId) {
         showNotification(`"${g.nome}" definido como grupo padrão do autocadastro.`, 'success');
     } else {
@@ -540,6 +548,8 @@ function toggleSelfRegister() {
         return;
     }
     appSettings.allowSelfRegister = !appSettings.allowSelfRegister;
+    logAudit('Editado', 'sistema', 'autocadastro', 'Autocadastro',
+        `Autocadastro ${appSettings.allowSelfRegister ? 'ativado' : 'desativado'}`);
     saveAppSettings();
     updateSelfRegisterUI();
     showNotification(`Autocadastro ${appSettings.allowSelfRegister ? 'ativado' : 'desativado'}.`, appSettings.allowSelfRegister ? 'success' : 'warning');

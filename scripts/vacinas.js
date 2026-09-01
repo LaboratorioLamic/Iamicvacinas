@@ -481,6 +481,7 @@ function toggleVaccineStatus(id) {
     if(idx < 0) return;
     const wasAtivo = vaccines[idx].ativo !== false;
     vaccines[idx].ativo = !wasAtivo;
+    logAudit('Editado', 'vacina', vaccines[idx].id, vaccines[idx].nome, `Vacina ${wasAtivo ? 'desativada' : 'ativada'}`);
     saveAll(); renderVaccines();
     showNotification(`Vacina ${wasAtivo ? 'desativada' : 'ativada'} com sucesso!`, wasAtivo ? 'info' : 'success');
 }
@@ -631,13 +632,21 @@ function toggleLoteStatus(loteId, newStatus) {
         document.getElementById('btn-confirmar-fechar-lote').onclick = () => {
             document.getElementById('modal-fechar-lote-aviso').classList.remove('active');
             const idx = vaccineLots.findIndex(l => l.id == loteId);
-            if (idx > -1) { vaccineLots[idx].status = 'fechado'; saveAll(); renderLoteLists(); updateExpiryBadge(); showNotification('Lote fechado com sucesso!', 'success'); }
+            if (idx > -1) {
+                vaccineLots[idx].status = 'fechado';
+                logAudit('Editado', 'lote', String(vaccineLots[idx].vaccineId), `Lote ${vaccineLots[idx].numero}`, 'Lote fechado');
+                saveAll(); renderLoteLists(); updateExpiryBadge(); showNotification('Lote fechado com sucesso!', 'success');
+            }
         };
         document.getElementById('modal-fechar-lote-aviso').classList.add('active');
         return;
     }
     const idx = vaccineLots.findIndex(l => l.id == loteId);
-    if (idx > -1) { vaccineLots[idx].status = 'aberto'; saveAll(); renderLoteLists(); updateExpiryBadge(); showNotification('Lote aberto com sucesso!', 'success'); }
+    if (idx > -1) {
+        vaccineLots[idx].status = 'aberto';
+        logAudit('Editado', 'lote', String(vaccineLots[idx].vaccineId), `Lote ${vaccineLots[idx].numero}`, 'Lote aberto');
+        saveAll(); renderLoteLists(); updateExpiryBadge(); showNotification('Lote aberto com sucesso!', 'success');
+    }
 }
 
 function deleteLote(loteId) {
@@ -907,6 +916,7 @@ function toggleLoteFromView() {
             if (idx > -1) {
                 vaccineLots[idx].status = 'fechado';
                 vaccineLots[idx]._autoFechado = false;
+                logAudit('Editado', 'lote', String(vaccineLots[idx].vaccineId), `Lote ${vaccineLots[idx].numero}`, 'Lote fechado');
                 saveAll(); renderLoteLists(); renderAlmoxLotes && renderAlmoxLotes(); updateExpiryBadge();
                 _refreshViewLoteHeader();
                 showNotification('Lote fechado com sucesso!', 'success');
@@ -918,6 +928,7 @@ function toggleLoteFromView() {
         if (idx > -1) {
             vaccineLots[idx].status = 'aberto';
             vaccineLots[idx]._autoFechado = false;
+            logAudit('Editado', 'lote', String(vaccineLots[idx].vaccineId), `Lote ${vaccineLots[idx].numero}`, 'Lote aberto');
             saveAll(); renderLoteLists(); renderAlmoxLotes && renderAlmoxLotes(); updateExpiryBadge();
             _refreshViewLoteHeader();
             showNotification('Lote aberto com sucesso!', 'success');

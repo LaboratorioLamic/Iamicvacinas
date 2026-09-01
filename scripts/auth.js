@@ -168,6 +168,7 @@ function createFirstAdmin(e) {
     saveUsersData();
     currentUser = { id: admin.id, login: admin.login, nome: admin.nome };
     localStorage.setItem('ig_session', JSON.stringify(currentUser));
+    logAudit('Criado', 'usuario', admin.id, admin.nome, `Administrador inicial · Login: ${admin.login}`);
     document.getElementById('login-screen').style.display = 'none';
     updateUserUI();
     if (typeof updateContactsBadge === 'function') updateContactsBadge();

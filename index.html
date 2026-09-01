@@ -2388,6 +2388,10 @@
                     <div id="vr-status-dot" class="h-2.5 w-2.5 rounded-full shrink-0"></div>
                     <span id="vr-status-badge" class="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"></span>
                     <div class="flex-1"></div>
+                    <button id="vr-btn-historico" onclick="event.stopPropagation()" title="Histórico de edições"
+                        class="h-8 w-8 rounded-xl flex items-center justify-center transition vr-hist-btn">
+                        <i class="far fa-clock text-sm"></i>
+                    </button>
                     <a id="vr-wa-link" href="#" target="_blank" onclick="event.stopPropagation()" title="WhatsApp"
                         class="h-8 w-8 rounded-xl flex items-center justify-center transition vr-wa-btn">
                         <i class="fab fa-whatsapp text-sm"></i>
@@ -2570,6 +2574,8 @@
     .vr-meta                               { color:#64748b; }
     .vr-divider                            { background:linear-gradient(90deg,transparent,#e2e8f0,transparent); }
     .vr-body                               { background:#f8fafc; }
+    .vr-hist-btn                           { background:#fffbeb; border:1px solid #fde68a; color:#d97706; }
+    .vr-hist-btn:hover                     { background:#f59e0b; color:#fff; }
     .vr-wa-btn                             { background:#f0fdf4; border:1px solid #bbf7d0; color:#16a34a; }
     .vr-wa-btn:hover                       { background:#22c55e; color:#fff; }
     .vr-pron-btn                           { background:#eef2ff; border:1px solid #c7d2fe; color:#4f46e5; }
@@ -2604,6 +2610,7 @@
     .dark-mode .vr-meta                        { color:#64748b; }
     .dark-mode .vr-divider                     { background:linear-gradient(90deg,transparent,rgba(99,102,241,0.4),transparent); }
     .dark-mode .vr-body                        { background:transparent; }
+    .dark-mode .vr-hist-btn                    { background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.25); color:#fbbf24; }
     .dark-mode .vr-wa-btn                      { background:rgba(34,197,94,0.12); border-color:rgba(34,197,94,0.25); color:#4ade80; }
     .dark-mode .vr-pron-btn                    { background:rgba(99,102,241,0.12); border-color:rgba(99,102,241,0.25); color:#818cf8; }
     .dark-mode .vr-close-btn                   { background:rgba(148,163,184,0.08); border-color:rgba(148,163,184,0.15); color:#94a3b8; }

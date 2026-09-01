@@ -31,6 +31,62 @@ function logAudit(action, entityType, entityId, entityName, details, changes) {
     db.ref('auditLog/' + entryId).set(entry).catch(err => console.error('[FB] logAudit:', err));
 }
 
+// ─── AUDIT DE AGENDAMENTO (alterações fora do formulário de registro) ────────
+// O drag do kanban, o arraste nas agendas mensal/semanal e as ações de grupo
+// alteram `appointments` direto, sem passar por saveAppointment(). Sem estes
+// helpers, essas mudanças não apareciam na rastreabilidade.
+const APPOINTMENT_AUDIT_FIELDS = {
+    data: 'Data', hora: 'Hora', doseAtual: 'Dose', status: 'Status', lote: 'Lote',
+    valorAplicado: 'Valor', vendedor: 'Vendedor', aplicador: 'Aplicador', pedido: 'Pedido',
+    motivoCancelamento: 'Motivo de Perda', endereco: 'Endereço'
+};
+
+function _auditApptSnapshot(a) {
+    if (!a) return null;
+    const fmtDate = d => (d && String(d).includes('-')) ? String(d).split('-').reverse().join('/') : (d || '');
+    const fmtEnd = e => (typeof enderecoResumo === 'function' ? enderecoResumo(e) : '') || '';
+    return { ...a, data: fmtDate(a.data), endereco: fmtEnd(a.endereco) };
+}
+
+function auditAppointmentLabel(a) {
+    if (!a) return '—';
+    const pat = (typeof patients !== 'undefined') ? patients.find(p => p.id == a.patientId) : null;
+    const vac = (typeof vaccines !== 'undefined') ? vaccines.find(v => v.id == a.vaccineId) : null;
+    return `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a.doseAtual || '—'} | ${a.data ? String(a.data).split('-').reverse().join('/') : '—'}`;
+}
+
+// Captura o estado atual dos agendamentos ANTES da mutação, para comparar depois.
+function auditSnapshotAppointments(ids) {
+    const map = new Map();
+    if (typeof appointments === 'undefined') return map;
+    (ids || []).forEach(id => {
+        const a = appointments.find(x => x.id == id);
+        if (a) map.set(String(id), { ...a });
+    });
+    return map;
+}
+
+function logAppointmentAudit(oldApp, newApp, details) {
+    if (!newApp) return;
+    if (!oldApp) {
+        logAudit('Criado', 'agendamento', newApp.id, auditAppointmentLabel(newApp),
+            details || `Status: ${newApp.status || '—'}`);
+        return;
+    }
+    const changes = computeChanges(_auditApptSnapshot(oldApp), _auditApptSnapshot(newApp), APPOINTMENT_AUDIT_FIELDS);
+    if (!changes.length && !details) return;
+    logAudit('Editado', 'agendamento', newApp.id, auditAppointmentLabel(newApp), details || null, changes);
+}
+
+// Fecha o ciclo de auditSnapshotAppointments(): registra o diff de cada agendamento.
+function logAppointmentAuditMany(snapshots, details) {
+    if (!snapshots || typeof appointments === 'undefined') return;
+    snapshots.forEach((oldApp, id) => {
+        const now = appointments.find(x => x.id == id);
+        if (now) logAppointmentAudit(oldApp, now, details);
+    });
+}
+
 function openAuditModal(entityType, entityId, entityName) {
     _auditCtx = { entityType, entityId, entityName };
     _auditFilterMonth = null;
@@ -47,7 +103,7 @@ function _renderAuditTimeline() {
     const idStr = String(entityId || '');
     let entries = [];
     if (entityType === 'sistema') {
-        entries = auditLog.filter(e => ['usuario', 'grupo'].includes(e.entityType));
+        entries = auditLog.filter(e => ['usuario', 'grupo', 'sistema'].includes(e.entityType));
     } else if (idStr) {
         entries = auditLog.filter(e => e.entityType === entityType && e.entityId === idStr);
     } else {
@@ -59,7 +115,7 @@ function _renderAuditTimeline() {
             return d.getFullYear() === _auditFilterMonth.year && d.getMonth() === _auditFilterMonth.month;
         });
     }
-    const titleMap = { agendamento: 'Agendamento', paciente: 'Paciente', vacina: 'Vacina', lote: 'Lote / Vacina', usuario: 'Usuário', grupo: 'Grupo', sistema: 'Sistema' };
+    const titleMap = { agendamento: 'Agendamento', paciente: 'Paciente', vacina: 'Vacina', lote: 'Lote / Vacina', usuario: 'Usuário', grupo: 'Grupo', sistema: 'Configuração' };
     document.getElementById('audit-modal-subtitle').textContent = entityName || titleMap[entityType] || entityType;
     const list = document.getElementById('audit-timeline');
     const isAdmin = isCurrentUserAdmin();

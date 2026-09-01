@@ -934,6 +934,9 @@ function confirmDismissOpp() {
     };
 
     appointments.push(newApp);
+    if (typeof logAppointmentAudit === 'function') {
+        logAppointmentAudit(null, newApp, `Oportunidade descartada · Motivo: ${motivoFinal}`);
+    }
     if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
     saveAll();
     renderCalendar();

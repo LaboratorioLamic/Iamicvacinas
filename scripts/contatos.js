@@ -28,6 +28,16 @@ function _refreshContactAlertsUI() {
     if (typeof renderKanban === 'function') renderKanban();
 }
 
+// Contatos não são entidade própria na auditoria: entram na rastreabilidade do
+// paciente, que é onde o histórico é consultado.
+function _logContatoAudit(action, contato, details) {
+    if (typeof logAudit !== 'function' || !contato) return;
+    const pat = (typeof patients !== 'undefined') ? patients.find(p => p.id == contato.patientId) : null;
+    const tipoLabel = (CONTACT_TYPES.find(t => t.val === contato.tipo) || {}).label || contato.tipo || '';
+    logAudit(action, 'paciente', contato.patientId, pat ? pat.nome : '—',
+        `Contato (${tipoLabel})${details ? ' · ' + details : ''}: ${String(contato.texto || '').slice(0, 120)}`);
+}
+
 function _createContactEntry(patientId, texto, tipo, agendadoPara) {
     const entry = {
         id:          Date.now() + Math.floor(Math.random() * 1000),
@@ -182,7 +192,9 @@ function publicarContato(patientId) {
     if (!texto) { textoEl.classList.add('border-red-400'); textoEl.focus(); return; }
     textoEl.classList.remove('border-red-400');
 
-    _createContactEntry(patientId, texto, tipoEl.value, dataEl.value || null);
+    const _novoContato = _createContactEntry(patientId, texto, tipoEl.value, dataEl.value || null);
+    _logContatoAudit('Criado', _novoContato,
+        _novoContato.agendadoPara ? `lembrete em ${_novoContato.agendadoPara.split('-').reverse().join('/')}` : null);
     saveAll();
 
     _refreshContactAlertsUI();
@@ -315,7 +327,10 @@ function confirmConcluirContato() {
 
     orig.status = 'concluido';
     orig.concluidoEm = new Date().toISOString();
-    _createContactEntry(orig.patientId, texto, orig.tipo, reagendar ? novaData : null);
+    const _contatoResultado = _createContactEntry(orig.patientId, texto, orig.tipo, reagendar ? novaData : null);
+    _logContatoAudit('Editado', orig, 'concluído');
+    _logContatoAudit('Criado', _contatoResultado,
+        reagendar ? `resultado · novo contato em ${novaData.split('-').reverse().join('/')}` : 'resultado');
     saveAll();
 
     _refreshContactAlertsUI();
@@ -367,6 +382,7 @@ function confirmEditarContato() {
     c.status = novaData ? 'aberto' : 'concluido';
     if (!novaData && !c.concluidoEm) c.concluidoEm = new Date().toISOString();
     if (novaData) c.concluidoEm = null;
+    _logContatoAudit('Editado', c, novaData ? `lembrete em ${novaData.split('-').reverse().join('/')}` : 'sem lembrete');
     saveAll();
 
     _refreshContactAlertsUI();
@@ -395,6 +411,7 @@ function confirmExcluirContato() {
     const c = patientContacts.find(x => x.id === _excluirContatoPending);
     if (!c) { closeExcluirContatoModal(); return; }
 
+    _logContatoAudit('Excluído', c);
     patientContacts = patientContacts.filter(x => x.id !== _excluirContatoPending);
     saveAll();
 
