@@ -1955,7 +1955,7 @@
             <div class="bg-navy-900 p-5 text-white flex justify-between items-center shrink-0">
                 <h3 id="modal-title-agenda" class="font-black uppercase tracking-tight text-xl">Novo Agendamento</h3>
                 <div class="flex items-center gap-1">
-                    <button onclick="openAuditModal('agendamento', document.getElementById('reg-id').value, document.getElementById('modal-title-agenda').innerText)" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition" title="Histórico de edições"><i class="fas fa-clock text-slate-400 text-sm"></i></button>
+                    <button id="btn-audit-agenda" onclick="openAuditModal('agendamento', document.getElementById('reg-id').value, document.getElementById('modal-title-agenda').innerText)" class="hidden h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition" title="Histórico de edições"><i class="fas fa-clock text-slate-400 text-sm"></i></button>
                     <button onclick="closeRecordModal()" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition"><i class="fas fa-times text-xl"></i></button>
                 </div>
             </div>

@@ -5,6 +5,11 @@ function _toggleBtnProntuario(show) {
     if (btn) btn.classList.toggle('hidden', !show);
 }
 
+function _toggleBtnAuditAgenda(show) {
+    const btn = document.getElementById('btn-audit-agenda');
+    if (btn) btn.classList.toggle('hidden', !show);
+}
+
 function populatePatientDatalist() { /* substituído por dropdown customizado */ }
 
 function filterPatientDropdown() {
@@ -118,6 +123,7 @@ function openRecordModal() {
     window._aprazamentoJustificativaConfirmada = false;
     window._aprazamentoJustificativaCtx = null;
     document.getElementById('record-form').reset(); document.getElementById('reg-id').value = '';
+    _toggleBtnAuditAgenda(false);
     // Limpa inputs hidden que não são resetados automaticamente
     document.getElementById('reg-vacina').value = '';
     document.getElementById('hidden-patient-id').value = '';
@@ -1343,6 +1349,7 @@ function editRecord(id) {
     document.getElementById('reg-id').value = '';
     document.getElementById('hidden-patient-id').value = '';
     _toggleBtnProntuario(false);
+    _toggleBtnAuditAgenda(false);
     updateRecordPatientAlert(null);
     document.getElementById('div-responsavel').style.display = 'none';
     document.getElementById('div-responsavel-placeholder').style.display = 'block';
@@ -1366,6 +1373,7 @@ function editRecord(id) {
     const p = patients.find(x=>x.id==a.patientId);
 
     document.getElementById('reg-id').value = a.id;
+    _toggleBtnAuditAgenda(true);
     document.getElementById('reg-patient-search').value = p ? `${p.cpf} - ${p.nome}` : '';
     autoFillPatient();
     // Endereço salvo tem precedência; sem endereço, herda o mais usado do paciente.
