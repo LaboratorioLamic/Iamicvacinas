@@ -1075,7 +1075,8 @@ function confirmDeleteRecord() {
     const pat = a ? patients.find(p => p.id == a.patientId) : null;
     const vac = a ? vaccines.find(v => v.id == a.vaccineId) : null;
     logAudit('Excluído', 'agendamento', pendingDeleteId,
-        `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a ? a.doseAtual : ''} | ${a ? a.data : ''}`);
+        `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a ? a.doseAtual : ''} | ${a ? a.data : ''}`,
+        null, null, a ? a.patientId : null);
     appointments = appointments.filter(x=>x.id !== pendingDeleteId);
     if (typeof stockMovements !== 'undefined') stockMovements = stockMovements.filter(m => m.appointmentId != pendingDeleteId);
     pendingDeleteId = null;
@@ -2141,7 +2142,7 @@ function saveRecord(e) {
     const appChanges = isNew ? null : computeChanges(oldAppFmt, newAppFmt, {data:'Data', hora:'Hora', doseAtual:'Dose', status:'Status', lote:'Lote', valorAplicado:'Valor', vendedor:'Vendedor', aplicador:'Aplicador', motivoCancelamento:'Motivo de Perda', endereco:'Endereço'});
     logAudit(isNew ? 'Criado' : 'Editado', 'agendamento', a.id,
         `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a.doseAtual} | ${a.data ? a.data.split('-').reverse().join('/') : '—'}`,
-        isNew ? `Status: ${a.status}${a.vendedor ? ' | Vendedor: ' + a.vendedor : ''}` : null, appChanges);
+        isNew ? `Status: ${a.status}${a.vendedor ? ' | Vendedor: ' + a.vendedor : ''}` : null, appChanges, a.patientId);
     window._doseAnteriorConfirmado = false;
     window._aprazamentoJustificativaConfirmada = false;
     if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(a);

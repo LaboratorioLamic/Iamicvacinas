@@ -3171,6 +3171,7 @@
                     <button id="btn-pdf-prontuario" onclick="downloadVaccineCalendarPDF()" title="Baixar Calendário de Vacinas em PDF" class="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-black text-xs px-4 py-2 rounded-xl shadow-lg transition tracking-wider">
                         <i class="fas fa-file-pdf text-base"></i> PDF
                     </button>
+                    <button onclick="openAuditModal('paciente-completo', document.getElementById('modal-patient-history').dataset.patientId, document.getElementById('hist-patient-name').innerText || 'Paciente')" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition" title="Rastreabilidade do paciente (cadastro e agendamentos)"><i class="fas fa-clock text-slate-300 text-sm"></i></button>
                     <button onclick="document.getElementById('modal-patient-history').classList.remove('active')" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition"><i class="fas fa-times text-xl"></i></button>
                 </div>
             </div>

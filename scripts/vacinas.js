@@ -997,7 +997,8 @@ function confirmDeleteLoteAppointment() {
     const pat = a ? patients.find(p => p.id == a.patientId) : null;
     const vac = a ? vaccines.find(v => v.id == a.vaccineId) : null;
     logAudit('Excluído', 'agendamento', _dlaAppointmentId,
-        `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a ? a.doseAtual : ''} | ${a ? a.data : ''}`);
+        `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a ? a.doseAtual : ''} | ${a ? a.data : ''}`,
+        null, null, a ? a.patientId : null);
     const loteId = a ? a.loteId : null;
     appointments = appointments.filter(x => x.id != _dlaAppointmentId);
     _dlaAppointmentId = null;

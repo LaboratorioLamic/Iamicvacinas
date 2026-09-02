@@ -10,7 +10,7 @@ function computeChanges(oldObj, newObj, fieldLabels) {
     }, []);
 }
 
-function logAudit(action, entityType, entityId, entityName, details, changes) {
+function logAudit(action, entityType, entityId, entityName, details, changes, patientId) {
     if (!currentUser) return;
     const user = (typeof appUsers !== 'undefined') ? appUsers.find(u => u.id == currentUser.id) : null;
     const entryId = String(Date.now()) + '_' + String(Math.floor(Math.random() * 1e6));
@@ -24,7 +24,8 @@ function logAudit(action, entityType, entityId, entityName, details, changes) {
         entityId: String(entityId || ''),
         entityName: entityName || '',
         details: details || null,
-        changes: (changes && changes.length) ? changes : null
+        changes: (changes && changes.length) ? changes : null,
+        patientId: patientId != null ? String(patientId) : null
     };
     auditLog.unshift(entry);
     if (auditLog.length > 1000) auditLog = auditLog.slice(0, 1000);
@@ -70,12 +71,12 @@ function logAppointmentAudit(oldApp, newApp, details) {
     if (!newApp) return;
     if (!oldApp) {
         logAudit('Criado', 'agendamento', newApp.id, auditAppointmentLabel(newApp),
-            details || `Status: ${newApp.status || '—'}`);
+            details || `Status: ${newApp.status || '—'}`, null, newApp.patientId);
         return;
     }
     const changes = computeChanges(_auditApptSnapshot(oldApp), _auditApptSnapshot(newApp), APPOINTMENT_AUDIT_FIELDS);
     if (!changes.length && !details) return;
-    logAudit('Editado', 'agendamento', newApp.id, auditAppointmentLabel(newApp), details || null, changes);
+    logAudit('Editado', 'agendamento', newApp.id, auditAppointmentLabel(newApp), details || null, changes, newApp.patientId);
 }
 
 // Fecha o ciclo de auditSnapshotAppointments(): registra o diff de cada agendamento.
@@ -104,6 +105,10 @@ function _renderAuditTimeline() {
     let entries = [];
     if (entityType === 'sistema') {
         entries = auditLog.filter(e => ['usuario', 'grupo', 'sistema'].includes(e.entityType));
+    } else if (entityType === 'paciente-completo') {
+        entries = auditLog.filter(e =>
+            (e.entityType === 'paciente' && e.entityId === idStr) ||
+            (e.entityType === 'agendamento' && String(e.patientId || '') === idStr));
     } else if (idStr) {
         entries = auditLog.filter(e => e.entityType === entityType && e.entityId === idStr);
     } else {
@@ -115,7 +120,7 @@ function _renderAuditTimeline() {
             return d.getFullYear() === _auditFilterMonth.year && d.getMonth() === _auditFilterMonth.month;
         });
     }
-    const titleMap = { agendamento: 'Agendamento', paciente: 'Paciente', vacina: 'Vacina', lote: 'Lote / Vacina', usuario: 'Usuário', grupo: 'Grupo', sistema: 'Configuração' };
+    const titleMap = { agendamento: 'Agendamento', paciente: 'Paciente', 'paciente-completo': 'Paciente', vacina: 'Vacina', lote: 'Lote / Vacina', usuario: 'Usuário', grupo: 'Grupo', sistema: 'Configuração' };
     document.getElementById('audit-modal-subtitle').textContent = entityName || titleMap[entityType] || entityType;
     const list = document.getElementById('audit-timeline');
     const isAdmin = isCurrentUserAdmin();
