@@ -39,6 +39,7 @@ function logAudit(action, entityType, entityId, entityName, details, changes, pa
 const APPOINTMENT_AUDIT_FIELDS = {
     data: 'Data', hora: 'Hora', doseAtual: 'Dose', status: 'Status', lote: 'Lote',
     valorAplicado: 'Valor', vendedor: 'Vendedor', aplicador: 'Aplicador', pedido: 'Pedido',
+    pago: 'Pagamento',
     motivoCancelamento: 'Motivo de Perda', endereco: 'Endereço'
 };
 
@@ -46,7 +47,8 @@ function _auditApptSnapshot(a) {
     if (!a) return null;
     const fmtDate = d => (d && String(d).includes('-')) ? String(d).split('-').reverse().join('/') : (d || '');
     const fmtEnd = e => (typeof enderecoResumo === 'function' ? enderecoResumo(e) : '') || '';
-    return { ...a, data: fmtDate(a.data), endereco: fmtEnd(a.endereco) };
+    // Booleano cru viraria "true"/"false" na linha do tempo — o log é lido por gente.
+    return { ...a, data: fmtDate(a.data), endereco: fmtEnd(a.endereco), pago: a.pago ? 'Pago' : 'Não pago' };
 }
 
 function auditAppointmentLabel(a) {
@@ -104,7 +106,7 @@ function _renderAuditTimeline() {
     const idStr = String(entityId || '');
     let entries = [];
     if (entityType === 'sistema') {
-        entries = auditLog.filter(e => ['usuario', 'grupo', 'sistema'].includes(e.entityType));
+        entries = auditLog.filter(e => ['usuario', 'grupo', 'unidade', 'sistema'].includes(e.entityType));
     } else if (entityType === 'paciente-completo') {
         entries = auditLog.filter(e =>
             (e.entityType === 'paciente' && e.entityId === idStr) ||
@@ -120,7 +122,7 @@ function _renderAuditTimeline() {
             return d.getFullYear() === _auditFilterMonth.year && d.getMonth() === _auditFilterMonth.month;
         });
     }
-    const titleMap = { agendamento: 'Agendamento', paciente: 'Paciente', 'paciente-completo': 'Paciente', vacina: 'Vacina', lote: 'Lote / Vacina', usuario: 'Usuário', grupo: 'Grupo', sistema: 'Configuração' };
+    const titleMap = { agendamento: 'Agendamento', paciente: 'Paciente', 'paciente-completo': 'Paciente', vacina: 'Vacina', lote: 'Lote / Vacina', usuario: 'Usuário', grupo: 'Grupo', unidade: 'Unidade', sistema: 'Configuração' };
     document.getElementById('audit-modal-subtitle').textContent = entityName || titleMap[entityType] || entityType;
     const list = document.getElementById('audit-timeline');
     const isAdmin = isCurrentUserAdmin();

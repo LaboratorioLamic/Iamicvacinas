@@ -255,7 +255,7 @@ function switchDashView(view) {
 }
 
 function switchSettingsTab(tab) {
-    ['usuarios', 'backup', 'cpnicorr'].forEach(t => {
+    ['usuarios', 'unidades', 'backup', 'cpnicorr'].forEach(t => {
         document.getElementById(`settings-content-${t}`).classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`settings-tab-${t}`);
         btn.className = t === tab
@@ -263,6 +263,7 @@ function switchSettingsTab(tab) {
             : 'flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 border-b-2 border-transparent transition';
     });
     if (tab === 'cpnicorr' && typeof renderCpniCorrecao === 'function') renderCpniCorrecao();
+    if (tab === 'unidades' && typeof renderUnidadesList === 'function') { resetUnidadeForm(); renderUnidadesList(); }
 }
 
 function openSettings() {
@@ -271,6 +272,7 @@ function openSettings() {
     renderUsersList();
     renderGroupsList();
     populateGroupSelect();
+    if (typeof renderUnidadesList === 'function') { resetUnidadeForm(); renderUnidadesList(); }
     updateSelfRegisterUI();
     // Controla visibilidade das sub-tabs conforme permissão
     const canU = isCurrentUserAdmin() || hasPerm('criar_editar_usuarios');
@@ -283,6 +285,10 @@ function openSettings() {
     const canCpniCorr = isCurrentUserAdmin() || hasPerm('aplicar');
     const tabCpniCorr = document.getElementById('settings-tab-cpnicorr');
     if (tabCpniCorr) tabCpniCorr.style.display = canCpniCorr ? '' : 'none';
+    // Unidades: só quem pode gerenciá-las vê a aba. Escolher a unidade no
+    // agendamento continua liberado para todos.
+    const tabUnidades = document.getElementById('settings-tab-unidades');
+    if (tabUnidades) tabUnidades.style.display = (typeof canGerenciarUnidades === 'function' && canGerenciarUnidades()) ? '' : 'none';
     document.getElementById('modal-settings').classList.add('active');
 }
 

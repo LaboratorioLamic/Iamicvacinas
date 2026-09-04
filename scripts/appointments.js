@@ -171,7 +171,9 @@ function openRecordModal() {
     _vacinaSelNew.classList.add('opacity-50', 'cursor-not-allowed');
     // O formulário de registro é sempre dono do prefixo "reg" dos campos de endereço.
     if (typeof setEnderecoPrefixo === 'function') { setEnderecoPrefixo('reg'); setEnderecoPacienteId(null); }
+    if (typeof populateUnidadeSelects === 'function') populateUnidadeSelects();
     if (typeof limparEnderecoForm === 'function') limparEnderecoForm();
+    setRegPago(false);
     document.getElementById('modal-title-agenda').innerText = 'Novo Agendamento Clínico';
     document.getElementById('btn-delete-record').classList.add('hidden');
     document.getElementById('btn-duplicar-record').classList.add('hidden');
@@ -857,7 +859,108 @@ function confirmarSalvarMesmoAssim() {
     document.getElementById('modal-aprazamento-aviso').classList.remove('active');
 }
 
+// ─── PAGAMENTO (marcador "Pago" do agendamento) ──────────────────────────────
+// Agendado só avisa — o paciente ainda pode pagar no dia. Aplicado bloqueia: a
+// dose saiu do estoque e o financeiro não pode ficar sem contrapartida.
+
+function _paintRegPago() {
+    const btn  = document.getElementById('btn-reg-pago');
+    const icon = document.getElementById('icon-reg-pago');
+    const txt  = document.getElementById('txt-reg-pago');
+    if (!btn) return;
+    if (_regPago) {
+        btn.className = 'w-full md:w-[120px] flex items-center justify-center gap-2 border-2 border-emerald-600 bg-emerald-600 rounded-lg py-2 px-3 text-white text-xs font-black uppercase tracking-wide transition hover:bg-emerald-700 hover:border-emerald-700 shadow-sm';
+        if (icon) icon.className = 'fas fa-circle-check text-sm';
+        if (txt)  txt.textContent = 'Pago';
+    } else {
+        btn.className = 'w-full md:w-[120px] flex items-center justify-center gap-2 border-2 border-slate-200 bg-white rounded-lg py-2 px-3 text-slate-400 text-xs font-black uppercase tracking-wide transition hover:border-emerald-300';
+        if (icon) icon.className = 'fas fa-circle-xmark text-sm';
+        if (txt)  txt.textContent = 'Não pago';
+    }
+}
+
+function _updatePagoAviso() {
+    const box = document.getElementById('reg-pago-aviso');
+    if (!box) return;
+    const status = document.getElementById('reg-status')?.value || '';
+    const lbl = document.getElementById('lbl-reg-pago');
+    const msg = document.getElementById('reg-pago-aviso-msg');
+    const ico = document.getElementById('reg-pago-aviso-icone');
+
+    if (lbl) {
+        lbl.innerHTML = status === 'Aplicado'
+            ? 'Pagamento <span class="text-red-500">*</span>'
+            : 'Pagamento';
+    }
+
+    if (_regPago || (status !== 'Agendado' && status !== 'Aplicado')) {
+        box.classList.add('hidden');
+        box.classList.remove('flex');
+        return;
+    }
+    const bloqueia = status === 'Aplicado';
+    box.className = bloqueia
+        ? 'col-span-1 md:col-span-4 flex items-start gap-2 rounded-lg px-3 py-2 border bg-red-50 border-red-300'
+        : 'col-span-1 md:col-span-4 flex items-start gap-2 rounded-lg px-3 py-2 border bg-amber-50 border-amber-300';
+    if (ico) ico.className = bloqueia
+        ? 'fas fa-circle-exclamation text-sm mt-0.5 shrink-0 text-red-500'
+        : 'fas fa-triangle-exclamation text-sm mt-0.5 shrink-0 text-amber-500';
+    if (msg) {
+        msg.className = bloqueia
+            ? 'text-[11px] font-black leading-tight text-red-600'
+            : 'text-[11px] font-black leading-tight text-amber-700';
+        msg.innerHTML = bloqueia
+            ? 'Pagamento obrigatório: marque <b>Pago</b> para registrar esta aplicação.'
+            : 'Pagamento pendente: este agendamento ainda não foi marcado como <b>Pago</b>.';
+    }
+}
+
+// Grava o marcador no agendamento. O carimbo (quem/quando) só é refeito quando o
+// estado realmente muda — reabrir e salvar um agendamento já pago não reescreve
+// a autoria do pagamento.
+function aplicarPagoAgendamento(alvo, pago, anterior) {
+    if (!alvo) return alvo;
+    const antes = anterior ? !!anterior.pago : false;
+    alvo.pago = !!pago;
+    if (!alvo.pago) {
+        alvo.pagoEm = null;
+        alvo.pagoPor = null;
+    } else if (!antes || !anterior || !anterior.pagoEm) {
+        alvo.pagoEm = new Date().toISOString();
+        alvo.pagoPor = currentUser ? currentUser.nome : '';
+    } else {
+        alvo.pagoEm = anterior.pagoEm;
+        alvo.pagoPor = anterior.pagoPor || '';
+    }
+    return alvo;
+}
+
+// O botão não é <input>/<select>, então escapa do laço que bloqueia o formulário
+// em modo somente-leitura — precisa ser desligado à parte.
+function _setRegPagoDisabled(off) {
+    const btn = document.getElementById('btn-reg-pago');
+    if (!btn) return;
+    btn.disabled = !!off;
+    btn.classList.toggle('opacity-50', !!off);
+    btn.classList.toggle('cursor-not-allowed', !!off);
+}
+
+function toggleRegPago() {
+    const btn = document.getElementById('btn-reg-pago');
+    if (btn && btn.disabled) return;
+    _regPago = !_regPago;
+    _paintRegPago();
+    _updatePagoAviso();
+}
+
+function setRegPago(valor) {
+    _regPago = !!valor;
+    _paintRegPago();
+    _updatePagoAviso();
+}
+
 // ─── DESCONTO NO AGENDAMENTO ──────────────────────────────────────────────────
+
 function openDescontoModal() {
     const valorAtual = document.getElementById('reg-valor').value;
     if (!valorAtual || (valorAtual === '0,00' && !_cortesia)) {
@@ -1215,6 +1318,19 @@ function viewRecord(id) {
     }
     document.getElementById('vr-pedido').textContent = a.pedido || a.pedidoNumero || '—';
 
+    // Pagamento — pendente aparece em vermelho justamente para não passar batido
+    const pagoEl = document.getElementById('vr-pago');
+    if (pagoEl) {
+        if (a.pago) {
+            const quando = a.pagoEm ? new Date(a.pagoEm).toLocaleDateString('pt-BR') : '';
+            const quem = a.pagoPor ? ` por ${a.pagoPor}` : '';
+            pagoEl.innerHTML = `<span style="color:#16a34a"><i class="fas fa-circle-check mr-1"></i>Pago</span>`
+                + (quando || quem ? `<span class="text-[10px] font-bold ml-1.5" style="color:#94a3b8">${[quando, quem.trim()].filter(Boolean).join(' · ')}</span>` : '');
+        } else {
+            pagoEl.innerHTML = `<span style="color:#ef4444"><i class="fas fa-circle-xmark mr-1"></i>Não pago</span>`;
+        }
+    }
+
     // Lote + Nome de Fábrica + Aplicador (independentes)
     const loteRow = document.getElementById('vr-lote-row');
     const lotObj = a.loteId ? vaccineLots.find(l => l.id == a.loteId) : null;
@@ -1279,7 +1395,8 @@ function viewRecord(id) {
                 document.getElementById(valId).textContent = txt || '';
                 document.getElementById(rowId).classList.toggle('hidden', !txt);
             };
-            setPart('vr-end-local-row',  'vr-end-local',  partes.local);
+            setPart('vr-end-local-row',   'vr-end-local',   partes.local);
+            setPart('vr-end-unidade-row', 'vr-end-unidade', partes.unidade);
             setPart('vr-end-linha-row',  'vr-end-linha',  partes.linha);
             setPart('vr-end-cidade-row', 'vr-end-cidade', partes.cidade);
             setPart('vr-end-cep-row',    'vr-end-cep',    partes.cep);
@@ -1378,6 +1495,7 @@ function editRecord(id) {
     autoFillPatient();
     // Endereço salvo tem precedência; sem endereço, herda o mais usado do paciente.
     if (typeof setEnderecoPrefixo === 'function') { setEnderecoPrefixo('reg'); setEnderecoPacienteId(null); }
+    setRegPago(a.pago);
     if (typeof limparEnderecoForm === 'function') {
         limparEnderecoForm();
         if (a.endereco) { preencherEnderecoForm(a.endereco); aplicarPadraoEndereco(); }
@@ -1459,6 +1577,7 @@ function editRecord(id) {
             document.getElementById('btn-duplicar-record').classList.remove('hidden');
             document.querySelectorAll('#record-form input:not([type="hidden"]):not(#reg-valor), #record-form select, #record-form textarea').forEach(el => { el.disabled = false; });
             document.getElementById('btn-desconto').disabled = false;
+            _setRegPagoDisabled(false);
             const saveBtn = document.querySelector('#record-form button[type="submit"]');
             if (saveBtn) saveBtn.style.display = '';
         } else {
@@ -1467,6 +1586,7 @@ function editRecord(id) {
             document.getElementById('btn-duplicar-record').classList.add('hidden');
             document.querySelectorAll('#record-form input:not([type="hidden"]):not(#reg-valor), #record-form select, #record-form textarea').forEach(el => { el.disabled = true; });
             document.getElementById('btn-desconto').disabled = true;
+            _setRegPagoDisabled(true);
             const saveBtn = document.querySelector('#record-form button[type="submit"]');
             if (saveBtn) saveBtn.style.display = 'none';
         }
@@ -1599,6 +1719,7 @@ function toggleCancelReason() {
         aplicadorLabel.innerText = 'Aplicador';
     }
 
+    _updatePagoAviso();
     applyLoteAplicadorPermission();
 }
 
@@ -2053,6 +2174,15 @@ function saveRecord(e) {
     // Endereço completo é pré-requisito do status Agendado
     if (typeof validarEnderecoObrigatorio === 'function' && !validarEnderecoObrigatorio(statusVal)) return;
 
+    // Pagamento: Aplicado exige o marcador "Pago"; Agendado apenas alerta e segue.
+    if (statusVal === 'Aplicado' && !_regPago) {
+        showNotification('Marque o pagamento como <b>Pago</b> para registrar esta aplicação.', 'error');
+        _updatePagoAviso();
+        document.getElementById('btn-reg-pago')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        document.getElementById('btn-reg-pago')?.focus();
+        return;
+    }
+
     // Bloqueio: salvar como Aplicado exige permissão de aplicador
     if (statusVal === 'Aplicado' && !isCurrentUserAdmin() && !hasPerm('aplicar')) {
         showNotification('Apenas usuários com permissão de aplicador podem registrar aplicações.', 'error');
@@ -2139,15 +2269,17 @@ function saveRecord(e) {
 
     const isNew = !id;
     const oldApp = isNew ? null : appointments.find(x => x.id == a.id);
+    aplicarPagoAgendamento(a, _regPago, oldApp);
     if(id) appointments = appointments.map(x=>x.id==a.id?a:x); else appointments.push(a);
     const pat = patients.find(x => x.id == a.patientId);
     const vac = vaccines.find(x => x.id == a.vaccineId);
     const fmtDate = d => (d && d.includes('-')) ? d.split('-').reverse().join('/') : (d || '—');
     // Endereço vira texto no log: computeChanges compara valores simples, não objetos.
     const fmtEnd = e => (typeof enderecoResumo === 'function' ? enderecoResumo(e) : '') || '';
-    const oldAppFmt = oldApp ? {...oldApp, data: fmtDate(oldApp.data), endereco: fmtEnd(oldApp.endereco)} : null;
-    const newAppFmt = {...a, data: fmtDate(a.data), endereco: fmtEnd(a.endereco)};
-    const appChanges = isNew ? null : computeChanges(oldAppFmt, newAppFmt, {data:'Data', hora:'Hora', doseAtual:'Dose', status:'Status', lote:'Lote', valorAplicado:'Valor', vendedor:'Vendedor', aplicador:'Aplicador', motivoCancelamento:'Motivo de Perda', endereco:'Endereço'});
+    const fmtPago = p => p ? 'Pago' : 'Não pago';
+    const oldAppFmt = oldApp ? {...oldApp, data: fmtDate(oldApp.data), endereco: fmtEnd(oldApp.endereco), pago: fmtPago(oldApp.pago)} : null;
+    const newAppFmt = {...a, data: fmtDate(a.data), endereco: fmtEnd(a.endereco), pago: fmtPago(a.pago)};
+    const appChanges = isNew ? null : computeChanges(oldAppFmt, newAppFmt, {data:'Data', hora:'Hora', doseAtual:'Dose', status:'Status', lote:'Lote', valorAplicado:'Valor', vendedor:'Vendedor', aplicador:'Aplicador', pago:'Pagamento', motivoCancelamento:'Motivo de Perda', endereco:'Endereço'});
     logAudit(isNew ? 'Criado' : 'Editado', 'agendamento', a.id,
         `${pat ? pat.nome : '—'} | ${vac ? vac.nome : '—'} | ${a.doseAtual} | ${a.data ? a.data.split('-').reverse().join('/') : '—'}`,
         isNew ? `Status: ${a.status}${a.vendedor ? ' | Vendedor: ' + a.vendedor : ''}` : null, appChanges, a.patientId);

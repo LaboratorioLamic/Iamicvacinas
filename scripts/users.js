@@ -287,7 +287,8 @@ const _CAT_COLORS = {
     ver_dashboard: 'amber', ver_dash_financeiro: 'emerald', ver_agenda: 'amber', ver_tabela: 'amber', ver_pacientes: 'amber', ver_vacinas: 'amber', ver_configuracoes: 'amber',
     excluir_agendamento: 'red', excluir_paciente: 'red',
     excluir_produto: 'red', excluir_lote: 'red', excluir_movimentacao: 'red',
-    criar_editar_usuarios: 'slate', criar_editar_grupos: 'slate', backup: 'slate', alterar_propria_senha: 'slate',
+    criar_editar_usuarios: 'slate', criar_editar_grupos: 'slate', gerenciar_unidades: 'slate',
+    backup: 'slate', alterar_propria_senha: 'slate',
 };
 
 const _COLOR_PILL = {

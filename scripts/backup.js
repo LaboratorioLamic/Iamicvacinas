@@ -6,7 +6,7 @@ function downloadBackup() {
         version: 2,
         exportedAt: new Date().toISOString(),
         patients, vaccines, appointments, cancelReasons, holidays, vaccineLots, stockMovements,
-        appUsers, appGroups, cpniImunoMap
+        appUsers, appGroups, unidades, cpniImunoMap
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
@@ -86,14 +86,20 @@ function doBackupUpload() {
     if (d.appUsers)  appUsers  = d.appUsers;
     if (d.appGroups) appGroups = d.appGroups;
     if (d.cpniImunoMap) cpniImunoMap = d.cpniImunoMap;
+    // Backup antigo (sem unidades) não zera o cadastro atual — os agendamentos
+    // restaurados continuariam apontando para unidades que ainda existem aqui.
+    if (d.unidades) unidades = d.unidades;
     saveAll();
     saveUsersData();
+    saveUnidades();
     pendingBackupData = null;
     document.getElementById('backup-file-input').value = '';
     document.getElementById('backup-file-name').classList.add('hidden');
     document.getElementById('backup-confirm-area').classList.add('hidden');
     document.getElementById('backup-confirm-input').value = '';
     renderCalendar(); renderTable(); renderDashboard(); renderPatients(); renderVaccines();
+    if (typeof renderUnidadesList === 'function') renderUnidadesList();
+    if (typeof populateUnidadeSelects === 'function') populateUnidadeSelects();
     showNotification('Backup importado! Todos os dados foram restaurados.', 'success');
     document.getElementById('modal-settings').classList.remove('active');
 }

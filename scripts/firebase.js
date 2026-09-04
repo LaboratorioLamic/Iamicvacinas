@@ -74,6 +74,13 @@ function setupRealtimeSync() {
             }
         }
     });
+    db.ref('unidades').on('value', snap => {
+        unidades = _fbToArr(snap.val());
+        if (_appReady) {
+            if (typeof renderUnidadesList === 'function') renderUnidadesList();
+            if (typeof populateUnidadeSelects === 'function') populateUnidadeSelects();
+        }
+    });
     db.ref('appUsers').on('value', snap => {
         appUsers = _fbToArr(snap.val());
         if (_appReady) renderUsersList();
@@ -106,6 +113,7 @@ function initFromFirebase() {
         auditLog      = _fbToArr(data.auditLog).sort((a, b) => new Date(b.ts) - new Date(a.ts));
         appUsers      = _fbToArr(data.appUsers);
         appGroups     = _fbToArr(data.appGroups);
+        unidades      = _fbToArr(data.unidades);
         appSettings   = Object.assign({ allowSelfRegister: false, defaultGroupId: null }, data.appSettings || {});
         cpniImunoMap  = data.cpniImunoMap || {};
         if (patients.length === 0 && vaccines.length === 0) {
@@ -159,6 +167,12 @@ function saveUsersData() {
         appUsers:  _arrToFbObj(appUsers),
         appGroups: _arrToFbObj(appGroups)
     }).catch(err => console.error('[FB] saveUsersData:', err));
+}
+
+// Unidades mudam pelo cadastro em Configurações, fora do ciclo de saveAll():
+// gravação própria e imediata, sem arrastar agendamentos/pacientes junto.
+function saveUnidades() {
+    db.ref('unidades').set(_arrToFbObj(unidades)).catch(err => console.error('[FB] saveUnidades:', err));
 }
 
 function saveAppSettings() {

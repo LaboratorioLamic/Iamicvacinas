@@ -354,10 +354,21 @@ function applyPermissions() {
         btnDia.style.display = canAgendar ? '' : 'none';
     }
 
+    // Aba de Unidades no modal de configurações — só quem pode gerenciá-las
+    const tabUnidades = document.getElementById('settings-tab-unidades');
+    if (tabUnidades) {
+        const canUni = typeof canGerenciarUnidades === 'function' && canGerenciarUnidades();
+        tabUnidades.style.display = canUni ? '' : 'none';
+        if (!canUni && !document.getElementById('settings-content-unidades')?.classList.contains('hidden')) {
+            switchSettingsTab('usuarios');
+        }
+    }
+
     // Re-renderiza listas para reflectir permissões nos botões dinâmicos
     renderVaccines();
     renderPatients();
     renderTable();
+    if (typeof renderUnidadesList === 'function') renderUnidadesList();
 }
 
 function updateUserUI() {

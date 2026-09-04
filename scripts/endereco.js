@@ -56,6 +56,12 @@ function localAplicacaoExigeEndereco(valor) {
     return valor === 'Domiciliar';
 }
 
+// O inverso do endereço: no Laboratório o que localiza a aplicação é a unidade
+// de coleta, não a rua. Domiciliar não tem unidade — a visita vai ao paciente.
+function localAplicacaoExigeUnidade(valor) {
+    return valor === 'Laboratório';
+}
+
 // Prefixo dos IDs dos campos-alvo. O formulário de registro usa "reg"; outros
 // formulários (ex.: endereço do modal Agendar Grupo) trocam o prefixo enquanto
 // estão abertos, para reaproveitar CEP, sugestões, padrão e validação sem
@@ -175,12 +181,40 @@ function selecionarLocalAplicacao(valor) {
     }, true)
 );
 
+// ─── UNIDADE DE COLETA ───────────────────────────────────────────────────────
+// Vive junto do local da aplicação e usa o mesmo prefixo: o mesmo par de campos
+// serve ao formulário de registro ("reg") e ao editor de endereço ("grpend").
+
+function _unidadeEl() { return document.getElementById(_endPrefixo + '-unidade'); }
+
+function getUnidadeAplicacao() {
+    // Só vale quando o local pede unidade; Domiciliar nunca grava unidade.
+    if (!localAplicacaoExigeUnidade(getLocalAplicacao())) return null;
+    const v = _unidadeEl()?.value || '';
+    return v ? Number(v) : null;
+}
+
+function setUnidadeAplicacao(id) {
+    const el = _unidadeEl();
+    if (!el) return;
+    // Repopula antes de escolher: a unidade salva pode estar inativa e, sem a
+    // opção na lista, o select cairia para vazio silenciosamente.
+    if (typeof populateUnidadeSelects === 'function') populateUnidadeSelects(id);
+    el.value = id != null && id !== '' ? String(id) : '';
+}
+
 // Mostra/esconde os campos de endereço conforme o local. Enquanto nada foi
 // escolhido o bloco fica oculto: não faz sentido pedir endereço antes.
 function aplicarLocalAplicacao() {
     const exige = localAplicacaoExigeEndereco(getLocalAplicacao());
     const box = document.getElementById(_endPrefixo + '-endereco-campos');
     if (box) box.classList.toggle('hidden', !exige);
+    // Unidade aparece só no Laboratório; fora dele o valor escolhido é descartado
+    // para não voltar sozinho se o usuário alternar o local de novo.
+    const unidadeWrap = document.getElementById(_endPrefixo + '-unidade-wrap');
+    const pedeUnidade = localAplicacaoExigeUnidade(getLocalAplicacao());
+    if (unidadeWrap) unidadeWrap.classList.toggle('hidden', !pedeUnidade);
+    if (!pedeUnidade && _unidadeEl()) _unidadeEl().value = '';
     // Mapa aberto perde o sentido sem endereço visível.
     if (!exige) {
         const mapaBox = document.getElementById(_endPrefixo + '-mapa-box');
@@ -447,9 +481,12 @@ function coletarEnderecoForm() {
     const local = getLocalAplicacao();
     // Nada escolhido e nada digitado: não há endereço a gravar.
     if (!local) return null;
-    // Laboratório não é visita: o endereço digitado antes não é gravado, só o local.
-    if (!localAplicacaoExigeEndereco(local)) return { localAplicacao: local };
-    const end = { localAplicacao: local };
+    // Laboratório não é visita: o endereço digitado antes não é gravado — só o
+    // local e a unidade de coleta que vai aplicar.
+    if (!localAplicacaoExigeEndereco(local)) {
+        return { localAplicacao: local, unidadeId: getUnidadeAplicacao() };
+    }
+    const end = { localAplicacao: local, unidadeId: null };
     ENDERECO_CAMPOS.forEach(c => {
         const v = (_endEl(c)?.value || '').trim();
         end[c] = c === 'cep' ? v : v.toUpperCase();
@@ -465,6 +502,7 @@ function preencherEnderecoForm(end) {
         // Dado real do endereço não é padrão da clínica; vazio volta a ser elegível.
         delete el.dataset.padrao;
     });
+    setUnidadeAplicacao(end ? end.unidadeId : null);
     // Registro antigo (anterior a este campo) com endereço de verdade era sempre
     // uma visita domiciliar. Cidade/UF sozinhas não contam: são só o padrão da
     // clínica, então o formulário ainda abre sem escolha feita.
@@ -483,9 +521,11 @@ function enderecoParaNovoAgendamento(patId, irmaos) {
     // Local segue as vacinas irmãs — é a mesma visita. Sem irmãs não há escolha
     // a herdar: fica vazio até alguém decidir no formulário.
     const local = (doGrupo && doGrupo.localAplicacao) || '';
-    if (local && !localAplicacaoExigeEndereco(local)) return { localAplicacao: local };
+    if (local && !localAplicacaoExigeEndereco(local)) {
+        return { localAplicacao: local, unidadeId: (doGrupo && doGrupo.unidadeId) || null };
+    }
     const base = doGrupo || enderecoMaisFrequente(patId);
-    const end = { localAplicacao: local };
+    const end = { localAplicacao: local, unidadeId: null };
     ENDERECO_CAMPOS.forEach(c => { end[c] = (base && base[c]) || ''; });
     // Número herdado das vacinas irmãs é a mesma visita, então vale. Vindo do
     // histórico é chute — some, para ser digitado à mão.
@@ -526,6 +566,21 @@ const ENDERECO_OBRIGATORIOS = [
     { campo: 'estado',     label: 'UF' }
 ];
 
+// Mensagem única para os fluxos que validam um objeto de endereço (agendamento
+// avulso e grupo), onde não há campos na tela para apontar. Vazio = está completo.
+function enderecoIncompletoMsg(end) {
+    if (!end || !end.localAplicacao) return 'Escolha o <b>Local da Aplicação</b> para agendar.';
+    if (!localAplicacaoExigeEndereco(end.localAplicacao)) {
+        if (localAplicacaoExigeUnidade(end.localAplicacao) && !end.unidadeId) {
+            return 'Selecione a <b>Unidade de Coleta</b> onde a vacina será aplicada.';
+        }
+        return '';
+    }
+    const faltando = ENDERECO_OBRIGATORIOS.filter(f => !String(end[f.campo] || '').trim()).map(f => f.label);
+    if (!faltando.length) return '';
+    return `Endereço incompleto: preencha <b>${faltando.join(', ')}</b> para agendar.`;
+}
+
 function validarEnderecoObrigatorio(status) {
     if (status !== 'Agendado') return true;
     // Sem local escolhido não dá para saber se o endereço é exigido: decide primeiro.
@@ -535,8 +590,15 @@ function validarEnderecoObrigatorio(status) {
         document.getElementById(_endPrefixo + '-local-btn')?.focus();
         return false;
     }
-    // Laboratório dispensa endereço: não há visita para localizar.
-    if (!localAplicacaoExigeEndereco(local)) return true;
+    // Laboratório dispensa endereço, mas exige a unidade de coleta que aplica.
+    if (!localAplicacaoExigeEndereco(local)) {
+        if (localAplicacaoExigeUnidade(local) && !getUnidadeAplicacao()) {
+            showNotification('Selecione a <b>Unidade de Coleta</b> onde a vacina será aplicada.', 'error');
+            _unidadeEl()?.focus();
+            return false;
+        }
+        return true;
+    }
     const faltando = ENDERECO_OBRIGATORIOS.filter(f => !(_endEl(f.campo)?.value || '').trim());
     if (!faltando.length) return true;
     showNotification(
@@ -596,11 +658,22 @@ function toggleMapaEnderecoView() {
     _girarChevronMapa(true);
 }
 
+// Nome da unidade gravada num endereço. Unidade excluída depois do agendamento
+// não some do histórico: o id vira um rótulo genérico em vez de vazio.
+function enderecoUnidadeNome(end) {
+    if (!end || !end.unidadeId) return '';
+    if (typeof unidadeNome === 'function') return unidadeNome(end.unidadeId);
+    return '';
+}
+
 // Resumo textual completo (com a referência) — usado no log de auditoria.
 function enderecoResumo(end) {
     if (!end) return '';
     const local = end.localAplicacao || '';
-    if (local && !localAplicacaoExigeEndereco(local)) return local;
+    if (local && !localAplicacaoExigeEndereco(local)) {
+        const uni = enderecoUnidadeNome(end);
+        return uni ? `${local} · ${uni}` : local;
+    }
     const base = _enderecoParaMapaObj(end);
     const texto = end.referencia ? [base, `Ref.: ${end.referencia}`].filter(Boolean).join(' — ') : base;
     return local ? [local, texto].filter(Boolean).join(' · ') : texto;
@@ -611,15 +684,16 @@ function enderecoResumo(end) {
 function enderecoPartes(end) {
     if (!end) return null;
     const local = end.localAplicacao || '';
-    // Laboratório não tem endereço a exibir — o próprio local é a informação.
+    const unidade = enderecoUnidadeNome(end);
+    // Laboratório não tem endereço a exibir — local e unidade são a informação.
     if (local && !localAplicacaoExigeEndereco(local)) {
-        return { linha: '', cidade: '', cep: '', referencia: '', local };
+        return { linha: '', cidade: '', cep: '', referencia: '', local, unidade };
     }
     const rua    = [end.logradouro, end.numero].filter(Boolean).join(', ');
     const linha  = [rua, end.bairro].filter(Boolean).join(' · ');
     const cidade = [end.cidade, end.estado].filter(Boolean).join(' / ');
     const cep    = end.cep || '';
     const ref    = end.referencia || '';
-    if (!linha && !cidade && !cep && !ref) return local ? { linha: '', cidade: '', cep: '', referencia: '', local } : null;
-    return { linha, cidade, cep, referencia: ref, local };
+    if (!linha && !cidade && !cep && !ref) return local ? { linha: '', cidade: '', cep: '', referencia: '', local, unidade: '' } : null;
+    return { linha, cidade, cep, referencia: ref, local, unidade: '' };
 }

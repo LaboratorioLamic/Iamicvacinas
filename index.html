@@ -2112,6 +2112,21 @@
                             autocomplete="off"
                             class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none uppercase text-sm">
                     </div>
+                    <!-- Pagamento: alerta em Agendado, obrigatório em Aplicado -->
+                    <div class="w-full md:w-auto shrink-0">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1" id="lbl-reg-pago">Pagamento</label>
+                        <button type="button" id="btn-reg-pago" onclick="toggleRegPago()"
+                            class="w-full md:w-[120px] flex items-center justify-center gap-2 border-2 border-slate-200 bg-white rounded-lg py-2 px-3 text-slate-400 text-xs font-black uppercase tracking-wide transition hover:border-emerald-300">
+                            <i id="icon-reg-pago" class="fas fa-circle-xmark text-sm"></i>
+                            <span id="txt-reg-pago">Não pago</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Aviso de pagamento pendente — some sozinho ao marcar Pago -->
+                <div id="reg-pago-aviso" class="col-span-1 md:col-span-4 hidden items-start gap-2 rounded-lg px-3 py-2 border">
+                    <i id="reg-pago-aviso-icone" class="fas fa-triangle-exclamation text-sm mt-0.5 shrink-0"></i>
+                    <p id="reg-pago-aviso-msg" class="text-[11px] font-black leading-tight"></p>
                 </div>
 
                 <div class="col-span-1 md:col-span-4" id="div-motivo-cancelamento" style="display:none;">
@@ -2175,6 +2190,14 @@
                                 <i class="fas fa-chevron-down text-slate-300 text-[10px] shrink-0"></i>
                             </button>
                             <div id="reg-local-pop" class="hidden fixed z-[500] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden"></div>
+                        </div>
+                        <!-- Unidade de coleta: só existe quando a aplicação é no laboratório -->
+                        <div class="col-span-1 md:col-span-2 hidden" id="reg-unidade-wrap">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Unidade de Coleta <span class="text-amber-500" title="Obrigatorio para o status Agendado">*</span></label>
+                            <select id="reg-unidade" class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none font-bold text-sm">
+                                <option value="">Selecione a unidade...</option>
+                            </select>
+                            <p class="text-[9px] text-slate-400 font-bold mt-1"><i class="fas fa-hospital mr-1"></i>Define em qual unidade a vacina será aplicada.</p>
                         </div>
                     </div>
                 </div>
@@ -2457,6 +2480,10 @@
                         <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-receipt vr-label-icon"></i>Pedido</span>
                         <span id="vr-pedido" class="text-sm font-black vr-value"></span>
                     </div>
+                    <div class="col-span-2 rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-money-bill-wave vr-label-icon"></i>Pagamento</span>
+                        <span id="vr-pago" class="text-sm font-black"></span>
+                    </div>
                 </div>
 
                 <!-- Lote + Nome de Fábrica -->
@@ -2504,6 +2531,11 @@
                     <div id="vr-end-local-row" class="flex flex-col gap-0.5">
                         <span class="text-[9px] font-black uppercase tracking-widest vr-label">Local da Aplicação</span>
                         <span id="vr-end-local" class="text-sm font-black vr-value uppercase"></span>
+                    </div>
+
+                    <div id="vr-end-unidade-row" class="flex flex-col gap-0.5">
+                        <span class="text-[9px] font-black uppercase tracking-widest vr-label">Unidade de Coleta</span>
+                        <span id="vr-end-unidade" class="text-sm font-black vr-value uppercase"></span>
                     </div>
 
                     <div id="vr-end-linha-row" class="flex flex-col gap-0.5">
@@ -2722,7 +2754,7 @@
             <div class="p-5 space-y-4 overflow-y-auto flex-1">
                 <div class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
                     <i class="fas fa-info-circle text-amber-500 text-xs shrink-0"></i>
-                    <p class="text-[11px] text-amber-700 font-bold">Vale para todas as vacinas do grupo. Em atendimento <b>Domiciliar</b>, os campos com <span class="text-amber-600">*</span> são obrigatórios para o status Agendado.</p>
+                    <p class="text-[11px] text-amber-700 font-bold">Vale para todas as vacinas do grupo. Em <b>Domiciliar</b>, os campos com <span class="text-amber-600">*</span> são obrigatórios para o status Agendado; em <b>Laboratório</b>, o obrigatório é a <b>Unidade de Coleta</b>.</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div class="col-span-1 relative">
@@ -2736,6 +2768,14 @@
                             <i class="fas fa-chevron-down text-slate-300 text-[10px] shrink-0"></i>
                         </button>
                         <div id="grpend-local-pop" class="hidden fixed z-[500] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden"></div>
+                    </div>
+                    <!-- Unidade de coleta: só existe quando a aplicação é no laboratório -->
+                    <div class="col-span-1 md:col-span-2 hidden" id="grpend-unidade-wrap">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Unidade de Coleta <span class="text-amber-500" title="Obrigatorio para o status Agendado">*</span></label>
+                        <select id="grpend-unidade" class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none font-bold text-sm">
+                            <option value="">Selecione a unidade...</option>
+                        </select>
+                        <p class="text-[9px] text-slate-400 font-bold mt-1"><i class="fas fa-hospital mr-1"></i>Vale para todas as vacinas do grupo.</p>
                     </div>
                 </div>
                 <div id="grpend-endereco-campos" class="space-y-4">
@@ -3651,6 +3691,15 @@
                 <p id="concluir-lote-vencido-erro" class="text-[10px] text-red-600 font-black mb-1 hidden"><i class="fas fa-ban mr-1"></i>Lote vencido na data do agendamento — selecione outro lote.</p>
                 <p id="concluir-lote-erro" class="text-[10px] text-red-500 font-bold mb-3 hidden"><i class="fas fa-exclamation-circle mr-1"></i>Aplicador e lote são obrigatórios para concluir.</p>
                 <div class="mb-3" id="concluir-lote-spacer"></div>
+                <!-- Pagamento: obrigatório para registrar a aplicação -->
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Pagamento <span class="text-red-500">*</span></label>
+                <button type="button" id="btn-concluir-pago" onclick="toggleQuickPago('concluir')"
+                    class="w-full flex items-center justify-center gap-2 border-2 border-slate-200 bg-white rounded-xl py-3 px-4 text-slate-400 text-xs font-black uppercase tracking-wide transition hover:border-emerald-300 mb-1">
+                    <i id="icon-concluir-pago" class="fas fa-circle-xmark text-sm"></i>
+                    <span id="txt-concluir-pago">Não pago</span>
+                </button>
+                <p id="concluir-pago-erro" class="text-[10px] text-red-600 font-black mb-3 hidden"><i class="fas fa-circle-exclamation mr-1"></i>Marque <b>Pago</b> para registrar esta aplicação.</p>
+                <div class="mb-3" id="concluir-pago-spacer"></div>
                 <div class="flex gap-3">
                     <button onclick="confirmConcluir()" id="btn-confirm-concluir"
                         class="flex-1 bg-green-200 text-green-400 font-black py-3 rounded-xl uppercase text-xs transition cursor-not-allowed">
@@ -3698,6 +3747,15 @@
                         </span>
                     </div>
                 </button>
+                <!-- Pagamento: em Agendado apenas alerta, não bloqueia -->
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Pagamento</label>
+                <button type="button" id="btn-agendar-pago" onclick="toggleQuickPago('agendar')"
+                    class="w-full flex items-center justify-center gap-2 border-2 border-slate-200 bg-white rounded-xl py-3 px-4 text-slate-400 text-xs font-black uppercase tracking-wide transition hover:border-emerald-300 mb-1">
+                    <i id="icon-agendar-pago" class="fas fa-circle-xmark text-sm"></i>
+                    <span id="txt-agendar-pago">Não pago</span>
+                </button>
+                <p id="agendar-pago-aviso" class="text-[10px] text-amber-600 font-black mb-3 hidden"><i class="fas fa-triangle-exclamation mr-1"></i>Pagamento pendente — o agendamento será salvo como não pago.</p>
+                <div class="mb-3" id="agendar-pago-spacer"></div>
                 <div class="flex gap-3">
                     <button onclick="confirmAgendar()" id="btn-confirm-agendar"
                         class="flex-1 bg-blue-200 text-blue-400 font-black py-3 rounded-xl uppercase text-xs transition cursor-not-allowed">
@@ -4444,6 +4502,10 @@
                     class="flex-1 py-3 text-xs font-black uppercase tracking-widest text-navy-700 bg-white border-b-2 border-clinic-500 transition">
                     <i class="fas fa-users mr-2"></i>Usuários
                 </button>
+                <button onclick="switchSettingsTab('unidades')" id="settings-tab-unidades"
+                    class="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 border-b-2 border-transparent transition">
+                    <i class="fas fa-hospital mr-2"></i>Unidades
+                </button>
                 <button onclick="switchSettingsTab('backup')" id="settings-tab-backup"
                     class="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 border-b-2 border-transparent transition">
                     <i class="fas fa-database mr-2"></i>Backup
@@ -4949,6 +5011,16 @@
                                                             <p class="text-xs font-bold text-slate-700">Criar/Editar Grupos</p>
                                                         </label>
                                                         <label class="perm-label-row flex items-center gap-3 cursor-pointer">
+                                                            <input type="checkbox" class="perm-check sr-only" value="gerenciar_unidades">
+                                                            <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-700">
+                                                                <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs font-bold text-slate-700 leading-tight">Gerenciar Unidades</p>
+                                                                <p class="text-[10px] text-slate-400 font-normal">Adicionar, editar e remover unidades de coleta</p>
+                                                            </div>
+                                                        </label>
+                                                        <label class="perm-label-row flex items-center gap-3 cursor-pointer">
                                                             <input type="checkbox" class="perm-check sr-only" value="backup">
                                                             <div class="perm-toggle w-8 h-4 rounded-full bg-slate-200 relative transition-colors shrink-0-700">
                                                                 <div class="perm-dot absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow"></div>
@@ -5006,6 +5078,107 @@
                             </div>
 
                         </div>
+                    </div>
+                </div>
+
+                <!-- ─── ABA UNIDADES ─────────────────────────────────── -->
+                <div id="settings-content-unidades" class="p-6 hidden">
+                    <div class="grid grid-cols-1 xl:grid-cols-5 gap-6">
+
+                        <!-- Formulário -->
+                        <div class="xl:col-span-2">
+                            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                                <div class="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex items-center justify-between shrink-0">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="w-7 h-7 rounded-lg bg-clinic-100 flex items-center justify-center">
+                                            <i class="fas fa-plus text-clinic-600 text-xs" id="unidade-form-icon"></i>
+                                        </div>
+                                        <span class="font-black text-navy-900 text-sm uppercase tracking-wide" id="unidade-form-title">Nova Unidade</span>
+                                    </div>
+                                    <button type="button" onclick="resetUnidadeForm()" class="text-slate-300 hover:text-slate-500 transition p-1 rounded-lg hover:bg-slate-100" title="Limpar formulário">
+                                        <i class="fas fa-times text-xs"></i>
+                                    </button>
+                                </div>
+
+                                <form id="unidade-form" onsubmit="saveUnidade(event)" class="p-5 space-y-4">
+                                    <div>
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nome da Unidade <span class="text-clinic-500">*</span></label>
+                                        <input type="text" id="unidade-nome" required placeholder="Ex: MATRIZ CENTRO"
+                                            class="w-full border-2 border-slate-200 rounded-xl py-2.5 px-3.5 text-sm font-bold focus:outline-none focus:border-clinic-500 focus:ring-4 focus:ring-clinic-100 uppercase bg-white transition placeholder:font-normal placeholder:normal-case placeholder:text-slate-300">
+                                    </div>
+
+                                    <div class="grid grid-cols-3 gap-3">
+                                        <div class="col-span-1">
+                                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">CEP</label>
+                                            <input type="text" id="unidade-cep" maxlength="9" autocomplete="off" placeholder="00000-000"
+                                                oninput="formatCep(this)" onblur="buscarCepUnidade()"
+                                                class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-clinic-500 outline-none">
+                                        </div>
+                                        <div class="col-span-2">
+                                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Logradouro</label>
+                                            <input type="text" id="unidade-logradouro" autocomplete="off" placeholder="Rua, avenida..."
+                                                oninput="this.value = this.value.toUpperCase()"
+                                                class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm uppercase focus:ring-2 focus:ring-clinic-500 outline-none">
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-3 gap-3">
+                                        <div class="col-span-1">
+                                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Número</label>
+                                            <input type="text" id="unidade-numero" autocomplete="off" placeholder="Nº"
+                                                oninput="this.value = this.value.toUpperCase()"
+                                                class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm uppercase focus:ring-2 focus:ring-clinic-500 outline-none">
+                                        </div>
+                                        <div class="col-span-2">
+                                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Bairro</label>
+                                            <input type="text" id="unidade-bairro" autocomplete="off" placeholder="Bairro"
+                                                oninput="this.value = this.value.toUpperCase()"
+                                                class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm uppercase focus:ring-2 focus:ring-clinic-500 outline-none">
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-3 gap-3">
+                                        <div class="col-span-2">
+                                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Cidade</label>
+                                            <input type="text" id="unidade-cidade" autocomplete="off" placeholder="Cidade"
+                                                oninput="this.value = this.value.toUpperCase()"
+                                                class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm uppercase focus:ring-2 focus:ring-clinic-500 outline-none">
+                                        </div>
+                                        <div class="col-span-1">
+                                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">UF</label>
+                                            <input type="text" id="unidade-estado" maxlength="2" autocomplete="off" placeholder="CE"
+                                                oninput="this.value = this.value.toUpperCase()"
+                                                class="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm uppercase focus:ring-2 focus:ring-clinic-500 outline-none">
+                                        </div>
+                                    </div>
+
+                                    <div class="flex gap-2.5 pt-1">
+                                        <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-clinic-600 to-clinic-700 text-white font-black rounded-xl hover:from-clinic-700 hover:to-clinic-800 text-xs uppercase tracking-wider transition shadow-md shadow-clinic-200 flex items-center justify-center gap-2">
+                                            <i class="fas fa-save"></i> Salvar Unidade
+                                        </button>
+                                        <button type="button" onclick="resetUnidadeForm()" class="px-4 py-2.5 border-2 border-slate-200 text-slate-400 font-black rounded-xl hover:border-slate-300 hover:text-slate-600 text-xs uppercase transition flex items-center gap-1.5">
+                                            <i class="fas fa-undo text-[10px]"></i>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Lista -->
+                        <div class="xl:col-span-3">
+                            <div class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-4">
+                                <i class="fas fa-info-circle text-amber-500 text-xs shrink-0"></i>
+                                <p class="text-[11px] text-amber-700 font-bold">A unidade é escolhida no agendamento quando o <b>Local da Aplicação</b> é <b>Laboratório</b>. Unidades já usadas em agendamentos não podem ser excluídas — desative-as para tirá-las da lista.</p>
+                            </div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="font-black text-navy-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-hospital text-slate-400 text-xs"></i> Unidades Cadastradas
+                                </h4>
+                                <span id="unidades-count-badge" class="text-[10px] font-black text-slate-400 bg-slate-100 rounded-full px-2.5 py-1 uppercase tracking-wider"></span>
+                            </div>
+                            <div id="unidades-list" class="space-y-3"></div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -5579,6 +5752,7 @@
     <script src="scripts/pacientes.js"></script>
     <script src="scripts/vacinas.js"></script>
     <script src="scripts/almoxarifado.js"></script>
+    <script src="scripts/unidades.js"></script>
     <script src="scripts/endereco.js"></script>
     <script src="scripts/appointments.js"></script>
     <script src="scripts/oportunidades.js"></script>

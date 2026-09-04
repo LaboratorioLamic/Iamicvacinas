@@ -5,6 +5,9 @@ let patients = [], vaccines = [], appointments = [], cancelReasons = [];
 let holidays = [], vaccineLots = [], auditLog = [];
 let stockMovements = []; // [{id, loteId, vaccineId, tipo:'entrada'|'saida', qtd, motivo, descarte, data, usuario}]
 let patientContacts = []; // [{id, patientId, autor, tipo, texto, criadoEm, agendadoPara, status:'aberto'|'concluido', concluidoEm}]
+// Unidades de coleta — onde a vacina é aplicada quando o local é "Laboratório".
+// [{id, nome, apelido, ativo, endereco:{cep,logradouro,numero,bairro,cidade,estado,referencia}}]
+let unidades = [];
 let _prontuarioTab = 'info'; // 'info' | 'contato'
 let currentLoteModalVaccineId = null;
 
@@ -129,5 +132,9 @@ const PERM_LABELS = {
     excluir_agendamento: 'Excluir Agendamento', excluir_paciente: 'Excluir Paciente',
     excluir_produto: 'Excluir Produto', excluir_lote: 'Excluir Lote', excluir_movimentacao: 'Excluir Movimentação',
     criar_editar_usuarios: 'Criar/Editar Usuários', criar_editar_grupos: 'Criar/Editar Grupos',
+    gerenciar_unidades: 'Gerenciar Unidades',
     backup: 'Função de Backup', alterar_propria_senha: 'Alterar Própria Senha'
 };
+
+// Estado do formulário de registro: marcador "Pago" do agendamento em edição.
+let _regPago = false;

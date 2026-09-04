@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('dash-ano-base').value = new Date().getFullYear();
         if (typeof initDashPeriodoFilters === 'function') initDashPeriodoFilters();
         populatePatientDatalist(); populateVaccineSelects(); renderVaccines(); renderPatients();
+        if (typeof populateUnidadeSelects === 'function') populateUnidadeSelects();
 const initTab = getFirstAllowedTab() || 'agenda';
         switchTab(initTab);
         updateExpiryBadge();

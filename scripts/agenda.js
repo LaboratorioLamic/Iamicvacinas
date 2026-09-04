@@ -1362,6 +1362,46 @@ function setQuickStatus(id, status) {
     }
 }
 
+// ─── PAGAMENTO NOS MODAIS RÁPIDOS (Agendar / Aplicar) ────────────────────────
+// Mesmo marcador do formulário de registro, na versão de um botão só: aqui não
+// há campo de valor a acompanhar, apenas o "pago ou não pago" do agendamento.
+
+let _quickPago = { agendar: false, concluir: false };
+
+function _paintQuickPago(ctx) {
+    const btn  = document.getElementById(`btn-${ctx}-pago`);
+    const icon = document.getElementById(`icon-${ctx}-pago`);
+    const txt  = document.getElementById(`txt-${ctx}-pago`);
+    if (!btn) return;
+    const on = !!_quickPago[ctx];
+    btn.className = on
+        ? 'w-full flex items-center justify-center gap-2 border-2 border-emerald-600 bg-emerald-600 rounded-xl py-3 px-4 text-white text-xs font-black uppercase tracking-wide transition hover:bg-emerald-700 hover:border-emerald-700 shadow-sm mb-1'
+        : 'w-full flex items-center justify-center gap-2 border-2 border-slate-200 bg-white rounded-xl py-3 px-4 text-slate-400 text-xs font-black uppercase tracking-wide transition hover:border-emerald-300 mb-1';
+    if (icon) icon.className = on ? 'fas fa-circle-check text-sm' : 'fas fa-circle-xmark text-sm';
+    if (txt)  txt.textContent = on ? 'Pago' : 'Não pago';
+
+    // Agendar só avisa; Aplicar mostra o erro apenas depois de uma tentativa.
+    if (ctx === 'agendar') {
+        const aviso = document.getElementById('agendar-pago-aviso');
+        const spacer = document.getElementById('agendar-pago-spacer');
+        if (aviso) aviso.classList.toggle('hidden', on);
+        if (spacer) spacer.style.display = on ? 'block' : 'none';
+    } else if (on) {
+        document.getElementById('concluir-pago-erro')?.classList.add('hidden');
+        const spacer = document.getElementById('concluir-pago-spacer');
+        if (spacer) spacer.style.display = 'block';
+    }
+}
+
+function setQuickPago(ctx, valor) {
+    _quickPago[ctx] = !!valor;
+    _paintQuickPago(ctx);
+}
+
+function toggleQuickPago(ctx) {
+    setQuickPago(ctx, !_quickPago[ctx]);
+}
+
 // ─── AGENDAR (de "Em negociação" → "Agendado") ───────────────────────────────
 function openAgendarModal(id) {
     if (!checkPerm('agendar')) return;
@@ -1383,6 +1423,7 @@ function openAgendarModal(id) {
         ? { ...a.endereco }
         : (typeof enderecoParaNovoAgendamento === 'function' ? enderecoParaNovoAgendamento(a.patientId, []) : null);
     _renderAgendarEndereco();
+    setQuickPago('agendar', a.pago);
 
     checkAgendarData();
     document.getElementById('modal-agendar').classList.add('active');
@@ -1406,9 +1447,13 @@ function _enderecoAgendarCompleto() {
     if (!_agendarEndereco) return false;
     // Sem local escolhido ainda falta decidir — não conta como completo.
     if (!_agendarEndereco.localAplicacao) return false;
-    // Laboratório não é visita: basta o local estar definido, não há endereço a exigir.
+    // Laboratório não é visita: no lugar do endereço, exige a unidade que aplica.
     if (typeof localAplicacaoExigeEndereco === 'function' &&
-        !localAplicacaoExigeEndereco(_agendarEndereco.localAplicacao)) return true;
+        !localAplicacaoExigeEndereco(_agendarEndereco.localAplicacao)) {
+        if (typeof localAplicacaoExigeUnidade === 'function' &&
+            localAplicacaoExigeUnidade(_agendarEndereco.localAplicacao)) return !!_agendarEndereco.unidadeId;
+        return true;
+    }
     if (typeof ENDERECO_OBRIGATORIOS === 'undefined') return true;
     return ENDERECO_OBRIGATORIOS.every(f => String(_agendarEndereco[f.campo] || '').trim());
 }
@@ -1470,7 +1515,13 @@ function checkAgendarData() {
     btn.className = ok
         ? 'flex-1 bg-blue-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-700 cursor-pointer shadow-md'
         : 'flex-1 bg-blue-200 text-blue-400 font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-300 cursor-pointer';
-    btn.title = ok ? '' : (semEndereco ? 'Informe o endereço da visita para agendar.' : '');
+    btn.title = ok ? '' : (semEndereco ? _dicaEnderecoIncompleto(_agendarEndereco) : '');
+}
+
+// `title` não interpreta HTML — a mesma mensagem, sem as tags de destaque.
+function _dicaEnderecoIncompleto(end) {
+    const msg = (typeof enderecoIncompletoMsg === 'function') ? enderecoIncompletoMsg(end) : '';
+    return msg.replace(/<[^>]+>/g, '');
 }
 
 function confirmAgendar() {
@@ -1487,18 +1538,12 @@ function confirmAgendar() {
     }
     // Endereço completo é pré-requisito do status Agendado.
     if (!_enderecoAgendarCompleto()) {
-        const end = _agendarEndereco || {};
-        if (!end.localAplicacao) {
-            showNotification('Escolha o <b>Local da Aplicação</b> para agendar.', 'error');
-        } else {
-            const faltando = (typeof ENDERECO_OBRIGATORIOS !== 'undefined' ? ENDERECO_OBRIGATORIOS : [])
-                .filter(f => !String(end[f.campo] || '').trim())
-                .map(f => f.label);
-            showNotification(
-                `Endereço incompleto: preencha <b>${faltando.join(', ')}</b> para agendar.`,
-                'error'
-            );
-        }
+        showNotification(
+            (typeof enderecoIncompletoMsg === 'function')
+                ? enderecoIncompletoMsg(_agendarEndereco)
+                : 'Endereço incompleto para agendar.',
+            'error'
+        );
         _piscarEnderecoAgendar();
         return;
     }
@@ -1529,6 +1574,9 @@ function confirmAgendar() {
         appointments[idx].data = data;
         appointments[idx].pedido = pedido;
         appointments[idx].endereco = { ..._agendarEndereco };
+        if (typeof aplicarPagoAgendamento === 'function') {
+            aplicarPagoAgendamento(appointments[idx], _quickPago.agendar, _auditBefore);
+        }
         logAppointmentAudit(_auditBefore, appointments[idx]);
         pendingAgendarId = null;
         _agendarEndereco = null;
@@ -1539,6 +1587,8 @@ function confirmAgendar() {
         if (typeof refreshAlmoxIfActive === 'function') refreshAlmoxIfActive();
         if (typeof refreshOpenModals === 'function') refreshOpenModals();
         showNotification('Agendamento confirmado!', 'success');
+        // Agendado não bloqueia por pagamento, mas o pendente precisa ser visto.
+        if (!_quickPago.agendar) showNotification('Atenção: agendamento salvo como <b>não pago</b>.', 'info');
     }
 }
 
@@ -1584,6 +1634,10 @@ function openConcluirModal(id) {
 
     document.getElementById('concluir-lote-erro').classList.add('hidden');
     document.getElementById('concluir-lote-spacer').style.display = 'block';
+    document.getElementById('concluir-pago-erro')?.classList.add('hidden');
+    const _pagoSpacer = document.getElementById('concluir-pago-spacer');
+    if (_pagoSpacer) _pagoSpacer.style.display = 'block';
+    setQuickPago('concluir', a.pago);
     checkConcluirLote();
     document.getElementById('modal-concluir').classList.add('active');
 }
@@ -1660,6 +1714,14 @@ function confirmConcluir() {
         document.getElementById('concluir-lote-spacer').style.display = 'none';
         return;
     }
+    // Aplicado exige pagamento registrado — a dose sai do estoque agora.
+    if (!_quickPago.concluir) {
+        document.getElementById('concluir-pago-erro')?.classList.remove('hidden');
+        const spacer = document.getElementById('concluir-pago-spacer');
+        if (spacer) spacer.style.display = 'none';
+        showNotification('Marque o pagamento como <b>Pago</b> para registrar esta aplicação.', 'error');
+        return;
+    }
     if (!pendingConcluirId) return;
     const idx = appointments.findIndex(a => a.id == pendingConcluirId);
     if (idx > -1) {
@@ -1679,6 +1741,9 @@ function confirmConcluir() {
         appointments[idx].lote = lot ? lot.numero.toUpperCase() : '';
         appointments[idx].aplicador = aplicador.toUpperCase();
         appointments[idx].data = data;
+        if (typeof aplicarPagoAgendamento === 'function') {
+            aplicarPagoAgendamento(appointments[idx], _quickPago.concluir, _auditBefore);
+        }
         logAppointmentAudit(_auditBefore, appointments[idx]);
         pendingConcluirId = null;
         document.getElementById('modal-concluir').classList.remove('active');
@@ -2280,7 +2345,8 @@ function openAgendarGrupoModal(patId, fromStatus, groupApps) {
             hora: a.hora || '',
             valorAplicado: a.valorAplicado,
             loteId: a.loteId,
-            pedido: a.pedido || a.pedidoNumero || ''
+            pedido: a.pedido || a.pedidoNumero || '',
+            pago: !!a.pago
         }))
     };
     _agendarGrupoRemovedIds = new Set();
@@ -2317,9 +2383,13 @@ function _enderecoGrupoCompleto() {
     if (!end) return false;
     // Sem local escolhido ainda falta decidir — não conta como completo.
     if (!end.localAplicacao) return false;
-    // Laboratório não exige endereço: basta o local estar definido.
+    // Laboratório não exige endereço, mas exige a unidade de coleta que aplica.
     if (typeof localAplicacaoExigeEndereco === 'function' &&
-        !localAplicacaoExigeEndereco(end.localAplicacao)) return true;
+        !localAplicacaoExigeEndereco(end.localAplicacao)) {
+        if (typeof localAplicacaoExigeUnidade === 'function' &&
+            localAplicacaoExigeUnidade(end.localAplicacao)) return !!end.unidadeId;
+        return true;
+    }
     if (typeof ENDERECO_OBRIGATORIOS === 'undefined') return true;
     return ENDERECO_OBRIGATORIOS.every(f => String(end[f.campo] || '').trim());
 }
@@ -2366,10 +2436,13 @@ function abrirEditorEndereco({ patId, endereco, titulo, aoSalvar, mensagem, stat
     preencherEnderecoForm(endereco);
     aplicarPadraoEndereco();
     document.getElementById('modal-endereco-grupo').classList.add('active');
-    // Sem local escolhido, o cursor vai para a escolha — o logradouro está oculto.
+    // O cursor vai para o próximo campo que ainda precisa de humano: sem local
+    // escolhido, a escolha; no laboratório, a unidade (o logradouro está oculto).
     setTimeout(() => {
-        const alvo = (typeof getLocalAplicacao === 'function' && !getLocalAplicacao())
-            ? 'grpend-local-btn' : 'grpend-logradouro';
+        const local = (typeof getLocalAplicacao === 'function') ? getLocalAplicacao() : '';
+        let alvo = 'grpend-logradouro';
+        if (!local) alvo = 'grpend-local-btn';
+        else if (typeof localAplicacaoExigeUnidade === 'function' && localAplicacaoExigeUnidade(local)) alvo = 'grpend-unidade';
         document.getElementById(alvo)?.focus();
     }, 60);
 }
@@ -2412,6 +2485,42 @@ function abrirEnderecoGrupo() {
             _checkAgendarGrupoBtn();
         }
     });
+}
+
+// Botão de pagamento das linhas de grupo. Cada vacina tem seu valor, então o
+// marcador é por linha — não do grupo inteiro, como acontece com o endereço.
+// A alternância repinta só o próprio botão: re-renderizar a lista descartaria o
+// pedido, a data e o lote que o usuário já digitou nas outras linhas.
+const _GRUPO_PAGO_CLS = on => on
+    ? 'h-7 w-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center transition shrink-0 shadow-sm hover:bg-emerald-700'
+    : 'h-7 w-7 rounded-lg bg-slate-100 hover:bg-emerald-100 text-slate-400 hover:text-emerald-600 flex items-center justify-center transition shrink-0';
+const _GRUPO_PAGO_ICO = on => `fas ${on ? 'fa-circle-check' : 'fa-circle-xmark'} text-[10px]`;
+const _GRUPO_PAGO_TIT = on => on ? 'Pago — clique para desmarcar' : 'Não pago — clique para marcar como pago';
+
+function _grupoPagoBtn(fluxo, app) {
+    const on = !!app.pago;
+    return `<button type="button" id="${fluxo.toLowerCase()}-grupo-pago-${app.id}"
+        onclick="toggle${fluxo}GrupoPago(${app.id})" class="${_GRUPO_PAGO_CLS(on)}" title="${_GRUPO_PAGO_TIT(on)}">
+        <i class="${_GRUPO_PAGO_ICO(on)}"></i>
+    </button>`;
+}
+
+function _paintGrupoPagoBtn(fluxo, app) {
+    const btn = document.getElementById(`${fluxo.toLowerCase()}-grupo-pago-${app.id}`);
+    if (!btn) return;
+    const on = !!app.pago;
+    btn.className = _GRUPO_PAGO_CLS(on);
+    btn.title = _GRUPO_PAGO_TIT(on);
+    const icon = btn.querySelector('i');
+    if (icon) icon.className = _GRUPO_PAGO_ICO(on);
+}
+
+function toggleAgendarGrupoPago(appId) {
+    if (!_agendarGrupoPending) return;
+    const line = _agendarGrupoPending.apps.find(a => a.id == appId);
+    if (!line) return;
+    line.pago = !line.pago;
+    _paintGrupoPagoBtn('Agendar', line);
 }
 
 function _renderAgendarGrupoLines() {
@@ -2492,6 +2601,7 @@ function _renderAgendarGrupoLines() {
                     class="border border-slate-200 rounded-lg py-1.5 px-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0">
                 <input type="time" id="agendar-grupo-hora-${app.id}" value="${app.hora || ''}"
                     class="border border-slate-200 rounded-lg py-1.5 px-2 text-xs text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none bg-slate-50 shrink-0 w-[90px]">
+                ${_grupoPagoBtn('Agendar', app)}
                 <button onclick="removeAgendarGrupoLine(${app.id})"
                     class="h-7 w-7 rounded-lg bg-red-50 hover:bg-red-500 text-red-400 hover:text-white flex items-center justify-center transition shrink-0" title="Remover desta lista">
                     <i class="fas fa-times text-[9px]"></i>
@@ -2526,7 +2636,7 @@ function _checkAgendarGrupoBtn() {
         ? 'flex-1 bg-blue-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-700 cursor-pointer shadow-md'
         : 'flex-1 bg-blue-200 text-blue-400 font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-300 cursor-pointer';
     btn.title = canConfirm ? '' :
-        (semEndereco ? 'Informe o endereço da visita para agendar.' : 'Preencha o Nº do pedido de cada vacina.');
+        (semEndereco ? _dicaEnderecoIncompleto(_agendarGrupoPending.endereco) : 'Preencha o Nº do pedido de cada vacina.');
 }
 
 // Chama atenção para o box de endereço: pulso vermelho + rolagem até ele.
@@ -2573,12 +2683,10 @@ function confirmAgendarGrupo() {
     // Endereço completo é pré-requisito do status Agendado — mesma regra do
     // formulário de registro.
     if (!_enderecoGrupoCompleto()) {
-        const end = _agendarGrupoPending.endereco || {};
-        const faltando = (typeof ENDERECO_OBRIGATORIOS !== 'undefined' ? ENDERECO_OBRIGATORIOS : [])
-            .filter(f => !String(end[f.campo] || '').trim())
-            .map(f => f.label);
         showNotification(
-            `Endereço incompleto: preencha <b>${faltando.join(', ')}</b> para agendar.`,
+            (typeof enderecoIncompletoMsg === 'function')
+                ? enderecoIncompletoMsg(_agendarGrupoPending.endereco)
+                : 'Endereço incompleto para agendar.',
             'error'
         );
         // Marca o box e leva o usuário até ele; abrir o editor direto tiraria a
@@ -2660,6 +2768,9 @@ function confirmAgendarGrupo() {
             appointments[idx].pedido = pedidoMap[app.id];
             // Mesma visita, mesmo endereço em todas as vacinas do grupo.
             appointments[idx].endereco = { ..._agendarGrupoPending.endereco };
+            if (typeof aplicarPagoAgendamento === 'function') {
+                aplicarPagoAgendamento(appointments[idx], app.pago, _auditBefore.get(String(app.id)));
+            }
             if (loteMap[app.id]) {
                 appointments[idx].loteId = loteMap[app.id];
                 const lote = vaccineLots.find(l => l.id == loteMap[app.id]);
@@ -2676,9 +2787,12 @@ function confirmAgendarGrupo() {
     if (typeof refreshOpenModals === 'function') refreshOpenModals();
 
     const count = activeApps.length;
+    const semPagar = activeApps.filter(a => !a.pago).length;
     closeAgendarGrupoModal();
     renderKanban();
     showNotification(`${count} vacina${count !== 1 ? 's' : ''} agendada${count !== 1 ? 's' : ''} com sucesso!`, 'success');
+    // Agendado não bloqueia por pagamento, mas o pendente precisa ser visto.
+    if (semPagar) showNotification(`Atenção: ${semPagar} vacina${semPagar !== 1 ? 's' : ''} agendada${semPagar !== 1 ? 's' : ''} como <b>não paga${semPagar !== 1 ? 's' : ''}</b>.`, 'info');
 }
 
 function closeAgendarGrupoModal() {
@@ -3346,7 +3460,8 @@ function openAplicarGrupoModal(patId, fromStatus, groupApps) {
             hora: a.hora || '',
             loteId: a.loteId || '',
             aplicador: a.aplicador || (currentUser ? currentUser.nome : ''),
-            pedido: a.pedido || a.pedidoNumero || ''
+            pedido: a.pedido || a.pedidoNumero || '',
+            pago: !!a.pago
         }))
     };
     _aplicarGrupoRemovedIds = new Set();
@@ -3364,6 +3479,15 @@ function openAplicarGrupoModal(patId, fromStatus, groupApps) {
 
     _renderAplicarGrupoLines();
     document.getElementById('modal-aplicar-grupo').classList.add('active');
+}
+
+function toggleAplicarGrupoPago(appId) {
+    if (!_aplicarGrupoPending) return;
+    const line = _aplicarGrupoPending.apps.find(a => a.id == appId);
+    if (!line) return;
+    line.pago = !line.pago;
+    _paintGrupoPagoBtn('Aplicar', line);
+    _checkAplicarGrupoBtn();
 }
 
 function _renderAplicarGrupoLines() {
@@ -3440,6 +3564,7 @@ function _renderAplicarGrupoLines() {
                         <p class="text-[11px] font-black text-navy-900 truncate leading-tight flex items-center gap-1.5">${nomVac}${vac && vac.mnemonico ? `<span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case shrink-0">${vac.mnemonico}</span>` : ''}</p>
                         <p class="text-[10px] text-slate-500">${app.dose}</p>
                     </div>
+                    ${_grupoPagoBtn('Aplicar', app)}
                     <button onclick="removeAplicarGrupoLine(${app.id})"
                         class="h-7 w-7 rounded-lg bg-red-50 hover:bg-red-500 text-red-400 hover:text-white flex items-center justify-center transition shrink-0" title="Remover desta lista">
                         <i class="fas fa-times text-[9px]"></i>
@@ -3504,11 +3629,15 @@ function _checkAplicarGrupoBtn() {
         const el = document.getElementById(`aplicar-grupo-pedido-${app.id}`);
         return el && el.value.trim().length > 0;
     });
-    const canConfirm = activeApps.length > 0 && allPedidosPreenchidos;
+    // Aplicado exige pagamento em toda linha — mesma regra do formulário.
+    const todasPagas = activeApps.every(app => !!app.pago);
+    const canConfirm = activeApps.length > 0 && allPedidosPreenchidos && todasPagas;
     btn.disabled = !canConfirm;
     btn.className = canConfirm
         ? 'flex-1 bg-green-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-green-700 cursor-pointer shadow-md'
         : 'flex-1 bg-green-200 text-emerald-400 font-black py-3 rounded-xl uppercase text-xs cursor-not-allowed';
+    btn.title = canConfirm ? '' :
+        (!todasPagas ? 'Marque o pagamento de todas as vacinas para registrar a aplicação.' : 'Preencha o Nº do pedido de cada vacina.');
 }
 
 function _openAplicadorDropdown(input) {
@@ -3615,6 +3744,12 @@ function confirmAplicarGrupo() {
             if (aplicadorInput) { aplicadorInput.focus(); aplicadorInput.classList.add('border-red-400','ring-2','ring-red-200'); }
             return;
         }
+        // Aplicado exige pagamento registrado — a dose sai do estoque agora.
+        if (!app.pago) {
+            showNotification(`Marque o pagamento como <b>Pago</b> para aplicar "${nomVac}".`, 'error');
+            document.getElementById(`aplicar-grupo-pago-${app.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            return;
+        }
         const aplicadoresPermitidos = (appUsers || []).filter(u => u.isAplicador && u.ativo !== false)
             .map(u => u.nome ? u.nome.toUpperCase() : '').filter(Boolean);
         if (!aplicadoresPermitidos.includes(aplicador.toUpperCase())) {
@@ -3651,6 +3786,9 @@ function confirmAplicarGrupo() {
             appointments[idx].lote = lote ? lote.numero.toUpperCase() : '';
             appointments[idx].aplicador = aplicadorMap[app.id].toUpperCase();
             appointments[idx].pedido = pedidoMap[app.id];
+            if (typeof aplicarPagoAgendamento === 'function') {
+                aplicarPagoAgendamento(appointments[idx], app.pago, _auditBefore.get(String(app.id)));
+            }
             if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(appointments[idx]);
         }
     });
