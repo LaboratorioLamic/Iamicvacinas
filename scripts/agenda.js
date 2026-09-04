@@ -2494,14 +2494,17 @@ function abrirEnderecoGrupo() {
 const _GRUPO_PAGO_CLS = on => on
     ? 'h-7 w-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center transition shrink-0 shadow-sm hover:bg-emerald-700'
     : 'h-7 w-7 rounded-lg bg-slate-100 hover:bg-emerald-100 text-slate-400 hover:text-emerald-600 flex items-center justify-center transition shrink-0';
-const _GRUPO_PAGO_ICO = on => `fas ${on ? 'fa-circle-check' : 'fa-circle-xmark'} text-[10px]`;
+// O cifrão é fixo nos dois estados: é o que o botão faz, não o estado dele. Um
+// "x" aqui colidiria com o × de remover, logo ao lado. O estado quem diz é a cor
+// (verde preenchido = pago) mais o title.
+const _GRUPO_PAGO_ICO = () => 'fas fa-dollar-sign text-[10px]';
 const _GRUPO_PAGO_TIT = on => on ? 'Pago — clique para desmarcar' : 'Não pago — clique para marcar como pago';
 
 function _grupoPagoBtn(fluxo, app) {
     const on = !!app.pago;
     return `<button type="button" id="${fluxo.toLowerCase()}-grupo-pago-${app.id}"
         onclick="toggle${fluxo}GrupoPago(${app.id})" class="${_GRUPO_PAGO_CLS(on)}" title="${_GRUPO_PAGO_TIT(on)}">
-        <i class="${_GRUPO_PAGO_ICO(on)}"></i>
+        <i class="${_GRUPO_PAGO_ICO()}"></i>
     </button>`;
 }
 
@@ -2512,7 +2515,7 @@ function _paintGrupoPagoBtn(fluxo, app) {
     btn.className = _GRUPO_PAGO_CLS(on);
     btn.title = _GRUPO_PAGO_TIT(on);
     const icon = btn.querySelector('i');
-    if (icon) icon.className = _GRUPO_PAGO_ICO(on);
+    if (icon) icon.className = _GRUPO_PAGO_ICO();
 }
 
 function toggleAgendarGrupoPago(appId) {
