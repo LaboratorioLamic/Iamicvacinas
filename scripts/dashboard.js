@@ -521,8 +521,14 @@ function renderDashAnalitico(apps) {
 
 function renderDashFinanceiro(apps) {
     const fmt = fmtBRL;
-    const toVal    = a => parseBRL(a.valorAplicado);
-    const toCheio  = a => a.valorCheio ? (parseBRL(a.valorCheio) || toVal(a)) : toVal(a);
+    // A taxa de deslocamento é receita da visita domiciliar, então entra no valor
+    // do atendimento. Ela não sofre desconto: soma igual no cheio e no realizado.
+    const toTaxa   = a => (typeof getTaxaDeslocamento === 'function') ? getTaxaDeslocamento(a.endereco) : 0;
+    // Valor da dose sozinho — para os cortes por vacina, onde a taxa não pertence
+    // a nenhuma vacina em particular e distorceria a comparação entre elas.
+    const toValVac = a => parseBRL(a.valorAplicado);
+    const toVal    = a => toValVac(a) + toTaxa(a);
+    const toCheio  = a => (a.valorCheio ? (parseBRL(a.valorCheio) || parseBRL(a.valorAplicado)) : parseBRL(a.valorAplicado)) + toTaxa(a);
 
     const aplicados   = apps.filter(a => a.status === 'Aplicado' && !a.cortesia);
     const pendentes   = apps.filter(a => (a.status === 'Agendado' || a.status === 'Em negociação') && !a.cortesia);
@@ -563,7 +569,7 @@ function renderDashFinanceiro(apps) {
     aplicados.forEach(a => {
         const v = vaccines.find(x=>x.id==a.vaccineId);
         const nome = v ? v.nome : 'Desconhecida';
-        finVacMap[nome] = (finVacMap[nome]||0) + toVal(a);
+        finVacMap[nome] = (finVacMap[nome]||0) + toValVac(a);
     });
     const fvEntries = Object.entries(finVacMap).sort((a,b) => b[1]-a[1]).slice(0,8);
     const fvLabels  = fvEntries.map(e=>e[0]);

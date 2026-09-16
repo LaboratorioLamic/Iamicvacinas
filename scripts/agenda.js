@@ -1368,6 +1368,50 @@ function setQuickStatus(id, status) {
 
 let _quickPago = { agendar: false, concluir: false };
 
+// Status da taxa de deslocamento no modal Concluir. O valor em si não é editado
+// aqui (vem do agendamento); só o "paga ou não paga" da visita. No modal Agendar
+// a taxa é editada no próprio editor de endereço, que é a fonte única lá.
+let _concluirTaxaPaga = false;
+
+// Mostra o bloco da taxa de um modal rápido e devolve o valor cobrado.
+// Fora da visita domiciliar (ou sem taxa) o bloco fica oculto.
+function _renderQuickTaxa(ctx, app) {
+    const wrap = document.getElementById(`${ctx}-taxa-wrap`);
+    const taxa = (app && typeof getTaxaDeslocamento === 'function')
+        ? getTaxaDeslocamento(app.endereco) : 0;
+    if (wrap) wrap.classList.toggle('hidden', taxa <= 0);
+    if (taxa <= 0) return 0;
+    const valEl = document.getElementById(`${ctx}-taxa-valor`);
+    if (valEl) valEl.textContent = 'R$ ' + formatBRL(taxa);
+    _paintQuickTaxa(ctx);
+    return taxa;
+}
+
+function _paintQuickTaxa(ctx) {
+    const btn = document.getElementById(`${ctx}-taxa-btn`);
+    if (!btn) return;
+    const on = _concluirTaxaPaga;
+    btn.className = on
+        ? 'w-full flex items-center justify-center gap-2 border-2 border-emerald-600 bg-emerald-600 rounded-lg py-2 px-3 text-white text-xs font-black uppercase tracking-wide transition hover:bg-emerald-700'
+        : 'w-full flex items-center justify-center gap-2 border-2 border-slate-200 bg-white rounded-lg py-2 px-3 text-slate-400 text-xs font-black uppercase tracking-wide transition hover:border-emerald-300';
+    const ico = document.getElementById(`${ctx}-taxa-icone`);
+    const txt = document.getElementById(`${ctx}-taxa-texto`);
+    if (ico) ico.className = on ? 'fas fa-circle-check text-sm' : 'fas fa-circle-xmark text-sm';
+    if (txt) txt.textContent = on ? 'Taxa paga' : 'Taxa não paga';
+}
+
+function toggleQuickTaxaPaga(ctx) {
+    _concluirTaxaPaga = !_concluirTaxaPaga;
+    _paintQuickTaxa(ctx);
+}
+
+// Grava o status da taxa de volta no endereço do agendamento.
+function _salvarQuickTaxa(app, paga) {
+    if (!app || !app.endereco) return;
+    if (typeof getTaxaDeslocamento !== 'function' || getTaxaDeslocamento(app.endereco) <= 0) return;
+    app.endereco = { ...app.endereco, taxaPaga: !!paga };
+}
+
 function _paintQuickPago(ctx) {
     const btn  = document.getElementById(`btn-${ctx}-pago`);
     const icon = document.getElementById(`icon-${ctx}-pago`);
@@ -1638,6 +1682,8 @@ function openConcluirModal(id) {
     const _pagoSpacer = document.getElementById('concluir-pago-spacer');
     if (_pagoSpacer) _pagoSpacer.style.display = 'block';
     setQuickPago('concluir', a.pago);
+    _concluirTaxaPaga = (typeof getTaxaPaga === 'function') ? getTaxaPaga(a.endereco) : false;
+    _renderQuickTaxa('concluir', a);
     checkConcluirLote();
     document.getElementById('modal-concluir').classList.add('active');
 }
@@ -1723,6 +1769,14 @@ function confirmConcluir() {
         return;
     }
     if (!pendingConcluirId) return;
+    // Taxa da visita segue a mesma regra: cobrada e pendente não conclui.
+    const _appConcluir = appointments.find(a => a.id == pendingConcluirId);
+    if (_appConcluir && typeof getTaxaDeslocamento === 'function'
+        && getTaxaDeslocamento(_appConcluir.endereco) > 0 && !_concluirTaxaPaga) {
+        showNotification('Marque a <b>taxa de deslocamento</b> como paga para registrar esta aplicação.', 'error');
+        document.getElementById('concluir-taxa-btn')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+    }
     const idx = appointments.findIndex(a => a.id == pendingConcluirId);
     if (idx > -1) {
         // Bloqueio de estoque: o lote precisa de disponível > 0 (desconsiderando este próprio agendamento)
@@ -1744,6 +1798,7 @@ function confirmConcluir() {
         if (typeof aplicarPagoAgendamento === 'function') {
             aplicarPagoAgendamento(appointments[idx], _quickPago.concluir, _auditBefore);
         }
+        _salvarQuickTaxa(appointments[idx], _concluirTaxaPaga);
         logAppointmentAudit(_auditBefore, appointments[idx]);
         pendingConcluirId = null;
         document.getElementById('modal-concluir').classList.remove('active');
@@ -2059,7 +2114,11 @@ function renderKanbanGrouped() {
         const groupsHtml = pageGroups.map(([patId, apps]) => {
             const pat = getPatientById(patId);
             if (!pat) return '';
-            const totalVal = apps.reduce((s, a) => s + (parseBRL(String(a.valorAplicado || '0')) || 0), 0);
+            // Total da visita: soma as doses e a taxa de deslocamento, que já vem
+            // gravada em uma única vacina do grupo (nunca replicada nas irmãs).
+            const totalVal = apps.reduce((s, a) => s
+                + (parseBRL(String(a.valorAplicado || '0')) || 0)
+                + (typeof getTaxaDeslocamento === 'function' ? getTaxaDeslocamento(a.endereco) : 0), 0);
             const age = pat.dtNasc ? getAgeDisplay(pat.dtNasc) : '';
             const waLink = `https://wa.me/55${formatWa(pat.contato || '')}`;
             const hasDelayed = apps.some(a => a.data < todayStr && a.status === 'Agendado');
@@ -2613,9 +2672,17 @@ function _renderAgendarGrupoLines() {
     }).join('');
 
     const activeApps = lines.filter(a => !removedIds.has(a.id));
-    const total = activeApps.reduce((s, a) => s + (parseBRL(String(a.valorAplicado || '0')) || 0), 0);
+    const totalVacinas = activeApps.reduce((s, a) => s + (parseBRL(String(a.valorAplicado || '0')) || 0), 0);
+    // Taxa de deslocamento entra uma vez pela visita, não por vacina.
+    const taxa = (typeof getTaxaDeslocamento === 'function')
+        ? getTaxaDeslocamento(_agendarGrupoPending && _agendarGrupoPending.endereco) : 0;
     const totalEl = document.getElementById('agendar-grupo-total');
-    if (totalEl) totalEl.textContent = `${activeApps.length} vacina${activeApps.length !== 1 ? 's' : ''} · ${formatCurrency(total)}`;
+    if (totalEl) {
+        const qtd = `${activeApps.length} vacina${activeApps.length !== 1 ? 's' : ''}`;
+        totalEl.textContent = taxa > 0
+            ? `${qtd} · R$ ${formatBRL(totalVacinas)} + taxa R$ ${formatBRL(taxa)} = R$ ${formatBRL(totalVacinas + taxa)}`
+            : `${qtd} · R$ ${formatBRL(totalVacinas)}`;
+    }
 
     _checkAgendarGrupoBtn();
 }
@@ -2762,15 +2829,18 @@ function confirmAgendarGrupo() {
     }
 
     const _auditBefore = auditSnapshotAppointments(activeApps.map(a => a.id));
-    activeApps.forEach(app => {
+    activeApps.forEach((app, i) => {
         const idx = appointments.findIndex(a => a.id == app.id);
         if (idx > -1) {
             appointments[idx].status = 'Agendado';
             appointments[idx].data = dateMap[app.id];
             appointments[idx].hora = dateMap[`hora_${app.id}`] || appointments[idx].hora || '';
             appointments[idx].pedido = pedidoMap[app.id];
-            // Mesma visita, mesmo endereço em todas as vacinas do grupo.
-            appointments[idx].endereco = { ..._agendarGrupoPending.endereco };
+            // Mesma visita, mesmo endereço em todas as vacinas do grupo — mas a
+            // taxa de deslocamento fica só na primeira, para não cobrar por dose.
+            appointments[idx].endereco = (typeof enderecoDaVisitaParaVacina === 'function')
+                ? enderecoDaVisitaParaVacina(_agendarGrupoPending.endereco, i === 0)
+                : { ..._agendarGrupoPending.endereco };
             if (typeof aplicarPagoAgendamento === 'function') {
                 aplicarPagoAgendamento(appointments[idx], app.pago, _auditBefore.get(String(app.id)));
             }
@@ -3340,6 +3410,8 @@ function switchOportunidadeDescontoTab(tab) {
     const isPct = tab === 'pct';
     document.getElementById('oport-desc-pct-panel').classList.toggle('hidden', !isPct);
     document.getElementById('oport-desc-val-panel').classList.toggle('hidden', isPct);
+    const erro = document.getElementById('oport-desc-erro');
+    if (erro) erro.classList.add('hidden');
     document.getElementById('oport-tab-desc-pct').className = `flex-1 py-2 transition text-[11px] font-black uppercase ${isPct ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400 hover:bg-slate-50'}`;
     document.getElementById('oport-tab-desc-val').className = `flex-1 py-2 transition text-[11px] font-black uppercase ${!isPct ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400 hover:bg-slate-50'}`;
     document.getElementById('oport-desc-preview').classList.add('hidden');
@@ -3358,16 +3430,34 @@ function calcOportunidadeDescontoPreview() {
     const baseNum = parseBRL(base);
     if (!baseNum) return;
 
+    const preview = document.getElementById('oport-desc-preview');
+    const erro = document.getElementById('oport-desc-erro');
+
     let finalNum = 0, pct = 0;
     if (_oportunidadeDescontoTab === 'pct') {
         pct = parseFloat(document.getElementById('oport-desc-pct-input').value) || 0;
-        if (pct < 0 || pct > 100) return;
+        if (pct < 0 || pct > 100) {
+            preview.classList.add('hidden');
+            if (erro) { erro.textContent = 'Percentual deve ficar entre 0% e 100%.'; erro.classList.remove('hidden'); }
+            return;
+        }
         finalNum = baseNum * (1 - pct / 100);
     } else {
-        finalNum = parseBRL(document.getElementById('oport-desc-val-input').value);
-        if (finalNum < 0 || finalNum > baseNum) return;
+        const raw = document.getElementById('oport-desc-val-input').value;
+        finalNum = parseBRL(raw);
+        if (!raw) {
+            preview.classList.add('hidden');
+            if (erro) erro.classList.add('hidden');
+            return;
+        }
+        if (finalNum < 0 || finalNum > baseNum) {
+            preview.classList.add('hidden');
+            if (erro) { erro.textContent = `Valor final não pode passar de R$ ${formatBRL(baseNum)}.`; erro.classList.remove('hidden'); }
+            return;
+        }
         pct = baseNum > 0 ? ((baseNum - finalNum) / baseNum) * 100 : 0;
     }
+    if (erro) erro.classList.add('hidden');
 
     const economia = baseNum - finalNum;
     document.getElementById('oport-desc-preview-valor').textContent = 'R$ ' + formatBRL(finalNum);
@@ -3452,9 +3542,24 @@ function openAplicarGrupoModal(patId, fromStatus, groupApps) {
         return;
     }
 
+    // A taxa da visita mora no endereço de uma das vacinas do grupo (a que a
+    // carrega). Aqui ela é editada como um item único, e na confirmação volta
+    // para essa mesma vacina — nunca replicada nas irmãs.
+    const _donaTaxa = groupApps.find(a => typeof getTaxaDeslocamento === 'function'
+        && getTaxaDeslocamento(a.endereco) > 0);
+    const _refEnd = (_donaTaxa || groupApps[0] || {}).endereco || null;
+    const _permiteTaxa = typeof taxaLocalPermite === 'function'
+        && taxaLocalPermite(_refEnd && _refEnd.localAplicacao);
+
     _aplicarGrupoPending = {
         patId: String(patId),
         fromStatus,
+        taxaDonaId: _donaTaxa ? _donaTaxa.id : (groupApps[0] ? groupApps[0].id : null),
+        taxaPermitida: _permiteTaxa,
+        taxaValor: _permiteTaxa && typeof getTaxaDeslocamento === 'function'
+            ? getTaxaDeslocamento(_refEnd) : 0,
+        taxaPaga: _permiteTaxa && typeof getTaxaPaga === 'function'
+            ? getTaxaPaga(_refEnd) : false,
         apps: groupApps.map(a => ({
             id: a.id,
             vaccineId: a.vaccineId,
@@ -3491,6 +3596,64 @@ function toggleAplicarGrupoPago(appId) {
     line.pago = !line.pago;
     _paintGrupoPagoBtn('Aplicar', line);
     _checkAplicarGrupoBtn();
+}
+
+// ─── TAXA DE DESLOCAMENTO NO APLICAR GRUPO ───────────────────────────────────
+// Um único par (valor, paga) para a visita inteira. Repinta só o próprio bloco:
+// re-renderizar as linhas apagaria pedido/lote já digitados.
+
+function onAplicarGrupoTaxaInput(input) {
+    if (!_aplicarGrupoPending) return;
+    if (typeof maskCurrency === 'function') maskCurrency(input);
+    _aplicarGrupoPending.taxaValor = parseBRL(input.value) || 0;
+    if (_aplicarGrupoPending.taxaValor <= 0) _aplicarGrupoPending.taxaPaga = false;
+    _paintAplicarGrupoTaxa();
+    _checkAplicarGrupoBtn();
+}
+
+function toggleAplicarGrupoTaxaPaga() {
+    if (!_aplicarGrupoPending) return;
+    if ((_aplicarGrupoPending.taxaValor || 0) <= 0) return;
+    _aplicarGrupoPending.taxaPaga = !_aplicarGrupoPending.taxaPaga;
+    _paintAplicarGrupoTaxa();
+    _checkAplicarGrupoBtn();
+}
+
+function _paintAplicarGrupoTaxa() {
+    if (!_aplicarGrupoPending) return;
+    const btn = document.getElementById('aplicar-grupo-taxa-pago-btn');
+    const on = !!_aplicarGrupoPending.taxaPaga;
+    const vazia = (_aplicarGrupoPending.taxaValor || 0) <= 0;
+    if (btn) {
+        btn.className = on
+            ? 'flex items-center justify-center gap-2 border-2 border-emerald-600 bg-emerald-600 rounded-lg py-2 px-3 text-white text-[11px] font-black uppercase tracking-wide transition hover:bg-emerald-700'
+            : 'flex items-center justify-center gap-2 border-2 border-slate-200 bg-white rounded-lg py-2 px-3 text-slate-400 text-[11px] font-black uppercase tracking-wide transition hover:border-emerald-300';
+        btn.disabled = vazia;
+        btn.classList.toggle('opacity-50', vazia);
+        btn.classList.toggle('cursor-not-allowed', vazia);
+        const ico = document.getElementById('aplicar-grupo-taxa-pago-icone');
+        const txt = document.getElementById('aplicar-grupo-taxa-pago-texto');
+        if (ico) ico.className = on ? 'fas fa-circle-check text-xs' : 'fas fa-circle-xmark text-xs';
+        if (txt) txt.textContent = on ? 'Taxa paga' : 'Taxa não paga';
+    }
+    _paintAplicarGrupoTotal();
+}
+
+function _paintAplicarGrupoTotal() {
+    if (!_aplicarGrupoPending) return;
+    const totalEl = document.getElementById('aplicar-grupo-total');
+    if (!totalEl) return;
+    const activeApps = _aplicarGrupoPending.apps.filter(a => !_aplicarGrupoRemovedIds.has(a.id));
+    const taxa = _aplicarGrupoPending.taxaPermitida ? (_aplicarGrupoPending.taxaValor || 0) : 0;
+    const qtd = `${activeApps.length} vacina${activeApps.length !== 1 ? 's' : ''}`;
+    // Soma os valores já gravados nos agendamentos: aqui as linhas não editam valor.
+    const totalVacinas = activeApps.reduce((s, l) => {
+        const app = appointments.find(a => a.id == l.id);
+        return s + (app ? parseBRL(app.valorAplicado) : 0);
+    }, 0);
+    totalEl.textContent = taxa > 0
+        ? `${qtd} · R$ ${formatBRL(totalVacinas)} + taxa R$ ${formatBRL(taxa)} = R$ ${formatBRL(totalVacinas + taxa)}`
+        : `${qtd} · R$ ${formatBRL(totalVacinas)}`;
 }
 
 function _renderAplicarGrupoLines() {
@@ -3616,9 +3779,15 @@ function _renderAplicarGrupoLines() {
         </div>`;
     }).join('');
 
-    const activeApps = lines.filter(a => !removedIds.has(a.id));
-    const totalEl = document.getElementById('aplicar-grupo-total');
-    if (totalEl) totalEl.textContent = `${activeApps.length} vacina${activeApps.length !== 1 ? 's' : ''}`;
+    // Taxa só aparece em visita domiciliar; fora dela o bloco fica oculto.
+    const taxaWrap = document.getElementById('aplicar-grupo-taxa-wrap');
+    if (taxaWrap) taxaWrap.classList.toggle('hidden', !_aplicarGrupoPending.taxaPermitida);
+    const taxaInput = document.getElementById('aplicar-grupo-taxa-valor');
+    if (taxaInput) {
+        const v = _aplicarGrupoPending.taxaValor || 0;
+        taxaInput.value = v > 0 ? formatBRL(v) : '';
+    }
+    _paintAplicarGrupoTaxa();
 
     _checkAplicarGrupoBtn();
 }
@@ -3634,13 +3803,18 @@ function _checkAplicarGrupoBtn() {
     });
     // Aplicado exige pagamento em toda linha — mesma regra do formulário.
     const todasPagas = activeApps.every(app => !!app.pago);
-    const canConfirm = activeApps.length > 0 && allPedidosPreenchidos && todasPagas;
+    // A taxa da visita entra na mesma exigência: se foi cobrada, tem de estar paga.
+    const taxaCobrada = _aplicarGrupoPending.taxaPermitida && (_aplicarGrupoPending.taxaValor || 0) > 0;
+    const taxaOk = !taxaCobrada || !!_aplicarGrupoPending.taxaPaga;
+    const canConfirm = activeApps.length > 0 && allPedidosPreenchidos && todasPagas && taxaOk;
     btn.disabled = !canConfirm;
     btn.className = canConfirm
         ? 'flex-1 bg-green-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-green-700 cursor-pointer shadow-md'
         : 'flex-1 bg-green-200 text-emerald-400 font-black py-3 rounded-xl uppercase text-xs cursor-not-allowed';
     btn.title = canConfirm ? '' :
-        (!todasPagas ? 'Marque o pagamento de todas as vacinas para registrar a aplicação.' : 'Preencha o Nº do pedido de cada vacina.');
+        (!todasPagas ? 'Marque o pagamento de todas as vacinas para registrar a aplicação.'
+        : !taxaOk ? 'Marque a taxa de deslocamento como paga para registrar a aplicação.'
+        : 'Preencha o Nº do pedido de cada vacina.');
 }
 
 function _openAplicadorDropdown(input) {
@@ -3776,10 +3950,34 @@ function confirmAplicarGrupo() {
         pedidoMap[app.id] = pedido;
     }
 
+    // A dona da taxa pode ter sido removida do grupo: a cobrança da visita passa
+    // para a primeira vacina que restou, para não se perder nem duplicar.
+    if (_aplicarGrupoPending.taxaPermitida
+        && !activeApps.some(a => a.id == _aplicarGrupoPending.taxaDonaId)) {
+        _aplicarGrupoPending.taxaDonaId = activeApps.length ? activeApps[0].id : null;
+    }
+
+    // Taxa cobrada segue a regra do pagamento da dose: sem ela paga, não aplica.
+    const _taxaCobrada = _aplicarGrupoPending.taxaPermitida && (_aplicarGrupoPending.taxaValor || 0) > 0;
+    if (_taxaCobrada && !_aplicarGrupoPending.taxaPaga) {
+        showNotification('Marque a <b>taxa de deslocamento</b> como paga para registrar a aplicação.', 'error');
+        document.getElementById('aplicar-grupo-taxa-pago-btn')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+    }
+
     const _auditBefore = auditSnapshotAppointments(activeApps.map(a => a.id));
     activeApps.forEach(app => {
         const idx = appointments.findIndex(a => a.id == app.id);
         if (idx > -1) {
+            // A taxa da visita é gravada em uma única vacina; as demais ficam zeradas.
+            if (_aplicarGrupoPending.taxaPermitida && appointments[idx].endereco) {
+                const dona = app.id == _aplicarGrupoPending.taxaDonaId;
+                appointments[idx].endereco = {
+                    ...appointments[idx].endereco,
+                    taxaDeslocamento: dona ? (_aplicarGrupoPending.taxaValor || 0) : 0,
+                    taxaPaga: dona ? !!_aplicarGrupoPending.taxaPaga : false
+                };
+            }
             const loteId = Number(loteMap[app.id]);
             const lote = vaccineLots.find(l => l.id == loteId);
             appointments[idx].status = 'Aplicado';

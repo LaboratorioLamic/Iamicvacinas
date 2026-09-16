@@ -859,6 +859,101 @@ function confirmarSalvarMesmoAssim() {
     document.getElementById('modal-aprazamento-aviso').classList.remove('active');
 }
 
+// ─── CARD DE VALORES DA VISUALIZAÇÃO ─────────────────────────────────────────
+// Sem taxa (laboratório, ou domiciliar sem deslocamento cobrado) mostra um
+// cartão só, com o valor da vacina. Com taxa mostra a conta inteira:
+// vacina + taxa = total, cada parcela com seu status de pagamento.
+
+function _vrSelo(pago, rotuloPago, rotuloNao) {
+    const cls = pago ? 'vr-val-selo-pago' : 'vr-val-selo-nao';
+    const ico = pago ? 'fa-circle-check' : 'fa-circle-xmark';
+    return `<span class="vr-val-selo ${cls}"><i class="fas ${ico}"></i>${pago ? rotuloPago : rotuloNao}</span>`;
+}
+
+function _vrCard(cls, rotulo, icone, valorTxt, seloHtml, extraHtml) {
+    return `<div class="vr-val-card ${cls}">
+        <span class="text-[9px] font-black uppercase tracking-widest vr-val-label flex items-center gap-1.5"><i class="fas ${icone}"></i>${rotulo}</span>
+        <p class="text-lg font-black vr-val-num mt-1 leading-none">R$ ${valorTxt}</p>
+        <div class="mt-1.5 flex items-center gap-1.5 flex-wrap">${seloHtml}${extraHtml || ''}</div>
+    </div>`;
+}
+
+// Quem registrou o pagamento e quando — vinha da antiga célula "Pagamento".
+function _vrCarimboPago(a) {
+    if (!a.pago) return '';
+    const quando = a.pagoEm ? new Date(a.pagoEm).toLocaleDateString('pt-BR') : '';
+    const quem = a.pagoPor ? `por ${a.pagoPor}` : '';
+    const txt = [quando, quem].filter(Boolean).join(' · ');
+    return txt ? `<span class="text-[9px] font-bold" style="color:#94a3b8">${txt}</span>` : '';
+}
+
+function _renderVrValores(a) {
+    const box = document.getElementById('vr-valores-box');
+    const grid = document.getElementById('vr-valores-grid');
+    if (!box || !grid) return;
+    if (!a) { box.classList.add('hidden'); grid.innerHTML = ''; return; }
+
+    const taxa = (typeof getTaxaDeslocamento === 'function') ? getTaxaDeslocamento(a.endereco) : 0;
+
+    // Cortesia: não há valor a cobrar da dose, mas a taxa da visita pode existir
+    // e ainda precisa ser vista. Este card é a única fonte do dinheiro na tela.
+    if (a.cortesia) {
+        const cardCortesia = _vrCard('vr-val-card-vac', 'Vacina', 'fa-syringe', formatBRL(0),
+            `<span class="vr-val-selo vr-val-selo-cortesia"><i class="fas fa-gift"></i>Cortesia</span>`);
+        if (taxa <= 0) {
+            grid.innerHTML = cardCortesia;
+            box.classList.remove('hidden');
+            return;
+        }
+        const taxaPagaC = (typeof getTaxaPaga === 'function') ? getTaxaPaga(a.endereco) : false;
+        grid.innerHTML = cardCortesia
+            + `<span class="vr-val-op">+</span>`
+            + _vrCard('vr-val-card-taxa', 'Taxa de Deslocamento', 'fa-car',
+                formatBRL(taxa), _vrSelo(taxaPagaC, 'Paga', 'Não paga'))
+            + `<span class="vr-val-op">=</span>`
+            + _vrCard('vr-val-card-total', 'Valor Total', 'fa-sack-dollar', formatBRL(taxa),
+                _vrSelo(taxaPagaC, 'Pago', 'Não pago'));
+        box.classList.remove('hidden');
+        return;
+    }
+
+    const vacina = parseBRL(a.valorAplicado);
+    // Sem valor e sem taxa (ex.: registro só negociado): mostra o zero com o
+    // status, em vez de esconder o bloco e deixar a tela sem nada de financeiro.
+    const badgeDesc = (a.descontoPct && a.descontoPct > 0)
+        ? `<span class="vr-val-selo vr-val-selo-desc"><i class="fas fa-tag"></i>-${String(a.descontoPct).replace('.', ',')}%</span>`
+        : '';
+
+    const cardVacina = _vrCard('vr-val-card-vac', 'Vacina', 'fa-syringe',
+        formatBRL(vacina), _vrSelo(!!a.pago, 'Pago', 'Não pago'),
+        badgeDesc + _vrCarimboPago(a));
+
+    if (taxa <= 0) {
+        // Sem domiciliar: mostra apenas o valor, sem soma nem total.
+        grid.innerHTML = cardVacina;
+        box.classList.remove('hidden');
+        return;
+    }
+
+    const taxaPaga = (typeof getTaxaPaga === 'function') ? getTaxaPaga(a.endereco) : false;
+    const total = vacina + taxa;
+    const tudoPago = !!a.pago && taxaPaga;
+    const nadaPago = !a.pago && !taxaPaga;
+    const seloTotal = tudoPago
+        ? `<span class="vr-val-selo vr-val-selo-pago"><i class="fas fa-circle-check"></i>Pago</span>`
+        : nadaPago
+            ? `<span class="vr-val-selo vr-val-selo-nao"><i class="fas fa-circle-xmark"></i>Não pago</span>`
+            : `<span class="vr-val-selo vr-val-selo-parcial"><i class="fas fa-circle-half-stroke"></i>Parcial</span>`;
+
+    grid.innerHTML = cardVacina
+        + `<span class="vr-val-op">+</span>`
+        + _vrCard('vr-val-card-taxa', 'Taxa de Deslocamento', 'fa-car',
+            formatBRL(taxa), _vrSelo(taxaPaga, 'Paga', 'Não paga'))
+        + `<span class="vr-val-op">=</span>`
+        + _vrCard('vr-val-card-total', 'Valor Total', 'fa-sack-dollar', formatBRL(total), seloTotal);
+    box.classList.remove('hidden');
+}
+
 // ─── PAGAMENTO (marcador "Pago" do agendamento) ──────────────────────────────
 // Agendado só avisa — o paciente ainda pode pagar no dia. Aplicado bloqueia: a
 // dose saiu do estoque e o financeiro não pode ficar sem contrapartida.
@@ -984,6 +1079,8 @@ function switchDescontoTab(tab) {
     const isPct = tab === 'pct';
     document.getElementById('desc-pct-panel').classList.toggle('hidden', !isPct);
     document.getElementById('desc-val-panel').classList.toggle('hidden', isPct);
+    const erro = document.getElementById('desc-erro');
+    if (erro) erro.classList.add('hidden');
     document.getElementById('tab-desc-pct').className = `flex-1 py-2 transition text-[11px] font-black uppercase ${isPct ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400 hover:bg-slate-50'}`;
     document.getElementById('tab-desc-val').className = `flex-1 py-2 transition text-[11px] font-black uppercase ${!isPct ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400 hover:bg-slate-50'}`;
     document.getElementById('desc-preview').classList.add('hidden');
@@ -999,16 +1096,34 @@ function calcDescontoPreview() {
     const baseNum = parseBRL(base);
     if (!baseNum) return;
 
+    const preview = document.getElementById('desc-preview');
+    const erro = document.getElementById('desc-erro');
+
     let finalNum = 0, pct = 0;
     if (_descontoTab === 'pct') {
         pct = parseFloat(document.getElementById('desc-pct-input').value) || 0;
-        if (pct < 0 || pct > 100) return;
+        if (pct < 0 || pct > 100) {
+            preview.classList.add('hidden');
+            if (erro) { erro.textContent = 'Percentual deve ficar entre 0% e 100%.'; erro.classList.remove('hidden'); }
+            return;
+        }
         finalNum = baseNum * (1 - pct / 100);
     } else {
-        finalNum = parseBRL(document.getElementById('desc-val-input').value);
-        if (finalNum < 0 || finalNum > baseNum) return;
+        const raw = document.getElementById('desc-val-input').value;
+        finalNum = parseBRL(raw);
+        if (!raw) {
+            preview.classList.add('hidden');
+            if (erro) erro.classList.add('hidden');
+            return;
+        }
+        if (finalNum < 0 || finalNum > baseNum) {
+            preview.classList.add('hidden');
+            if (erro) { erro.textContent = `Valor final não pode passar de R$ ${formatBRL(baseNum)}.`; erro.classList.remove('hidden'); }
+            return;
+        }
         pct = baseNum > 0 ? ((baseNum - finalNum) / baseNum) * 100 : 0;
     }
+    if (erro) erro.classList.add('hidden');
 
     const economia = baseNum - finalNum;
     document.getElementById('desc-preview-valor').textContent = 'R$ ' + formatBRL(finalNum);
@@ -1299,37 +1414,11 @@ function viewRecord(id) {
         document.getElementById('vr-data').textContent = a.data ? a.data.split('-').reverse().join('/') : '—';
     }
     document.getElementById('vr-hora').textContent = a.hora || '—';
-    document.getElementById('vr-valor').textContent = a.cortesia ? 'R$ 0,00' : (a.valorAplicado ? 'R$ ' + a.valorAplicado : '—');
-    const vrBadge = document.getElementById('vr-desconto-badge');
-    if (vrBadge) {
-        if (a.cortesia) {
-            vrBadge.textContent = 'CORTESIA';
-            vrBadge.style.background = '#fef3c7';
-            vrBadge.style.color = '#b45309';
-            vrBadge.classList.remove('hidden');
-        } else if (a.descontoPct && a.descontoPct > 0) {
-            vrBadge.textContent = '-' + String(a.descontoPct).replace('.', ',') + '%';
-            vrBadge.style.background = '';
-            vrBadge.style.color = '';
-            vrBadge.classList.remove('hidden');
-        } else {
-            vrBadge.classList.add('hidden');
-        }
-    }
     document.getElementById('vr-pedido').textContent = a.pedido || a.pedidoNumero || '—';
 
-    // Pagamento — pendente aparece em vermelho justamente para não passar batido
-    const pagoEl = document.getElementById('vr-pago');
-    if (pagoEl) {
-        if (a.pago) {
-            const quando = a.pagoEm ? new Date(a.pagoEm).toLocaleDateString('pt-BR') : '';
-            const quem = a.pagoPor ? ` por ${a.pagoPor}` : '';
-            pagoEl.innerHTML = `<span style="color:#16a34a"><i class="fas fa-circle-check mr-1"></i>Pago</span>`
-                + (quando || quem ? `<span class="text-[10px] font-bold ml-1.5" style="color:#94a3b8">${[quando, quem.trim()].filter(Boolean).join(' · ')}</span>` : '');
-        } else {
-            pagoEl.innerHTML = `<span style="color:#ef4444"><i class="fas fa-circle-xmark mr-1"></i>Não pago</span>`;
-        }
-    }
+    // Valor, desconto/cortesia e status de pagamento vivem só no card de
+    // "Valores do Atendimento" — as células soltas que repetiam isso saíram.
+    _renderVrValores(a);
 
     // Lote + Nome de Fábrica + Aplicador (independentes)
     const loteRow = document.getElementById('vr-lote-row');
@@ -2180,6 +2269,16 @@ function saveRecord(e) {
         _updatePagoAviso();
         document.getElementById('btn-reg-pago')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         document.getElementById('btn-reg-pago')?.focus();
+        return;
+    }
+
+    // Taxa de deslocamento cobrada segue a mesma regra da dose: em "Aplicado",
+    // dinheiro pendente da visita não passa.
+    if (statusVal === 'Aplicado' && typeof getTaxaValorForm === 'function'
+        && getTaxaValorForm() > 0 && !getTaxaPagaForm()) {
+        showNotification('Marque a <b>taxa de deslocamento</b> como paga para registrar esta aplicação.', 'error');
+        document.getElementById('reg-taxa-pago-btn')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        document.getElementById('reg-taxa-pago-btn')?.focus();
         return;
     }
 

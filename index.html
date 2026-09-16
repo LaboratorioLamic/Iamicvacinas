@@ -2199,6 +2199,29 @@
                             </select>
                             <p class="text-[9px] text-slate-400 font-bold mt-1"><i class="fas fa-hospital mr-1"></i>Define em qual unidade a vacina será aplicada.</p>
                         </div>
+                        <!-- Taxa de deslocamento: só existe na visita domiciliar -->
+                        <div class="col-span-1 md:col-span-2 hidden" id="reg-taxa-wrap">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="col-span-1">
+                                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Taxa de Deslocamento</label>
+                                    <div class="flex items-center border border-slate-200 focus-within:ring-2 focus-within:ring-clinic-500 rounded-lg overflow-hidden transition bg-white">
+                                        <span class="px-2.5 py-2 bg-slate-50 text-slate-500 font-black text-xs border-r border-slate-200 select-none">R$</span>
+                                        <input type="text" id="reg-taxa-valor" placeholder="0,00" inputmode="numeric" autocomplete="off"
+                                            oninput="onTaxaValorInput(this)"
+                                            class="flex-1 min-w-0 py-2 px-2.5 text-sm font-bold text-navy-900 outline-none bg-white">
+                                    </div>
+                                </div>
+                                <div class="col-span-1">
+                                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Taxa</label>
+                                    <input type="hidden" id="reg-taxa-paga" value="">
+                                    <button type="button" id="reg-taxa-pago-btn" onclick="toggleTaxaPaga()"
+                                        class="w-full flex items-center justify-center gap-2 border-2 border-slate-200 bg-white rounded-lg py-2 px-3 text-slate-400 text-xs font-black uppercase tracking-wide transition hover:border-emerald-300">
+                                        <i id="reg-taxa-pago-icone" class="fas fa-circle-xmark text-sm"></i>
+                                        <span id="reg-taxa-pago-texto">Não paga</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -2469,21 +2492,18 @@
                         <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-clock vr-label-icon"></i>Horário</span>
                         <span id="vr-hora" class="text-sm font-black vr-value"></span>
                     </div>
-                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
-                        <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-sack-dollar vr-label-icon"></i>Valor</span>
-                        <span class="flex items-center gap-1.5 flex-wrap">
-                            <span id="vr-valor" class="text-sm font-black vr-value-green"></span>
-                            <span id="vr-desconto-badge" class="hidden text-[9px] font-black px-1.5 py-0.5 rounded-full" style="background:rgba(99,102,241,0.12);color:#6366f1;border:1px solid rgba(99,102,241,0.3);"></span>
-                        </span>
-                    </div>
-                    <div class="rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
+                    <div class="col-span-2 rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
                         <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-receipt vr-label-icon"></i>Pedido</span>
                         <span id="vr-pedido" class="text-sm font-black vr-value"></span>
                     </div>
-                    <div class="col-span-2 rounded-xl p-3.5 flex flex-col gap-1 vr-info-cell">
-                        <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5"><i class="fas fa-money-bill-wave vr-label-icon"></i>Pagamento</span>
-                        <span id="vr-pago" class="text-sm font-black"></span>
-                    </div>
+                </div>
+
+                <!-- Valores do atendimento: única fonte do dinheiro nesta tela —
+                     valor, status de pagamento e, na visita domiciliar, a taxa e
+                     a soma. Substitui as antigas células "Valor" e "Pagamento". -->
+                <div id="vr-valores-box" class="hidden rounded-2xl p-4 vr-info-cell">
+                    <span class="text-[9px] font-black uppercase tracking-widest vr-label flex items-center gap-1.5 mb-3"><i class="fas fa-coins vr-label-icon"></i>Valores de pagamento</span>
+                    <div id="vr-valores-grid" class="flex items-stretch gap-2 flex-wrap"></div>
                 </div>
 
                 <!-- Lote + Nome de Fábrica -->
@@ -2626,6 +2646,26 @@
     .vr-label-icon                         { color:#94a3b8; font-size:10px; }
     .vr-value                              { color:#1e293b; }
     .vr-value-green                        { color:#15803d; }
+    /* Cartões de valores: azul = vacina, violeta = taxa, verde = total */
+    .vr-val-card                           { border-radius:0.75rem; padding:0.75rem 0.9rem; border:1px solid; min-width:8.5rem; flex:1 1 8.5rem; }
+    .vr-val-card-vac                       { background:#eff6ff; border-color:#bfdbfe; }
+    .vr-val-card-vac .vr-val-label         { color:#3b82f6; }
+    .vr-val-card-vac .vr-val-num           { color:#1d4ed8; }
+    .vr-val-card-taxa                      { background:#f5f3ff; border-color:#ddd6fe; }
+    .vr-val-card-taxa .vr-val-label        { color:#8b5cf6; }
+    .vr-val-card-taxa .vr-val-num          { color:#6d28d9; }
+    .vr-val-card-total                     { background:#ecfdf5; border-color:#a7f3d0; }
+    .vr-val-card-total .vr-val-label       { color:#10b981; }
+    .vr-val-card-total .vr-val-num         { color:#047857; }
+    .vr-val-op                             { color:#94a3b8; font-weight:900; align-self:center; }
+    .vr-val-selo                           { font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:0.04em;
+                                             padding:2px 7px; border-radius:999px; display:inline-flex; align-items:center; gap:4px; }
+    .vr-val-selo-pago                      { background:#d1fae5; color:#047857; }
+    .vr-val-selo-nao                       { background:#fee2e2; color:#b91c1c; }
+    .vr-val-selo-parcial                   { background:#fef3c7; color:#b45309; }
+    .vr-val-selo-cortesia                  { background:#fef3c7; color:#b45309; }
+    .vr-val-selo-desc                      { background:rgba(99,102,241,0.12); color:#6366f1; }
+
     .vr-motivo-cell                        { background:#fff1f2; border:1px solid #fecdd3; }
     .vr-motivo-label                       { color:#e11d48; }
     .vr-motivo-value                       { color:#be123c; }
@@ -2658,6 +2698,22 @@
     .dark-mode .vr-label-icon                  { color:#475569; }
     .dark-mode .vr-value                       { color:#f1f5f9; }
     .dark-mode .vr-value-green                 { color:#4ade80; }
+    .dark-mode .vr-val-card-vac                { background:rgba(59,130,246,0.10); border-color:rgba(59,130,246,0.28); }
+    .dark-mode .vr-val-card-vac .vr-val-label  { color:#60a5fa; }
+    .dark-mode .vr-val-card-vac .vr-val-num    { color:#93c5fd; }
+    .dark-mode .vr-val-card-taxa               { background:rgba(139,92,246,0.10); border-color:rgba(139,92,246,0.28); }
+    .dark-mode .vr-val-card-taxa .vr-val-label { color:#a78bfa; }
+    .dark-mode .vr-val-card-taxa .vr-val-num   { color:#c4b5fd; }
+    .dark-mode .vr-val-card-total              { background:rgba(16,185,129,0.10); border-color:rgba(16,185,129,0.28); }
+    .dark-mode .vr-val-card-total .vr-val-label{ color:#34d399; }
+    .dark-mode .vr-val-card-total .vr-val-num  { color:#6ee7b7; }
+    .dark-mode .vr-val-op                      { color:#475569; }
+    .dark-mode .vr-val-selo-pago               { background:rgba(16,185,129,0.18); color:#6ee7b7; }
+    .dark-mode .vr-val-selo-nao                { background:rgba(239,68,68,0.18); color:#fca5a5; }
+    .dark-mode .vr-val-selo-parcial            { background:rgba(245,158,11,0.18); color:#fcd34d; }
+    .dark-mode .vr-val-selo-cortesia           { background:rgba(245,158,11,0.18); color:#fcd34d; }
+    .dark-mode .vr-val-selo-desc               { background:rgba(129,140,248,0.18); color:#a5b4fc; }
+
     .dark-mode .vr-motivo-cell                 { background:rgba(220,38,38,0.08); border-color:rgba(220,38,38,0.25); }
     .dark-mode .vr-motivo-label                { color:#f87171; }
     .dark-mode .vr-motivo-value                { color:#fca5a5; }
@@ -2776,6 +2832,30 @@
                             <option value="">Selecione a unidade...</option>
                         </select>
                         <p class="text-[9px] text-slate-400 font-bold mt-1"><i class="fas fa-hospital mr-1"></i>Vale para todas as vacinas do grupo.</p>
+                    </div>
+                    <!-- Taxa de deslocamento: cobrada uma vez pela visita -->
+                    <div class="col-span-1 md:col-span-2 hidden" id="grpend-taxa-wrap">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="col-span-1">
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Taxa de Deslocamento</label>
+                                <div class="flex items-center border border-slate-200 focus-within:ring-2 focus-within:ring-clinic-500 rounded-lg overflow-hidden transition bg-white">
+                                    <span class="px-2.5 py-2 bg-slate-50 text-slate-500 font-black text-xs border-r border-slate-200 select-none">R$</span>
+                                    <input type="text" id="grpend-taxa-valor" placeholder="0,00" inputmode="numeric" autocomplete="off"
+                                        oninput="onTaxaValorInput(this)"
+                                        class="flex-1 min-w-0 py-2 px-2.5 text-sm font-bold text-navy-900 outline-none bg-white">
+                                </div>
+                                <p class="text-[9px] text-slate-400 font-bold mt-1"><i class="fas fa-car mr-1"></i>Cobrada uma vez pela visita.</p>
+                            </div>
+                            <div class="col-span-1">
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Taxa</label>
+                                <input type="hidden" id="grpend-taxa-paga" value="">
+                                <button type="button" id="grpend-taxa-pago-btn" onclick="toggleTaxaPaga()"
+                                    class="w-full flex items-center justify-center gap-2 border-2 border-slate-200 bg-white rounded-lg py-2 px-3 text-slate-400 text-xs font-black uppercase tracking-wide transition hover:border-emerald-300">
+                                    <i id="grpend-taxa-pago-icone" class="fas fa-circle-xmark text-sm"></i>
+                                    <span id="grpend-taxa-pago-texto">Não paga</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div id="grpend-endereco-campos" class="space-y-4">
@@ -2950,6 +3030,8 @@
                     </div>
                 </div>
 
+                <p id="oport-desc-erro" class="hidden text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2"></p>
+
                 <div id="oport-desc-preview" class="hidden bg-gradient-to-br from-slate-50 to-indigo-50 border border-indigo-100 rounded-xl px-4 py-3">
                     <div class="flex items-center justify-between mb-1">
                         <span class="text-[10px] font-black text-slate-400 uppercase">Valor final</span>
@@ -3000,6 +3082,25 @@
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Vacinas do Grupo</label>
                     <div id="aplicar-grupo-lines" class="flex flex-col gap-3"></div>
+                </div>
+                <!-- Taxa de deslocamento da visita: uma só para o grupo -->
+                <div id="aplicar-grupo-taxa-wrap" class="hidden">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Taxa de Deslocamento</label>
+                    <div class="flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-xl px-3 py-2.5">
+                        <i class="fas fa-car text-sky-500 text-sm shrink-0"></i>
+                        <div class="flex items-center border border-slate-200 focus-within:ring-2 focus-within:ring-sky-400 rounded-lg overflow-hidden transition bg-white w-32 shrink-0">
+                            <span class="px-2 py-1.5 bg-slate-50 text-slate-500 font-black text-[11px] border-r border-slate-200 select-none">R$</span>
+                            <input type="text" id="aplicar-grupo-taxa-valor" placeholder="0,00" inputmode="numeric" autocomplete="off"
+                                oninput="onAplicarGrupoTaxaInput(this)"
+                                class="flex-1 min-w-0 py-1.5 px-2 text-xs font-bold text-navy-900 outline-none bg-white">
+                        </div>
+                        <button type="button" id="aplicar-grupo-taxa-pago-btn" onclick="toggleAplicarGrupoTaxaPaga()"
+                            class="flex items-center justify-center gap-2 border-2 border-slate-200 bg-white rounded-lg py-2 px-3 text-slate-400 text-[11px] font-black uppercase tracking-wide transition hover:border-emerald-300">
+                            <i id="aplicar-grupo-taxa-pago-icone" class="fas fa-circle-xmark text-xs"></i>
+                            <span id="aplicar-grupo-taxa-pago-texto">Taxa não paga</span>
+                        </button>
+                    </div>
+                    <p class="text-[9px] text-slate-400 font-bold mt-1"><i class="fas fa-info-circle mr-1"></i>Cobrada uma única vez pela visita, não por vacina.</p>
                 </div>
                 <div class="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
                     <span class="text-[10px] font-black text-slate-500 uppercase tracking-wide">Total</span>
@@ -3700,6 +3801,20 @@
                 </button>
                 <p id="concluir-pago-erro" class="text-[10px] text-red-600 font-black mb-3 hidden"><i class="fas fa-circle-exclamation mr-1"></i>Marque <b>Pago</b> para registrar esta aplicação.</p>
                 <div class="mb-3" id="concluir-pago-spacer"></div>
+                <!-- Taxa de deslocamento da visita: valor vem do agendamento, aqui só o status -->
+                <div id="concluir-taxa-wrap" class="hidden mb-3">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Taxa de Deslocamento <span class="text-red-500">*</span></label>
+                    <div class="flex items-center gap-2 bg-sky-50 border border-sky-200 rounded-xl px-3 py-2 mb-1">
+                        <i class="fas fa-car text-sky-500 text-xs shrink-0"></i>
+                        <span class="text-[11px] font-black text-sky-700">Visita domiciliar</span>
+                        <span id="concluir-taxa-valor" class="ml-auto text-sm font-black text-sky-800">R$ 0,00</span>
+                    </div>
+                    <button type="button" id="concluir-taxa-btn" onclick="toggleQuickTaxaPaga('concluir')"
+                        class="w-full flex items-center justify-center gap-2 border-2 border-slate-200 bg-white rounded-lg py-2 px-3 text-slate-400 text-xs font-black uppercase tracking-wide transition hover:border-emerald-300">
+                        <i id="concluir-taxa-icone" class="fas fa-circle-xmark text-sm"></i>
+                        <span id="concluir-taxa-texto">Taxa não paga</span>
+                    </button>
+                </div>
                 <div class="flex gap-3">
                     <button onclick="confirmConcluir()" id="btn-confirm-concluir"
                         class="flex-1 bg-green-200 text-green-400 font-black py-3 rounded-xl uppercase text-xs transition cursor-not-allowed">
@@ -4453,6 +4568,9 @@
                             class="flex-1 py-2.5 px-3 text-lg font-black text-navy-900 outline-none bg-white">
                     </div>
                 </div>
+
+                <!-- Erro de validação -->
+                <p id="desc-erro" class="hidden text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2"></p>
 
                 <!-- Preview do resultado -->
                 <div id="desc-preview" class="hidden bg-gradient-to-br from-slate-50 to-indigo-50 border border-indigo-100 rounded-xl px-4 py-3">

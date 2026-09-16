@@ -62,6 +62,68 @@ function localAplicacaoExigeUnidade(valor) {
     return valor === 'Laboratório';
 }
 
+// ─── TAXA DE DESLOCAMENTO ────────────────────────────────────────────────────
+// Só existe na visita domiciliar: é o custo de ir até o paciente, não da dose.
+// Por isso mora no objeto de endereço (`endereco.taxaDeslocamento` /
+// `endereco.taxaPaga`) e não no valor da vacina — e é cobrada uma vez por
+// visita, nunca por vacina aplicada nela.
+// Fora do Domiciliar a taxa é zerada, não apenas escondida: guardar valor de
+// deslocamento num atendimento de laboratório viraria cobrança fantasma.
+
+function taxaLocalPermite(local) {
+    return localAplicacaoExigeEndereco(local);
+}
+
+// Espalha o endereço da visita pelas vacinas do grupo. Todas ficam com o mesmo
+// endereço, mas a taxa é cobrada uma única vez: a primeira vacina carrega o
+// valor e as demais recebem taxa zero. Assim o total da visita soma uma taxa,
+// não uma por dose, e o marcador "paga" tem um único dono.
+function enderecoDaVisitaParaVacina(end, primeira) {
+    const copia = { ...(end || {}) };
+    if (!primeira) {
+        copia.taxaDeslocamento = 0;
+        copia.taxaPaga = false;
+    }
+    return copia;
+}
+
+// Leitura tolerante: registro antigo não tem as chaves, e o valor pode ter sido
+// gravado como número ou como texto "12,50".
+function getTaxaDeslocamento(end) {
+    if (!end || !taxaLocalPermite(end.localAplicacao)) return 0;
+    const v = end.taxaDeslocamento;
+    if (v == null || v === '') return 0;
+    const n = typeof v === 'number' ? v : parseBRL(v);
+    return n > 0 ? n : 0;
+}
+
+function getTaxaPaga(end) {
+    return getTaxaDeslocamento(end) > 0 && !!(end && end.taxaPaga);
+}
+
+// Total da visita = vacina + taxa. Sem domiciliar (ou sem taxa) devolve só o
+// valor da vacina, que é o que a tela deve mostrar sozinho.
+function totalComTaxa(app) {
+    if (!app) return 0;
+    return parseBRL(app.valorAplicado) + getTaxaDeslocamento(app.endereco);
+}
+
+// Status consolidado do dinheiro da visita, para as telas que mostram um único
+// selo: tudo pago, nada pago, ou parcial (uma ponta paga e a outra não).
+function statusPagamentoVisita(app) {
+    if (!app) return { rotulo: 'Não pago', estado: 'nao' };
+    const temTaxa = getTaxaDeslocamento(app.endereco) > 0;
+    const vacPago = !!app.pago;
+    if (!temTaxa) return vacPago ? { rotulo: 'Pago', estado: 'pago' } : { rotulo: 'Não pago', estado: 'nao' };
+    const taxaPaga = getTaxaPaga(app.endereco);
+    if (vacPago && taxaPaga) return { rotulo: 'Pago', estado: 'pago' };
+    if (!vacPago && !taxaPaga) return { rotulo: 'Não pago', estado: 'nao' };
+    return {
+        rotulo: vacPago ? 'Taxa pendente' : 'Vacina pendente',
+        estado: 'parcial'
+    };
+}
+
 // Prefixo dos IDs dos campos-alvo. O formulário de registro usa "reg"; outros
 // formulários (ex.: endereço do modal Agendar Grupo) trocam o prefixo enquanto
 // estão abertos, para reaproveitar CEP, sugestões, padrão e validação sem
@@ -74,6 +136,69 @@ function _endEl(campo) { return document.getElementById(_endPrefixo + '-' + camp
 
 // O valor mora num input escondido; o botão é só a face visível do popover.
 function _localAplicacaoEl() { return document.getElementById(_endPrefixo + '-local-aplicacao'); }
+
+// ─── TAXA NO FORMULÁRIO ──────────────────────────────────────────────────────
+// Segue o mesmo prefixo dos demais campos: o par (valor, pago) serve tanto ao
+// registro ("reg") quanto ao editor de endereço do grupo ("grpend").
+// O "pago" vive num input escondido porque o visível é um botão, igual ao
+// marcador de pagamento da vacina.
+
+function _taxaValorEl() { return document.getElementById(_endPrefixo + '-taxa-valor'); }
+function _taxaPagaEl()  { return document.getElementById(_endPrefixo + '-taxa-paga'); }
+
+function getTaxaValorForm() {
+    const v = (_taxaValorEl()?.value || '').trim();
+    const n = parseBRL(v);
+    return n > 0 ? n : 0;
+}
+
+function getTaxaPagaForm() {
+    // Taxa zerada não tem pagamento a marcar — evita gravar "pago" sem valor.
+    return getTaxaValorForm() > 0 && _taxaPagaEl()?.value === '1';
+}
+
+function _paintTaxaPagaBtn() {
+    const btn  = document.getElementById(_endPrefixo + '-taxa-pago-btn');
+    if (!btn) return;
+    const icon = document.getElementById(_endPrefixo + '-taxa-pago-icone');
+    const txt  = document.getElementById(_endPrefixo + '-taxa-pago-texto');
+    const on   = _taxaPagaEl()?.value === '1';
+    const vazia = getTaxaValorForm() <= 0;
+
+    btn.className = on
+        ? 'w-full flex items-center justify-center gap-2 border-2 border-emerald-600 bg-emerald-600 rounded-lg py-2 px-3 text-white text-xs font-black uppercase tracking-wide transition hover:bg-emerald-700 hover:border-emerald-700 shadow-sm'
+        : 'w-full flex items-center justify-center gap-2 border-2 border-slate-200 bg-white rounded-lg py-2 px-3 text-slate-400 text-xs font-black uppercase tracking-wide transition hover:border-emerald-300';
+    btn.disabled = vazia;
+    btn.classList.toggle('opacity-50', vazia);
+    btn.classList.toggle('cursor-not-allowed', vazia);
+    if (icon) icon.className = on ? 'fas fa-circle-check text-sm' : 'fas fa-circle-xmark text-sm';
+    if (txt)  txt.textContent = on ? 'Paga' : 'Não paga';
+}
+
+function toggleTaxaPaga() {
+    const el = _taxaPagaEl();
+    if (!el) return;
+    // Sem valor não há o que marcar.
+    if (getTaxaValorForm() <= 0) { el.value = ''; _paintTaxaPagaBtn(); return; }
+    el.value = el.value === '1' ? '' : '1';
+    _paintTaxaPagaBtn();
+}
+
+// Chamado pelo `oninput` do campo: apagar o valor derruba o "paga" junto.
+function onTaxaValorInput(input) {
+    if (input) maskCurrency(input);
+    if (getTaxaValorForm() <= 0 && _taxaPagaEl()) _taxaPagaEl().value = '';
+    _paintTaxaPagaBtn();
+}
+
+function setTaxaForm(valor, paga) {
+    const vEl = _taxaValorEl();
+    const pEl = _taxaPagaEl();
+    const n = typeof valor === 'number' ? valor : parseBRL(valor);
+    if (vEl) vEl.value = n > 0 ? formatBRL(n) : '';
+    if (pEl) pEl.value = (n > 0 && paga) ? '1' : '';
+    _paintTaxaPagaBtn();
+}
 
 function getLocalAplicacao() {
     const v = _localAplicacaoEl()?.value || '';
@@ -215,6 +340,12 @@ function aplicarLocalAplicacao() {
     const pedeUnidade = localAplicacaoExigeUnidade(getLocalAplicacao());
     if (unidadeWrap) unidadeWrap.classList.toggle('hidden', !pedeUnidade);
     if (!pedeUnidade && _unidadeEl()) _unidadeEl().value = '';
+    // Taxa de deslocamento só na visita domiciliar. Saindo dela o valor é
+    // zerado (não só oculto) para não sobrar cobrança de uma escolha desfeita.
+    const taxaWrap = document.getElementById(_endPrefixo + '-taxa-wrap');
+    if (taxaWrap) taxaWrap.classList.toggle('hidden', !exige);
+    if (!exige) setTaxaForm(0, false);
+    else _paintTaxaPagaBtn();
     // Mapa aberto perde o sentido sem endereço visível.
     if (!exige) {
         const mapaBox = document.getElementById(_endPrefixo + '-mapa-box');
@@ -491,6 +622,8 @@ function coletarEnderecoForm() {
         const v = (_endEl(c)?.value || '').trim();
         end[c] = c === 'cep' ? v : v.toUpperCase();
     });
+    end.taxaDeslocamento = getTaxaValorForm();
+    end.taxaPaga = getTaxaPagaForm();
     return end;
 }
 
@@ -507,6 +640,9 @@ function preencherEnderecoForm(end) {
     // uma visita domiciliar. Cidade/UF sozinhas não contam: são só o padrão da
     // clínica, então o formulário ainda abre sem escolha feita.
     const temEnderecoReal = !!(end && (end.logradouro || end.numero || end.bairro || end.cep));
+    // A taxa entra antes de aplicar o local: `setLocalAplicacao` dispara
+    // `aplicarLocalAplicacao`, que zera a taxa se o local não for Domiciliar.
+    setTaxaForm(end ? end.taxaDeslocamento : 0, end ? end.taxaPaga : false);
     setLocalAplicacao((end && end.localAplicacao) || (temEnderecoReal ? 'Domiciliar' : ''));
 }
 
@@ -527,6 +663,10 @@ function enderecoParaNovoAgendamento(patId, irmaos) {
     const base = doGrupo || enderecoMaisFrequente(patId);
     const end = { localAplicacao: local, unidadeId: null };
     ENDERECO_CAMPOS.forEach(c => { end[c] = (base && base[c]) || ''; });
+    // A taxa é da visita, não da dose: uma vacina nova entrando na mesma visita
+    // não herda a taxa das irmãs, senão o deslocamento seria cobrado duas vezes.
+    end.taxaDeslocamento = 0;
+    end.taxaPaga = false;
     // Número herdado das vacinas irmãs é a mesma visita, então vale. Vindo do
     // histórico é chute — some, para ser digitado à mão.
     if (!doGrupo) end.numero = '';
@@ -676,7 +816,15 @@ function enderecoResumo(end) {
     }
     const base = _enderecoParaMapaObj(end);
     const texto = end.referencia ? [base, `Ref.: ${end.referencia}`].filter(Boolean).join(' — ') : base;
-    return local ? [local, texto].filter(Boolean).join(' · ') : texto;
+    const resumo = local ? [local, texto].filter(Boolean).join(' · ') : texto;
+    // A taxa faz parte do combinado da visita: aparece junto do endereço, com o
+    // status de pagamento, para não precisar abrir o editor só para conferir.
+    const taxa = getTaxaDeslocamento(end);
+    if (taxa > 0) {
+        const selo = getTaxaPaga(end) ? 'paga' : 'não paga';
+        return [resumo, `Taxa R$ ${formatBRL(taxa)} (${selo})`].filter(Boolean).join(' · ');
+    }
+    return resumo;
 }
 
 // Partes já formatadas para o card da visualização. Cada linha só aparece se
