@@ -2027,9 +2027,10 @@
                 </div>
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Dose Requerida *</label>
-                    <select id="reg-dose" onchange="checkAgeConstraint(); updateSuggestedDate(); if(typeof clearOutraVacinaRef==='function') clearOutraVacinaRef('reg');" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
+                    <select id="reg-dose" onchange="document.getElementById('reg-dose-restricao-aviso').classList.add('hidden'); checkAgeConstraint(); updateSuggestedDate(); if(typeof clearOutraVacinaRef==='function') clearOutraVacinaRef('reg');" required class="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-clinic-500 outline-none text-sm">
                         <option value="">Selecione a vacina...</option>
                     </select>
+                    <p id="reg-dose-restricao-aviso" class="text-[9px] text-amber-600 font-black mt-1 hidden"></p>
                 </div>
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Idade Mín. (Anos/Meses)</label>
@@ -2039,7 +2040,7 @@
                 <!-- Linha 2: 4 campos -->
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Data Agendada *</label>
-                    <input type="date" id="reg-data" required onchange="onLoteChange(); updateIdadeField(); autoFillVaccine(true);" class="w-full border border-clinic-300 rounded-lg py-2 px-3 ring-2 ring-clinic-100 focus:ring-clinic-500 outline-none font-bold text-sm">
+                    <input type="date" id="reg-data" required onchange="updateIdadeField(); autoFillVaccine(true); onLoteChange();" class="w-full border border-clinic-300 rounded-lg py-2 px-3 ring-2 ring-clinic-100 focus:ring-clinic-500 outline-none font-bold text-sm">
                     <p id="sugestao-data" class="text-[9px] text-clinic-600 mt-1 hidden"><i class="fas fa-magic"></i> Aprazamento sugerido: <span id="span-sugestao-data" class="font-bold cursor-pointer underline" onclick="applySuggestedDate()"></span></p>
                 </div>
                 <div class="col-span-1 md:col-span-1">
@@ -4079,7 +4080,7 @@
                 <div class="bg-red-50 border border-red-200 rounded-xl p-3 mb-5">
                     <p class="text-[11px] text-red-700 font-bold"><i class="fas fa-ban mr-1"></i> Não é permitido agendar com um lote vencido na data do agendamento. Selecione outro lote ou cadastre um novo.</p>
                 </div>
-                <button onclick="populateLoteSelect(document.getElementById('reg-vacina').value); document.getElementById('modal-lote-expired-block').classList.remove('active')" class="w-full bg-red-600 text-white font-black py-3 rounded-xl hover:bg-red-700 transition uppercase text-xs shadow-lg">
+                <button onclick="document.getElementById('modal-lote-expired-block').classList.remove('active')" class="w-full bg-red-600 text-white font-black py-3 rounded-xl hover:bg-red-700 transition uppercase text-xs shadow-lg">
                     Entendido
                 </button>
             </div>

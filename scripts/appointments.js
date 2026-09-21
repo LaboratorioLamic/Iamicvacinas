@@ -533,15 +533,17 @@ function onLoteChange() {
     twoMonthsFromRef.setMonth(twoMonthsFromRef.getMonth() + 2);
 
     if (expiryDate < refDate) {
-        // VENCIDO — abre modal vermelho, limpa seleção, bloqueia salvar
+        // VENCIDO — abre modal vermelho e bloqueia salvar, mas MANTÉM o lote selecionado
+        // para que o usuário veja qual lote gerou a restrição ao mudar a data (reagendamento).
         const refLabel = scheduledDateVal
             ? `data agendada (<b>${scheduledDateVal.split('-').reverse().join('/')}</b>)`
             : `data de hoje`;
         document.getElementById('lote-expired-block-msg').innerHTML =
             `O lote <b>${opt.dataset.numero}</b> vence em <b>${validade.split('-').reverse().join('/')}</b>, anterior à ${refLabel}. Selecione outro lote ou cadastre um novo.`;
         document.getElementById('modal-lote-expired-block').classList.add('active');
-        sel.value = '';
-        hintEl.classList.add('hidden');
+        erroEl.classList.remove('hidden');
+        sel.classList.add('border-red-400');
+        hintEl.style.color = '#dc2626';
         if (submitBtn) { submitBtn.disabled = true; submitBtn.classList.add('opacity-50', 'cursor-not-allowed'); }
 
     } else if (expiryDate <= twoMonthsFromRef) {
@@ -588,10 +590,17 @@ function autoFillVaccine(preserveDose) {
     const vId = document.getElementById('reg-vacina').value;
     const doseSel = document.getElementById('reg-dose');
     const doseAnterior = preserveDose ? doseSel.value : '';
+    // Preserva o lote já escolhido ao repopular (ex.: troca da data agendada).
+    // O lote só é descartado quando a vacina muda, pois aí ele não pertence mais a ela.
+    const loteSelEl = document.getElementById('reg-lote');
+    const loteAnterior = preserveDose && loteSelEl ? loteSelEl.value : '';
+    const loteAindaDaVacina = loteAnterior &&
+        vaccineLots.some(l => String(l.id) === String(loteAnterior) && String(l.vaccineId) === String(vId));
     doseSel.innerHTML = '<option value="">Selecione...</option>';
     document.getElementById('reg-idade-min').value = '';
     document.getElementById('reg-valor').value = '';
-    populateLoteSelect(vId);
+    document.getElementById('reg-dose-restricao-aviso')?.classList.add('hidden');
+    populateLoteSelect(vId, loteAindaDaVacina ? loteAnterior : undefined);
 
     if (vId) {
         const v = vaccines.find(x => x.id == vId);
@@ -646,6 +655,14 @@ function autoFillVaccine(preserveDose) {
             document.getElementById('reg-valor').value = String(v.valor || '').replace('R$', '').trim();
             if (doseAnterior && [...doseSel.options].some(o => o.value === doseAnterior)) {
                 doseSel.value = doseAnterior;
+            } else if (doseAnterior) {
+                // A dose escolhida deixou de ser compatível com a idade do paciente na nova
+                // data agendada. Avisa em vez de removê-la silenciosamente do campo.
+                const aviso = document.getElementById('reg-dose-restricao-aviso');
+                if (aviso) {
+                    aviso.innerHTML = `<i class="fas fa-exclamation-triangle mr-1"></i>A dose <b>${doseAnterior}</b> não é compatível com a idade do paciente na data selecionada. Escolha outra dose.`;
+                    aviso.classList.remove('hidden');
+                }
             }
             resetDescontoUI();
             checkAgeConstraint();
