@@ -2041,7 +2041,7 @@
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Data Agendada *</label>
                     <input type="date" id="reg-data" required onchange="updateIdadeField(); autoFillVaccine(true); onLoteChange();" class="w-full border border-clinic-300 rounded-lg py-2 px-3 ring-2 ring-clinic-100 focus:ring-clinic-500 outline-none font-bold text-sm">
-                    <p id="sugestao-data" class="text-[9px] text-clinic-600 mt-1 hidden"><i class="fas fa-magic"></i> Aprazamento sugerido: <span id="span-sugestao-data" class="font-bold cursor-pointer underline" onclick="applySuggestedDate()"></span></p>
+                    <p id="sugestao-data" class="text-[9px] text-clinic-600 mt-1 hidden"><i class="fas fa-magic"></i> Aprazamento sugerido: <span id="span-sugestao-data" class="font-bold cursor-pointer underline" onclick="applySuggestedDate()"></span><span class="block text-amber-600"><i class="fas fa-hourglass-half"></i> Validade excepcional a partir de: <span id="span-sugestao-excepcional" class="font-bold"></span></span></p>
                 </div>
                 <div class="col-span-1 md:col-span-1">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Hora</label>
@@ -2358,9 +2358,16 @@
                         <p id="wdrop-to" class="font-black text-emerald-700 text-sm"></p>
                     </div>
                 </div>
+                <div id="wdrop-excepcional" class="hidden rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <p class="text-[10px] font-black text-amber-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                        <i class="fas fa-hourglass-half text-[9px]"></i>Validade excepcional — antecipação
+                    </p>
+                    <ul id="wdrop-excepcional-lista" class="text-[11px] text-amber-800 space-y-0.5"></ul>
+                    <p class="text-[10px] font-bold text-amber-700/80 mt-1.5">Confirme somente se a antecipação for clinicamente adequada.</p>
+                </div>
                 <div class="flex gap-3 pt-1">
                     <button onclick="cancelWeeklyDrop()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Cancelar</button>
-                    <button onclick="confirmWeeklyDrop()" class="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-black text-xs uppercase tracking-wider hover:bg-indigo-700 transition shadow-md">Confirmar</button>
+                    <button id="wdrop-confirm-btn" onclick="confirmWeeklyDrop()" class="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-black text-xs uppercase tracking-wider hover:bg-indigo-700 transition shadow-md">Confirmar</button>
                 </div>
             </div>
         </div>
@@ -4485,6 +4492,47 @@
                         <i class="fas fa-check mr-1"></i> Confirmar aplicação
                     </button>
                     <button onclick="document.getElementById('modal-aprazamento-aviso').classList.remove('active')" class="w-full bg-red-600 hover:bg-red-700 text-white font-black py-2.5 rounded-xl transition text-xs uppercase">Corrigir a data do agendamento</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════ MODAL VALIDADE EXCEPCIONAL (ANTECIPAÇÃO) ══════════════════ -->
+    <div id="modal-antecipacao-excepcional" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[170] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" style="animation:fadeSlideDown .18s ease;">
+            <div class="bg-gradient-to-br from-amber-500 via-orange-500 to-orange-700 p-5 text-white text-center">
+                <div class="h-14 w-14 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg ring-4 ring-white/10">
+                    <i class="fas fa-hourglass-half text-2xl text-white"></i>
+                </div>
+                <h3 class="font-black text-lg uppercase tracking-tight">Validade Excepcional</h3>
+                <p class="text-amber-100 text-xs mt-1 font-bold uppercase tracking-widest">Confirmar antecipação da vacina</p>
+            </div>
+            <div class="h-1 bg-gradient-to-r from-amber-300 via-orange-300 to-transparent"></div>
+            <div class="p-5 space-y-4">
+                <p class="text-sm text-slate-600 text-center">A data escolhida é anterior ao aprazamento recomendado, mas está dentro da janela de validade excepcional.</p>
+                <div class="flex items-center gap-3">
+                    <div class="flex-1 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                        <p class="text-[9px] font-black text-emerald-500 uppercase tracking-wider mb-1">Recomendada</p>
+                        <p id="antexc-data-recomendada" class="font-black text-emerald-700 text-sm"></p>
+                    </div>
+                    <div class="h-8 w-8 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
+                        <i class="fas fa-arrow-left text-amber-600 text-xs"></i>
+                    </div>
+                    <div class="flex-1 bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+                        <p class="text-[9px] font-black text-amber-500 uppercase tracking-wider mb-1">Escolhida</p>
+                        <p id="antexc-data-escolhida" class="font-black text-amber-700 text-sm"></p>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <span id="antexc-dias" class="inline-flex items-center gap-1.5 bg-orange-100 text-orange-700 border border-orange-200 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider"></span>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-[11px] text-slate-500 font-bold flex gap-2">
+                    <i class="fas fa-circle-info text-slate-400 mt-0.5"></i>
+                    <span>A aplicação pode ser antecipada em até <b id="antexc-limite"></b> dias (a partir de <b id="antexc-inicio"></b>). Confirme somente se a antecipação for clinicamente adequada.</span>
+                </div>
+                <div class="flex gap-3 pt-1">
+                    <button type="button" onclick="cancelarAntecipacaoExcepcional()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Corrigir data</button>
+                    <button type="button" onclick="confirmarAntecipacaoExcepcional()" class="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition shadow-md"><i class="fas fa-check mr-1"></i> Confirmar antecipação</button>
                 </div>
             </div>
         </div>

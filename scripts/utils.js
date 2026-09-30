@@ -380,6 +380,23 @@ function toLocalISO(date) {
     return `${y}-${m}-${d}`;
 }
 
+// ─── VALIDADE EXCEPCIONAL DO APRAZAMENTO ─────────────────────────────────────
+// A aplicação pode ser antecipada em até VALIDADE_EXCEPCIONAL_DIAS antes da data
+// de aprazamento recomendada, desde que o usuário confirme a antecipação.
+const VALIDADE_EXCEPCIONAL_DIAS = 4;
+
+function addDiasIso(iso, dias) {
+    const d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() + dias);
+    return toLocalISO(d);
+}
+
+// Dias de antecedência de dataIso em relação a minIso (0 se não for anterior).
+function diasAntecipacao(dataIso, minIso) {
+    const diff = new Date(minIso + 'T00:00:00') - new Date(dataIso + 'T00:00:00');
+    return diff > 0 ? Math.round(diff / 86400000) : 0;
+}
+
 // ─── CUSTO DE LOTE ─────────────────────────────────────────────────
 // Nomes próprios porque fmtBRL (state.js) e parseBRL (acima) já existem e
 // tratam ausência de valor como zero — aqui é preciso distinguir "sem custo

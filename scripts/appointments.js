@@ -121,6 +121,7 @@ function openRecordModal() {
     window._doseAnteriorConfirmado = false;
     window._pendingDoseAnteriorEvent = null;
     window._aprazamentoJustificativaConfirmada = false;
+    window._antecipacaoExcepcionalConfirmada = null;
     window._aprazamentoJustificativaCtx = null;
     document.getElementById('record-form').reset(); document.getElementById('reg-id').value = '';
     _toggleBtnAuditAgenda(false);
@@ -138,6 +139,7 @@ function openRecordModal() {
     // Limpa todos os modais de aviso anteriores
     document.getElementById('modal-age-warning')?.classList.remove('active');
     document.getElementById('modal-aprazamento-aviso')?.classList.remove('active');
+    document.getElementById('modal-antecipacao-excepcional')?.classList.remove('active');
     document.getElementById('modal-dose-anterior-aviso')?.classList.remove('active');
     document.getElementById('modal-lote-expired-block')?.classList.remove('active');
     document.getElementById('modal-lote-expiry-warning')?.classList.remove('active');
@@ -747,7 +749,6 @@ function updateSuggestedDate() {
     const vId    = document.getElementById('reg-vacina').value;
     const dose   = document.getElementById('reg-dose').value;
     const sugDiv = document.getElementById('sugestao-data');
-    const spanEl = document.getElementById('span-sugestao-data');
 
     sugDiv.classList.add('hidden');
     document.getElementById('reg-data').removeAttribute('min');
@@ -780,10 +781,7 @@ function updateSuggestedDate() {
         baseDate.setMonth(baseDate.getMonth() + reforcoCfg.meses);
         const isoDate = toLocalISO(baseDate);
 
-        spanEl.innerText = isoDate.split('-').reverse().join('/');
-        spanEl.setAttribute('data-iso', isoDate);
-        document.getElementById('reg-data').min = isoDate;
-        sugDiv.classList.remove('hidden');
+        _setSuggestedDate(isoDate);
         return;
     }
 
@@ -808,10 +806,7 @@ function updateSuggestedDate() {
         baseDate.setMonth(baseDate.getMonth() + esqRepete.repeteMeses);
         const isoDate = toLocalISO(baseDate);
 
-        spanEl.innerText = isoDate.split('-').reverse().join('/');
-        spanEl.setAttribute('data-iso', isoDate);
-        document.getElementById('reg-data').min = isoDate;
-        sugDiv.classList.remove('hidden');
+        _setSuggestedDate(isoDate);
         return;
     }
 
@@ -861,10 +856,19 @@ function updateSuggestedDate() {
     baseDate.setDate(baseDate.getDate() + intervalo);
     const isoDate  = toLocalISO(baseDate);
 
+    _setSuggestedDate(isoDate);
+}
+
+// Exibe a data de aprazamento sugerida e libera o campo de data a partir do
+// início da validade excepcional (VALIDADE_EXCEPCIONAL_DIAS antes da sugestão).
+function _setSuggestedDate(isoDate) {
+    const spanEl = document.getElementById('span-sugestao-data');
+    const excIso = addDiasIso(isoDate, -VALIDADE_EXCEPCIONAL_DIAS);
     spanEl.innerText = isoDate.split('-').reverse().join('/');
     spanEl.setAttribute('data-iso', isoDate);
-    document.getElementById('reg-data').min = isoDate;
-    sugDiv.classList.remove('hidden');
+    document.getElementById('span-sugestao-excepcional').innerText = excIso.split('-').reverse().join('/');
+    document.getElementById('reg-data').min = excIso;
+    document.getElementById('sugestao-data').classList.remove('hidden');
 }
 
 function applySuggestedDate() {
@@ -1282,6 +1286,31 @@ function confirmAprazamentoComJustificativa() {
     document.getElementById('record-form').requestSubmit();
 }
 
+// ─── VALIDADE EXCEPCIONAL (antecipação ≤ VALIDADE_EXCEPCIONAL_DIAS) ───────────
+function _openAntecipacaoExcepcional(dataIso, recomendadaIso, dias) {
+    const fmt = iso => iso.split('-').reverse().join('/');
+    document.getElementById('antexc-data-recomendada').textContent = fmt(recomendadaIso);
+    document.getElementById('antexc-data-escolhida').textContent = fmt(dataIso);
+    document.getElementById('antexc-dias').textContent = `${dias} dia${dias !== 1 ? 's' : ''} de antecipação`;
+    document.getElementById('antexc-limite').textContent = VALIDADE_EXCEPCIONAL_DIAS;
+    document.getElementById('antexc-inicio').textContent = fmt(addDiasIso(recomendadaIso, -VALIDADE_EXCEPCIONAL_DIAS));
+    window._antecipacaoExcepcionalPendente = dataIso;
+    document.getElementById('modal-antecipacao-excepcional').classList.add('active');
+}
+
+function confirmarAntecipacaoExcepcional() {
+    document.getElementById('modal-antecipacao-excepcional').classList.remove('active');
+    window._antecipacaoExcepcionalConfirmada = window._antecipacaoExcepcionalPendente;
+    window._antecipacaoExcepcionalPendente = null;
+    document.getElementById('record-form').requestSubmit();
+}
+
+function cancelarAntecipacaoExcepcional() {
+    document.getElementById('modal-antecipacao-excepcional').classList.remove('active');
+    window._antecipacaoExcepcionalPendente = null;
+    document.getElementById('reg-data').focus();
+}
+
 function openDeleteModal(id) {
     if(!id) return;
     if (!checkPerm('excluir_agendamento')) return;
@@ -1549,6 +1578,7 @@ function editRecord(id) {
     closeModals();
     // Reseta estados globais
     window._doseAnteriorConfirmado = false;
+    window._antecipacaoExcepcionalConfirmada = null;
     window._pendingDoseAnteriorEvent = null;
     // Setup modal sem checar permissão de criação
     document.getElementById('record-form').reset();
@@ -1561,6 +1591,7 @@ function editRecord(id) {
     // Limpa todos os modais de aviso anteriores
     document.getElementById('modal-age-warning')?.classList.remove('active');
     document.getElementById('modal-aprazamento-aviso')?.classList.remove('active');
+    document.getElementById('modal-antecipacao-excepcional')?.classList.remove('active');
     document.getElementById('modal-dose-anterior-aviso')?.classList.remove('active');
     document.getElementById('modal-lote-expired-block')?.classList.remove('active');
     document.getElementById('modal-lote-expiry-warning')?.classList.remove('active');
@@ -2151,12 +2182,17 @@ function saveRecord(e) {
                     if (prevAppsApr.length > 0) {
                         const baseApr = new Date(prevAppsApr[0].data + 'T00:00:00');
                         baseApr.setDate(baseApr.getDate() + intervaloApr);
-                        const minDateIso = baseApr.toISOString().split('T')[0];
-                        if (dateVal < minDateIso) {
+                        const minDateIso = toLocalISO(baseApr);
+                        const diffDias = diasAntecipacao(dateVal, minDateIso);
+                        if (diffDias > 0 && diffDias <= VALIDADE_EXCEPCIONAL_DIAS) {
+                            // Validade excepcional: antecipação permitida mediante confirmação.
+                            if (window._antecipacaoExcepcionalConfirmada !== dateVal) {
+                                _openAntecipacaoExcepcional(dateVal, minDateIso, diffDias);
+                                return;
+                            }
+                        } else if (diffDias > 0) {
                             const minBr = minDateIso.split('-').reverse().join('/');
                             const prevBr = prevAppsApr[0].data.split('-').reverse().join('/');
-                            const diffMs = baseApr - new Date(dateVal + 'T00:00:00');
-                            const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
                             document.getElementById('aprazamento-aviso-msg').innerHTML =
                                 `A data agendada é anterior ao prazo recomendado.<br><br>
                                 <span class="text-slate-500 text-xs">Última dose registrada: <b>${prevBr}</b></span><br>
@@ -2182,6 +2218,17 @@ function saveRecord(e) {
                         }
                     }
                 }
+            }
+        }
+        // Reforço / Dose Única recorrente: validade excepcional sobre a data sugerida
+        // (antecipações maiores já são barradas pelo min do campo de data).
+        const sugIsoApr = !document.getElementById('sugestao-data').classList.contains('hidden')
+            && document.getElementById('span-sugestao-data').getAttribute('data-iso');
+        if (sugIsoApr && (doseApr === 'Dose Única' || reforcoIndexFromLabel(doseApr) != null)) {
+            const diffSug = diasAntecipacao(dateVal, sugIsoApr);
+            if (diffSug > 0 && diffSug <= VALIDADE_EXCEPCIONAL_DIAS && window._antecipacaoExcepcionalConfirmada !== dateVal) {
+                _openAntecipacaoExcepcional(dateVal, sugIsoApr, diffSug);
+                return;
             }
         }
     }
@@ -2401,6 +2448,7 @@ function saveRecord(e) {
         isNew ? `Status: ${a.status}${a.vendedor ? ' | Vendedor: ' + a.vendedor : ''}` : null, appChanges, a.patientId);
     window._doseAnteriorConfirmado = false;
     window._aprazamentoJustificativaConfirmada = false;
+    window._antecipacaoExcepcionalConfirmada = null;
     if (typeof syncAppointmentMovement === 'function') syncAppointmentMovement(a);
     if (typeof syncAllLoteStatus === 'function') syncAllLoteStatus();
     saveAll(); renderCalendar(); renderTable(); renderDashboard(); renderPatients(); closeModals();

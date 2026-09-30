@@ -260,33 +260,39 @@ function _wkValidateMove(a, dateStr) {
         const ageErr = _wkValidateAge(v, pat, a.doseAtual, dateStr);
         if (ageErr) return ageErr;
     }
-    // 6) Aprazamento: intervalo mínimo desde a dose anterior
-    if (a.doseAtual && a.doseAtual.includes('ª Dose') && a.doseAtual !== '1ª Dose' && v) {
-        const doseNum = Number((a.doseAtual.match(/(\d+)/) || [])[1] || 2);
-        const esq  = (typeof getEsquemaPaciente === 'function') ? getEsquemaPaciente(v, pat ? pat.dtNasc : null) : null;
-        const ints = (esq && esq.intervalos && esq.intervalos.length)
-            ? esq.intervalos
-            : (v.intervalos && v.intervalos.length ? v.intervalos : (v.intervaloDias > 0 ? [v.intervaloDias] : []));
-        let intervalo = ints.length
-            ? (ints[doseNum - 2] != null ? ints[doseNum - 2] : ints[ints.length - 1])
-            : 0;
-        if (!intervalo || intervalo <= 0) intervalo = 30;
-        const prevApp = appointments.filter(x =>
-            String(x.patientId) === String(a.patientId) &&
-            String(x.vaccineId) === String(a.vaccineId) &&
-            String(x.id) !== String(a.id) &&
-            x.doseAtual === `${doseNum - 1}ª Dose`
-        ).sort((x, y) => new Date(y.data) - new Date(x.data))[0];
-        if (prevApp) {
-            const minDate = new Date(prevApp.data + 'T00:00:00');
-            minDate.setDate(minDate.getDate() + intervalo);
-            const minIso = minDate.toISOString().split('T')[0];
-            if (dateStr < minIso) {
-                return `Bloqueado: data mínima para ${a.doseAtual} de ${vNome} é ${_wkFmtDate(minIso)} (${intervalo} dias após a dose anterior de ${_wkFmtDate(prevApp.data)}).`;
-            }
-        }
+    // 6) Aprazamento: intervalo mínimo desde a dose anterior. Antecipação de até
+    //    VALIDADE_EXCEPCIONAL_DIAS é permitida (confirmada no modal de mover).
+    const apr = _wkAprazamento(a);
+    if (apr && diasAntecipacao(dateStr, apr.minIso) > VALIDADE_EXCEPCIONAL_DIAS) {
+        return `Bloqueado: data mínima para ${a.doseAtual} de ${vNome} é ${_wkFmtDate(apr.minIso)} (${apr.intervalo} dias após a dose anterior de ${_wkFmtDate(apr.prevData)}; validade excepcional a partir de ${_wkFmtDate(addDiasIso(apr.minIso, -VALIDADE_EXCEPCIONAL_DIAS))}).`;
     }
     return null;
+}
+
+// Data de aprazamento recomendada (dose N ≥ 2) com base na dose anterior.
+// Retorna { minIso, intervalo, prevData } ou null se não se aplica.
+function _wkAprazamento(a) {
+    if (!a.doseAtual || !a.doseAtual.includes('ª Dose') || a.doseAtual === '1ª Dose') return null;
+    const v = vaccines.find(x => String(x.id) === String(a.vaccineId));
+    if (!v) return null;
+    const pat = patients.find(p => String(p.id) === String(a.patientId));
+    const doseNum = Number((a.doseAtual.match(/(\d+)/) || [])[1] || 2);
+    const esq  = (typeof getEsquemaPaciente === 'function') ? getEsquemaPaciente(v, pat ? pat.dtNasc : null) : null;
+    const ints = (esq && esq.intervalos && esq.intervalos.length)
+        ? esq.intervalos
+        : (v.intervalos && v.intervalos.length ? v.intervalos : (v.intervaloDias > 0 ? [v.intervaloDias] : []));
+    let intervalo = ints.length
+        ? (ints[doseNum - 2] != null ? ints[doseNum - 2] : ints[ints.length - 1])
+        : 0;
+    if (!intervalo || intervalo <= 0) intervalo = 30;
+    const prevApp = appointments.filter(x =>
+        String(x.patientId) === String(a.patientId) &&
+        String(x.vaccineId) === String(a.vaccineId) &&
+        String(x.id) !== String(a.id) &&
+        x.doseAtual === `${doseNum - 1}ª Dose`
+    ).sort((x, y) => new Date(y.data) - new Date(x.data))[0];
+    if (!prevApp) return null;
+    return { minIso: addDiasIso(prevApp.data, intervalo), intervalo, prevData: prevApp.data };
 }
 
 // Idade do paciente na data destino vs. faixas etárias da vacina
@@ -666,6 +672,22 @@ function weeklyDrop(e, dateStr, hora) {
     document.getElementById('wdrop-to').textContent   = `${_wkFmtDate(dateStr)} · ${horaLbl(hora)}`;
     document.getElementById('wdrop-patient').textContent = pat ? pat.nome : '—';
     document.getElementById('wdrop-vaccine').textContent = label || '—';
+
+    // Validade excepcional: vacinas antecipadas em relação ao aprazamento recomendado
+    const antecipadas = movingApps.map(a => {
+        const apr = _wkAprazamento(a);
+        const dias = apr ? diasAntecipacao(dateStr, apr.minIso) : 0;
+        if (!dias) return null;
+        const vac = vaccines.find(v => String(v.id) === String(a.vaccineId));
+        return `<li><b>${vac ? vac.nome : 'Vacina'} ${a.doseAtual}</b> — recomendada ${_wkFmtDate(apr.minIso)} (${dias} dia${dias !== 1 ? 's' : ''} antes)</li>`;
+    }).filter(Boolean);
+    const excBox = document.getElementById('wdrop-excepcional');
+    excBox.classList.toggle('hidden', !antecipadas.length);
+    document.getElementById('wdrop-excepcional-lista').innerHTML = antecipadas.join('');
+    document.getElementById('wdrop-confirm-btn').innerHTML = antecipadas.length
+        ? '<i class="fas fa-hourglass-half mr-1"></i> Confirmar antecipação'
+        : 'Confirmar';
+
     _weeklyPendingDrop = { ids: movingApps.map(a => a.id), targetDate: dateStr, targetHora: hora || '' };
     document.getElementById('modal-weekly-drop').classList.add('active');
 }
