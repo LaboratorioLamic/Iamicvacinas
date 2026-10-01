@@ -494,5 +494,14 @@ function rotinaAgendarSugestao(patId, vacId, dose, dataIso) {
 function rotinaAbrirPerdaOportunidade(patId, vacId, dose) {
     if (!checkPerm('criar_agendamento')) return;
     if (typeof openDismissOppModal !== 'function') return;
-    openDismissOppModal(patId, vacId, dose);
+    openDismissOppModal(patId, vacId, dose, { fromRotina: true });
+}
+
+// Atalho do modal de Perda (aberto pela Rotina): a dose consta no CPNI — troca
+// para o formulário de inclusão manual, já com vacina e dose preenchidas.
+function dismissOppIncluirCpni() {
+    if (!_dismissPending) return;
+    const { patId, vacId, dose } = _dismissPending;
+    closeDismissOppModal();
+    openCpniManualModal(patId, vacId, dose);
 }

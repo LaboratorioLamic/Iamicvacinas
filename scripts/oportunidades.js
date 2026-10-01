@@ -790,10 +790,15 @@ function _renderMicroOferta(patient, opp) {
 
 let _dismissPending = null; // { patId, vacId, dose }
 
-function openDismissOppModal(patId, vacId, dose) {
+// opts.fromRotina: aberto por um card "Não definido" da aba Rotina — mostra o
+// atalho para incluir a dose manualmente como registro do CPNI.
+function openDismissOppModal(patId, vacId, dose, opts) {
     const p = patients.find(x => x.id == patId);
     const v = vaccines.find(x => x.id == vacId);
     _dismissPending = { patId, vacId, dose };
+
+    const cpniWrap = document.getElementById('dismiss-opp-cpni-wrap');
+    if (cpniWrap) cpniWrap.classList.toggle('hidden', !(opts && opts.fromRotina));
 
     const infoEl = document.getElementById('dismiss-opp-info');
     if (infoEl) infoEl.textContent = `${p ? p.nome : '—'} · ${v ? v.nome : '—'} · ${dose}`;

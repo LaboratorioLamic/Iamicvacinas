@@ -637,6 +637,151 @@ function closeCpniViewRecord() {
     window._cvrCurrentId = null;
 }
 
+// ─── INCLUSÃO MANUAL DE REGISTRO CPNI (aba Rotina do prontuário) ─────────────
+// Cria o mesmo registro que a importação da planilha geraria (importedCPNI:true,
+// status 'Aplicado', loteId null — fora do estoque), digitado pelo usuário.
+
+let _cpniManualPatId = null;
+
+function _cpniManualCanEdit() {
+    return (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) || (typeof hasPerm === 'function' && hasPerm('aplicar'));
+}
+
+function openCpniManualModal(patId, vacId, dose) {
+    if (!_cpniManualCanEdit()) { showNotification('Apenas usuários com permissão de aplicador podem incluir registros do CPNI.', 'error'); return; }
+    const pat = patients.find(p => p.id == patId);
+    if (!pat) return;
+    _cpniManualPatId = pat.id;
+    const vac = vacId ? vaccines.find(v => v.id == vacId) : null;
+
+    document.getElementById('cpni-manual-paciente').textContent = [pat.nome, pat.cpf].filter(Boolean).join(' · ');
+    document.getElementById('cpni-manual-vaccine-search').value = vac ? vac.nome : '';
+    document.getElementById('cpni-manual-vaccine-value').value = vac ? vac.id : '';
+
+    const doses = [...CPNI_DOSE_CANONICAS];
+    if (dose && !doses.includes(dose)) doses.unshift(dose);
+    const sel = document.getElementById('cpni-manual-dose');
+    sel.innerHTML = '<option value="">Selecione...</option>' + doses.map(d => `<option value="${d}">${d}</option>`).join('');
+    sel.value = dose || '';
+
+    const dataEl = document.getElementById('cpni-manual-data');
+    dataEl.value = '';
+    dataEl.max = toLocalISO(new Date());
+    document.getElementById('cpni-manual-lote').value = '';
+    document.getElementById('cpni-manual-err').classList.add('hidden');
+
+    document.getElementById('modal-cpni-manual').classList.add('active');
+}
+
+function closeCpniManualModal() {
+    document.getElementById('modal-cpni-manual').classList.remove('active');
+    _cpniManualPatId = null;
+}
+
+function _cpniManualFilterVaccineDropdown(typed) {
+    const input = document.getElementById('cpni-manual-vaccine-search');
+    const dd = document.getElementById('cpni-manual-vaccine-dropdown');
+    if (!input || !dd) return;
+    // Digitou algo diferente da vacina selecionada: invalida a seleção até escolher da lista.
+    if (typed) document.getElementById('cpni-manual-vaccine-value').value = '';
+    const val = normalizeStr(input.value);
+    const ativos = vaccines.filter(v => v.ativo !== false);
+    const matches = (val ? ativos.filter(v => {
+        if (normalizeStr(v.nome).includes(val)) return true;
+        if (v.mnemonico && normalizeStr(v.mnemonico).includes(val)) return true;
+        return vaccineLots.some(l => l.vaccineId == v.id && l.fabricante && normalizeStr(l.fabricante).includes(val));
+    }) : ativos).sort((a,b) => a.nome.localeCompare(b.nome,'pt-BR'));
+
+    if (!matches.length) { dd.innerHTML = '<div class="px-3 py-2 text-xs text-slate-400 font-bold">Nenhuma vacina encontrada</div>'; dd.classList.remove('hidden'); return; }
+    dd.innerHTML = matches.map(v =>
+        `<div class="px-3 py-2 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer text-sm font-bold text-navy-900 border-b border-slate-100 last:border-0 transition uppercase"
+              onmousedown="_cpniManualSelectVaccine(${v.id},'${v.nome.replace(/'/g,"\\'")}')">
+            <span>${v.nome}</span>
+            ${v.mnemonico ? `<br><span class="inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full text-[9px] font-black normal-case mt-0.5">${v.mnemonico}</span>` : ''}
+        </div>`
+    ).join('');
+    dd.classList.remove('hidden');
+}
+
+function _cpniManualHideVaccineDropdown() {
+    setTimeout(() => { const dd = document.getElementById('cpni-manual-vaccine-dropdown'); if (dd) dd.classList.add('hidden'); }, 150);
+}
+
+function _cpniManualSelectVaccine(vaccineId, nome) {
+    document.getElementById('cpni-manual-vaccine-search').value = nome;
+    document.getElementById('cpni-manual-vaccine-value').value = vaccineId;
+    document.getElementById('cpni-manual-vaccine-dropdown').classList.add('hidden');
+}
+
+function _cpniManualError(msg) {
+    const el = document.getElementById('cpni-manual-err');
+    el.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i>${msg}`;
+    el.classList.remove('hidden');
+}
+
+function saveCpniManualRecord() {
+    if (!_cpniManualCanEdit()) { showNotification('Apenas usuários com permissão de aplicador podem incluir registros do CPNI.', 'error'); return; }
+    const pat = patients.find(p => p.id == _cpniManualPatId);
+    if (!pat) return;
+
+    const vaccineId = Number(document.getElementById('cpni-manual-vaccine-value').value) || null;
+    const vac = vaccineId ? vaccines.find(v => v.id == vaccineId) : null;
+    const dose = document.getElementById('cpni-manual-dose').value;
+    const data = document.getElementById('cpni-manual-data').value;
+    const lote = document.getElementById('cpni-manual-lote').value.trim().toUpperCase();
+
+    if (!vac) return _cpniManualError('Selecione uma vacina válida da lista.');
+    if (!dose) return _cpniManualError('Selecione a dose.');
+    if (!data) return _cpniManualError('Informe a data de aplicação.');
+    if (data > toLocalISO(new Date())) return _cpniManualError('A data de aplicação não pode ser futura.');
+    if (!lote) return _cpniManualError('Informe o lote.');
+    // Mesma regra de duplicidade da importação da planilha.
+    if (appointments.some(a => a.patientId == pat.id && a.vaccineId == vac.id && a.doseAtual === dose && a.data === data)) {
+        return _cpniManualError('Já existe um registro desta vacina/dose nesta data para o paciente.');
+    }
+
+    const newApp = {
+        id: Date.now(),
+        patientId: pat.id,
+        vaccineId: vac.id,
+        data,
+        hora: '',
+        doseAtual: dose,
+        valorAplicado: '0,00',
+        valorCheio: null,
+        descontoPct: null,
+        cortesia: false,
+        status: 'Aplicado',
+        loteId: null,
+        lote,
+        motivoCancelamento: '',
+        aplicadaOutroLocal: false,
+        pedido: '',
+        vendedor: '',
+        aplicador: '',
+        importedCPNI: true,
+        cpniManual: true,
+        importedAt: new Date().toISOString()
+    };
+    appointments.push(newApp);
+
+    logAudit('Criado', 'importacao_cpni', newApp.id,
+        `${pat.nome} | Registro CPNI (manual)`,
+        `${vac.nome} | ${dose} | ${data.split('-').reverse().join('/')} | Lote ${lote}`,
+        null, pat.id);
+
+    saveAll();
+    closeCpniManualModal();
+    renderPatients(); renderCalendar(); renderTable(); renderDashboard();
+    if (typeof refreshOpenModals === 'function') refreshOpenModals();
+    const prontuario = document.getElementById('modal-patient-history');
+    if (prontuario && prontuario.classList.contains('active') && prontuario.dataset.patientId == pat.id
+        && typeof renderRotinaTab === 'function') {
+        renderRotinaTab(pat.id);
+    }
+    showNotification('Vacina do CPNI incluída com sucesso!', 'success');
+}
+
 // ─── EXCLUSÃO DE REGISTRO CPNI (confirmação digitada) ─────────────────────────
 let pendingDeleteCpniId = null;
 

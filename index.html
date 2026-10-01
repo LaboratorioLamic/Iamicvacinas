@@ -3242,6 +3242,12 @@
                     </div>
                     <p id="dismiss-opp-err" class="hidden text-[11px] text-red-500 font-bold mt-1"><i class="fas fa-exclamation-circle mr-1"></i>Selecione um motivo para continuar</p>
                 </div>
+                <!-- Atalho (aberto pela aba Rotina): a dose consta no CPNI — registra como aplicada -->
+                <div id="dismiss-opp-cpni-wrap" class="hidden">
+                    <button type="button" onclick="dismissOppIncluirCpni()" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 font-black text-[10px] uppercase tracking-wider transition shadow-sm">
+                        <i class="fas fa-file-import"></i> Incluir vacina do CPNI
+                    </button>
+                </div>
                 <div class="flex gap-3 pt-1">
                     <button onclick="closeDismissOppModal()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Voltar</button>
                     <button onclick="confirmDismissOpp()" class="flex-1 py-3 rounded-xl bg-slate-700 text-white font-black text-xs uppercase tracking-wider hover:bg-slate-800 transition shadow-md">Confirmar</button>
@@ -3372,6 +3378,12 @@
                     <span class="inline-flex items-center gap-1 text-[9px] font-black uppercase text-slate-500"><i class="fas fa-circle text-slate-400 text-[7px]"></i>Não definido</span>
                 </div>
                 <div id="rotina-list" class="p-6 overflow-y-auto flex-1 bg-white space-y-5"></div>
+
+                <div class="p-4 border-t border-slate-200 bg-slate-50 shrink-0 flex items-center gap-2">
+                    <button id="btn-cpni-manual-rotina" onclick="openCpniManualModal(document.getElementById('modal-patient-history').dataset.patientId)" class="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-xl uppercase text-xs tracking-widest shadow-lg shadow-emerald-600/20 transition">
+                        <i class="fas fa-file-import"></i> Adicionar Vacina do CPNI
+                    </button>
+                </div>
             </div>
 
             <div id="ph-tab-contato" class="hidden flex-1 min-h-0 flex flex-col">
@@ -5746,6 +5758,61 @@
                     style="background:linear-gradient(135deg,#22c55e,#15803d);box-shadow:0 4px 20px rgba(34,197,94,0.35);">
                     <i class="fas fa-check text-[11px]"></i> Salvar
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════ MODAL ADICIONAR REGISTRO CPNI MANUALMENTE (aba Rotina do prontuário) ══════ -->
+    <div id="modal-cpni-manual" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[390] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="bg-gradient-to-br from-emerald-600 to-emerald-800 p-5 text-white flex items-center gap-3">
+                <div class="h-10 w-10 bg-white/15 rounded-xl flex items-center justify-center border border-white/20 shrink-0">
+                    <i class="fas fa-file-import text-white text-base"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="font-black uppercase tracking-tight text-base leading-tight">Vacina do CPNI</h3>
+                    <p class="text-[10px] text-emerald-100 font-bold uppercase tracking-widest mt-0.5">Inclusão manual de dose aplicada</p>
+                </div>
+                <button onclick="closeCpniManualModal()" class="h-8 w-8 rounded-full hover:bg-white/10 flex justify-center items-center transition shrink-0"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="h-1 w-full bg-gradient-to-r from-emerald-400 via-emerald-300 to-transparent"></div>
+            <div class="p-5 space-y-4">
+                <p id="cpni-manual-paciente" class="text-sm font-bold text-slate-700 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200 truncate"></p>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Vacina *</label>
+                    <div class="relative">
+                        <input type="text" id="cpni-manual-vaccine-search" autocomplete="off"
+                            oninput="_cpniManualFilterVaccineDropdown(true)" onfocus="_cpniManualFilterVaccineDropdown()" onblur="_cpniManualHideVaccineDropdown()"
+                            placeholder="Pesquisar por nome, mnemônico ou fabricante..."
+                            class="w-full border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-bold uppercase focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <input type="hidden" id="cpni-manual-vaccine-value">
+                        <div id="cpni-manual-vaccine-dropdown" class="hidden absolute z-[10] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto" style="max-height:200px;"></div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Dose *</label>
+                        <select id="cpni-manual-dose" class="w-full border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none bg-white"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Data de Aplicação *</label>
+                        <input type="date" id="cpni-manual-data" class="w-full border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Lote *</label>
+                    <input type="text" id="cpni-manual-lote" autocomplete="off" placeholder="Lote informado no CPNI"
+                        class="w-full border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-black font-mono uppercase text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                </div>
+                <p id="cpni-manual-err" class="hidden text-[11px] text-red-500 font-bold"></p>
+                <div class="flex items-start gap-2 rounded-xl p-3 bg-emerald-50 border border-emerald-100">
+                    <i class="fas fa-circle-info text-emerald-500 text-xs mt-0.5 shrink-0"></i>
+                    <p class="text-[11px] text-emerald-700 font-bold leading-relaxed">Registrada como aplicada (fonte CPNI). Não afeta o estoque.</p>
+                </div>
+                <div class="flex gap-3 pt-1">
+                    <button onclick="closeCpniManualModal()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Cancelar</button>
+                    <button onclick="saveCpniManualRecord()" class="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-black text-xs uppercase tracking-wider hover:bg-emerald-700 transition shadow-md"><i class="fas fa-check mr-1"></i>Salvar</button>
+                </div>
             </div>
         </div>
     </div>
