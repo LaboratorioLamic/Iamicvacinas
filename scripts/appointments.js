@@ -2419,7 +2419,8 @@ function saveRecord(e) {
                : _isOutraVacina ? 'Tomou outra vacina'
                : document.getElementById('reg-motivo-cancelamento').value)
             : '',
-        aplicadaOutroLocal: document.getElementById('reg-aplicada-outro-local')?.checked || false,
+        // "Outro local" só vale para dose perdida; ao virar Aplicado a marcação antiga cai.
+        aplicadaOutroLocal: statusVal === 'Perdido' && (document.getElementById('reg-aplicada-outro-local')?.checked || false),
         outraVacina: _isOutraVacina,
         outraVacinaAppId: _isOutraVacina ? Number(_outraVacinaRef) : null,
         outraVacinaLabel: _outraVacinaApp ? outraVacinaLabel(_outraVacinaApp) : '',

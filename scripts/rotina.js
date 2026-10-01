@@ -8,8 +8,8 @@
 //   Laranja = Atrasada
 //   Vermelho= Cancelada (agendamento perdido, sem ser "outro local")
 //   Roxo    = Aplicada em outro local (registrada como tal).
-//             Doses importadas do CPNI são sempre "Aplicada" (verde), mesmo
-//             sem as doses anteriores no sistema — fonte oficial confiável.
+//             Dose aplicada (aqui ou importada do CPNI) é sempre "Aplicada"
+//             (verde), mesmo sem as doses anteriores no sistema.
 //   Ciano   = Perdida, mas suprida pela aplicação de outra vacina.
 //   Cinza   = "Não definido": card fantasma de dose faltante (sem nenhum
 //             registro) abaixo de uma dose já aplicada/importada do CPNI —
@@ -161,7 +161,6 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
 
     let maxAppliedOrdinal = -1;
     let lastAppliedApp = null;
-    let lastAppliedIsOutroLocal = false;
     const missingGhosts = new Set(); // ordinais sem nenhum registro, abaixo da maior dose aplicada
 
     Array.from(byOrdinal.keys()).sort((a, b) => a - b).forEach(ordinal => {
@@ -177,22 +176,18 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
         const reg = applied || outroLocalReg || outraVacinaReg || pending || cancelled;
         if (!reg) return;
 
-        // Roxo: marcado como outro local, OU aplicada mas é dose > 1 sem a dose anterior
-        // registrada no sistema (esquema iniciado fora da clínica sem registro explícito).
-        // Registros importados do CPNI são sempre "Aplicada": vêm de fonte oficial, mesmo
-        // sem a dose anterior no sistema — não é aplicação "fora da clínica" sem registro.
-        const missingPrevDose = applied && ordinal > 1 && !esqRepete && !applied.importedCPNI && !_rotinaHasAppliedBelow(byOrdinal, ordinal, patient, apps);
-
+        // Roxo só quando o registro foi marcado como outro local. Uma dose aplicada é
+        // sempre "Aplicada", mesmo sem as doses anteriores no sistema — essas lacunas
+        // viram cards "Não definido" (abaixo), onde o usuário define o que houve.
         let status;
         if (outroLocalReg && !applied) {
             status = 'outro_local';
         } else if (outraVacinaReg && !applied) {
             status = 'outra_vacina';
         } else if (applied) {
-            status = (missingPrevDose) ? 'outro_local' : 'aplicada';
+            status = 'aplicada';
             maxAppliedOrdinal = ordinal;
             lastAppliedApp = applied;
-            lastAppliedIsOutroLocal = (status === 'outro_local');
             // Doses anteriores sem nenhum registro no sistema: viram cards fantasma
             // "não definido", clicáveis pra abrir a janela de Perda da Oportunidade.
             if (ordinal > 1 && !esqRepete) {
@@ -285,22 +280,10 @@ function _rotinaBuildVaccineRow(vac, patient, apps) {
     }
 
     // Próxima dose prevista (sem registro ainda) — card azul/amarelo/laranja "fantasma", clicável p/ agendar.
-    // Não sugere se a última dose aplicada foi "outro local": sem lote/data confiável no
-    // sistema, não há base pra calcular o próximo intervalo do esquema.
-    const next = lastAppliedIsOutroLocal ? null : _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAppliedApp, esqRepete);
+    const next = _rotinaNextDoseSuggestion(vac, patient, apps, maxAppliedOrdinal, lastAppliedApp, esqRepete);
     if (next) cards.push(next);
 
     return cards;
-}
-
-function _rotinaHasAppliedBelow(byOrdinal, ordinal, patient, apps) {
-    // Considera "registrada" tanto uma dose aplicada aqui quanto uma marcada como outro local.
-    for (let n = 1; n < ordinal; n++) {
-        const regs = byOrdinal.get(n) || [];
-        if (regs.some(a => a.status === 'Aplicado' || (a.status === 'Perdido' && a.aplicadaOutroLocal))) continue;
-        return false;
-    }
-    return true;
 }
 
 // Calcula a próxima dose/reforço ainda sem nenhum registro no sistema.
