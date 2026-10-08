@@ -2773,7 +2773,29 @@
                 <!-- Total -->
                 <div class="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
                     <span class="text-[10px] font-black text-slate-500 uppercase tracking-wide">Total</span>
-                    <span id="agendar-grupo-total" class="text-sm font-black text-emerald-700"></span>
+                    <div id="agendar-grupo-total-view" class="flex items-center gap-2">
+                        <span id="agendar-grupo-total" class="text-sm font-black text-emerald-700"></span>
+                        <button type="button" onclick="editarTotalAgendarGrupo()" title="Editar valor total (aplica desconto igual em todas as vacinas)"
+                            class="h-7 w-7 rounded-lg bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 flex items-center justify-center transition shrink-0">
+                            <i class="fas fa-pen text-[10px]"></i>
+                        </button>
+                    </div>
+                    <div id="agendar-grupo-total-edit" class="hidden flex items-center gap-2">
+                        <div class="flex items-center border border-emerald-300 rounded-lg bg-white overflow-hidden focus-within:ring-2 focus-within:ring-emerald-400">
+                            <span class="pl-2.5 text-xs font-black text-emerald-700">R$</span>
+                            <input type="text" id="agendar-grupo-total-input" inputmode="decimal" placeholder="0,00"
+                                onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarTotalAgendarGrupo();}else if(event.key==='Escape'){cancelarEdicaoTotalAgendarGrupo();}"
+                                class="w-28 py-1.5 px-2 text-sm font-black text-emerald-700 outline-none text-right">
+                        </div>
+                        <button type="button" onclick="cancelarEdicaoTotalAgendarGrupo()" title="Cancelar"
+                            class="h-7 w-7 rounded-lg bg-white border border-slate-200 text-slate-400 hover:bg-slate-100 flex items-center justify-center transition shrink-0">
+                            <i class="fas fa-times text-[10px]"></i>
+                        </button>
+                        <button type="button" onclick="aplicarTotalAgendarGrupo()" title="Aplicar"
+                            class="h-7 w-7 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center transition shrink-0 shadow-sm">
+                            <i class="fas fa-check text-[10px]"></i>
+                        </button>
+                    </div>
                 </div>
                 <!-- Endereço do grupo — a linha inteira abre o editor -->
                 <button type="button" id="agendar-grupo-endereco-box" onclick="abrirEnderecoGrupo()" title="Editar endereço do grupo"
@@ -2796,6 +2818,32 @@
                 <button id="btn-confirm-agendar-grupo" onclick="confirmAgendarGrupo()"
                     class="flex-1 bg-blue-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-blue-700 cursor-pointer shadow-md">
                     <i class="fas fa-calendar-check mr-1"></i>Confirmar Agendamento
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════ MODAL CONFIRMAÇÃO DESCONTO DO GRUPO ══════ -->
+    <div id="modal-desconto-grupo" class="modal fixed inset-0 bg-navy-900/80 backdrop-blur-md z-[430] justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col" style="max-height:90vh;">
+            <div class="p-6 pb-4 flex flex-col items-center text-center">
+                <div class="h-14 w-14 rounded-2xl bg-amber-100 text-amber-500 flex items-center justify-center mb-3 ring-8 ring-amber-50">
+                    <i class="fas fa-tags text-xl"></i>
+                </div>
+                <h3 class="font-black uppercase tracking-tight text-base text-navy-900">Alterar valor total?</h3>
+                <p class="text-[11px] text-slate-500 font-bold mt-1">O desconto será distribuído igualmente entre as vacinas do grupo.</p>
+                <div class="flex items-center gap-3 mt-4">
+                    <span id="desc-grupo-de" class="text-sm font-black text-slate-400 line-through"></span>
+                    <i class="fas fa-arrow-right text-slate-300 text-xs"></i>
+                    <span id="desc-grupo-para" class="text-xl font-black text-emerald-600"></span>
+                </div>
+                <span id="desc-grupo-pct" class="mt-2 text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200"></span>
+            </div>
+            <div id="desc-grupo-lista" class="mx-6 mb-4 px-3 py-1 rounded-xl bg-slate-50 border border-slate-200 divide-y divide-slate-200 overflow-y-auto"></div>
+            <div class="p-6 pt-0 flex gap-3">
+                <button onclick="fecharConfirmacaoTotalAgendarGrupo()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Cancelar</button>
+                <button onclick="confirmarTotalAgendarGrupo()" class="flex-1 bg-emerald-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-emerald-700 shadow-md">
+                    <i class="fas fa-check mr-1"></i>Aplicar desconto
                 </button>
             </div>
         </div>

@@ -2425,6 +2425,9 @@ function openAgendarGrupoModal(patId, fromStatus, groupApps) {
             data: a.data,
             hora: a.hora || '',
             valorAplicado: a.valorAplicado,
+            // Base do desconto linear do total: o valor cheio original, se a
+            // vacina já tinha desconto, senão o valor atual.
+            valorCheio: a.valorCheio || a.valorAplicado,
             loteId: a.loteId,
             pedido: a.pedido || a.pedidoNumero || '',
             pago: !!a.pago
@@ -2451,6 +2454,7 @@ function openAgendarGrupoModal(patId, fromStatus, groupApps) {
             : null;
 
     _renderAgendarGrupoEndereco();
+    cancelarEdicaoTotalAgendarGrupo();
     _renderAgendarGrupoLines();
     document.getElementById('modal-agendar-grupo').classList.add('active');
 }
@@ -2709,6 +2713,109 @@ function _renderAgendarGrupoLines() {
     _checkAgendarGrupoBtn();
 }
 
+// ─── EDIÇÃO DO TOTAL DO GRUPO ────────────────────────────────────────────────
+// O novo total vira um desconto percentual igual em todas as vacinas ativas,
+// calculado sobre o valor cheio de cada uma. A taxa de deslocamento fica fora.
+let _agendarGrupoTotalPending = null;
+
+function _agendarGrupoAtivas() {
+    return _agendarGrupoPending.apps.filter(a => !_agendarGrupoRemovedIds.has(a.id));
+}
+
+function editarTotalAgendarGrupo() {
+    if (!_agendarGrupoPending) return;
+    const ativas = _agendarGrupoAtivas();
+    if (!ativas.length) return;
+    const atual = ativas.reduce((s, a) => s + parseBRL(a.valorAplicado), 0);
+    document.getElementById('agendar-grupo-total-view').classList.add('hidden');
+    document.getElementById('agendar-grupo-total-edit').classList.remove('hidden');
+    const input = document.getElementById('agendar-grupo-total-input');
+    input.value = formatBRL(atual);
+    input.focus();
+    input.select();
+}
+
+function cancelarEdicaoTotalAgendarGrupo() {
+    document.getElementById('agendar-grupo-total-view').classList.remove('hidden');
+    document.getElementById('agendar-grupo-total-edit').classList.add('hidden');
+}
+
+function aplicarTotalAgendarGrupo() {
+    if (!_agendarGrupoPending) return;
+    const ativas = _agendarGrupoAtivas();
+    const cheio = ativas.reduce((s, a) => s + parseBRL(a.valorCheio), 0);
+    const atual = ativas.reduce((s, a) => s + parseBRL(a.valorAplicado), 0);
+    const novo = parseBRL(document.getElementById('agendar-grupo-total-input').value);
+
+    if (!(novo > 0)) { showNotification('Informe um valor total válido.', 'error'); return; }
+    if (cheio <= 0) { showNotification('As vacinas do grupo não têm valor para descontar.', 'error'); return; }
+    if (novo > cheio + 0.001) {
+        showNotification(`O total não pode passar do valor cheio (R$ ${formatBRL(cheio)}).`, 'error');
+        return;
+    }
+    if (Math.abs(novo - atual) < 0.005) { cancelarEdicaoTotalAgendarGrupo(); return; }
+
+    // Mesmo fator para todas; a sobra de arredondamento vai para a última vacina
+    // para o total bater exatamente com o digitado.
+    const fator = novo / cheio;
+    let acumulado = 0;
+    const novos = ativas.map((a, i) => {
+        const base = parseBRL(a.valorCheio);
+        const valor = i === ativas.length - 1
+            ? Math.round((novo - acumulado) * 100) / 100
+            : Math.round(base * fator * 100) / 100;
+        acumulado += valor;
+        return { app: a, base, valor };
+    });
+    const pct = (1 - fator) * 100;
+    _agendarGrupoTotalPending = { novos, pct };
+
+    document.getElementById('desc-grupo-de').textContent = `R$ ${formatBRL(atual)}`;
+    document.getElementById('desc-grupo-para').textContent = `R$ ${formatBRL(novo)}`;
+    document.getElementById('desc-grupo-pct').textContent = pct > 0.0001
+        ? `${pct.toFixed(1).replace('.', ',')}% de desconto em cada vacina`
+        : 'Sem desconto — valores cheios restaurados';
+    document.getElementById('desc-grupo-lista').innerHTML = novos.map(({ app, base, valor }) => {
+        const vac = vaccines.find(v => v.id == app.vaccineId);
+        return `<div class="flex items-center justify-between gap-3 py-1.5">
+            <span class="text-[11px] font-bold text-slate-700 truncate">${vac ? vac.nome : '—'}</span>
+            <span class="text-[11px] whitespace-nowrap">
+                ${Math.abs(base - valor) > 0.004 ? `<span class="text-slate-400 line-through mr-1.5">R$ ${formatBRL(base)}</span>` : ''}
+                <span class="font-black text-emerald-700">R$ ${formatBRL(valor)}</span>
+            </span>
+        </div>`;
+    }).join('');
+    document.getElementById('modal-desconto-grupo').classList.add('active');
+}
+
+function fecharConfirmacaoTotalAgendarGrupo() {
+    _agendarGrupoTotalPending = null;
+    document.getElementById('modal-desconto-grupo').classList.remove('active');
+}
+
+function confirmarTotalAgendarGrupo() {
+    if (!_agendarGrupoTotalPending || !_agendarGrupoPending) return;
+    const { novos, pct } = _agendarGrupoTotalPending;
+    // Preserva o que já foi digitado nas linhas antes de re-renderizar.
+    novos.forEach(({ app, valor }) => {
+        ['pedido', 'date', 'hora', 'lote'].forEach(campo => {
+            const el = document.getElementById(`agendar-grupo-${campo}-${app.id}`);
+            if (!el) return;
+            if (campo === 'pedido') app.pedido = el.value;
+            else if (campo === 'date') app.data = el.value;
+            else if (campo === 'hora') app.hora = el.value;
+            else app.loteId = el.value ? Number(el.value) : app.loteId;
+        });
+        app.valorAplicado = formatBRL(valor);
+        app.descontoPct = pct > 0.0001 ? parseFloat(pct.toFixed(1)) : 0;
+        app.totalEditado = true;
+    });
+    fecharConfirmacaoTotalAgendarGrupo();
+    cancelarEdicaoTotalAgendarGrupo();
+    _renderAgendarGrupoLines();
+    showNotification('Desconto aplicado a todas as vacinas do grupo.', 'success');
+}
+
 function _checkAgendarGrupoBtn() {
     if (!_agendarGrupoPending) return;
     const activeApps = _agendarGrupoPending.apps.filter(a => !_agendarGrupoRemovedIds.has(a.id));
@@ -2865,6 +2972,11 @@ function confirmAgendarGrupo() {
                 : { ..._agendarGrupoPending.endereco };
             if (typeof aplicarPagoAgendamento === 'function') {
                 aplicarPagoAgendamento(appointments[idx], app.pago, _auditBefore.get(String(app.id)));
+            }
+            if (app.totalEditado) {
+                appointments[idx].valorAplicado = app.valorAplicado;
+                appointments[idx].valorCheio = app.descontoPct > 0 ? app.valorCheio : null;
+                appointments[idx].descontoPct = app.descontoPct > 0 ? app.descontoPct : null;
             }
             if (loteMap[app.id]) {
                 appointments[idx].loteId = loteMap[app.id];
