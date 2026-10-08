@@ -2454,7 +2454,7 @@ function openAgendarGrupoModal(patId, fromStatus, groupApps) {
             : null;
 
     _renderAgendarGrupoEndereco();
-    cancelarEdicaoTotalAgendarGrupo();
+    cancelarEdicaoTotalGrupo('agendar-grupo');
     _renderAgendarGrupoLines();
     document.getElementById('modal-agendar-grupo').classList.add('active');
 }
@@ -2710,42 +2710,105 @@ function _renderAgendarGrupoLines() {
             : `${qtd} · R$ ${formatBRL(totalVacinas)}`;
     }
 
+    _pintarDescontoTotalGrupo('agendar-grupo');
     _checkAgendarGrupoBtn();
 }
 
 // ─── EDIÇÃO DO TOTAL DO GRUPO ────────────────────────────────────────────────
-// O novo total vira um desconto percentual igual em todas as vacinas ativas,
-// calculado sobre o valor cheio de cada uma. A taxa de deslocamento fica fora.
-let _agendarGrupoTotalPending = null;
+// O novo total vira um desconto percentual igual em todas as vacinas do grupo,
+// calculado sobre o valor cheio de cada uma, e só vale depois de confirmado na
+// janela de aviso. Cada fluxo (agendar, oportunidade/negociação) diz quais
+// linhas entram, de onde vêm os valores e como gravar o resultado. A taxa de
+// deslocamento fica fora.
+const _TOTAL_GRUPO_FLUXOS = {
+    'agendar-grupo': {
+        linhas: () => _agendarGrupoPending
+            ? _agendarGrupoPending.apps.filter(a => !_agendarGrupoRemovedIds.has(a.id)) : [],
+        atual: a => parseBRL(a.valorAplicado),
+        cheio: a => parseBRL(a.valorCheio),
+        aplicar: (novos, pct) => {
+            // Preserva o que já foi digitado nas linhas antes de re-renderizar.
+            novos.forEach(({ app, valor }) => {
+                const val = campo => { const el = document.getElementById(`agendar-grupo-${campo}-${app.id}`); return el ? el.value : null; };
+                if (val('pedido') != null) app.pedido = val('pedido');
+                if (val('date') != null) app.data = val('date');
+                if (val('hora') != null) app.hora = val('hora');
+                if (val('lote')) app.loteId = Number(val('lote'));
+                app.valorAplicado = formatBRL(valor);
+                app.descontoPct = pct > 0.0001 ? parseFloat(pct.toFixed(1)) : 0;
+                app.totalEditado = true;
+            });
+            _renderAgendarGrupoLines();
+        }
+    },
+    'oport-grupo': {
+        // Cortesia já está zerada de propósito: fica fora do rateio.
+        linhas: () => _editarOportunidadePending
+            ? _editarOportunidadePending.apps.filter(a => a.vaccineId && !a._oportCortesia) : [],
+        atual: a => parseBRL(_oportValorAtual(a)),
+        // Para o % exibido no total a cortesia conta, pelo valor cheio dela.
+        todas: () => _editarOportunidadePending
+            ? _editarOportunidadePending.apps.filter(a => a.vaccineId) : [],
+        cheio: a => parseBRL((a._oportDescontoAtivo || a._oportCortesia) ? a._oportCheio : _oportValorAtual(a)),
+        aplicar: (novos, pct) => {
+            _syncOportLinesFromDom();
+            novos.forEach(({ app, base, valor }) => {
+                if (pct > 0.0001) {
+                    app._oportCheio = formatBRL(base);
+                    app._oportDescontoAtivo = true;
+                    app.valorAplicado = formatBRL(valor);
+                } else {
+                    app._oportCheio = '';
+                    app._oportDescontoAtivo = false;
+                    app.valorAplicado = formatBRL(base);
+                }
+            });
+            _renderEditarOportunidadeLines();
+        }
+    }
+};
+let _totalGrupoPending = null;
 
-function _agendarGrupoAtivas() {
-    return _agendarGrupoPending.apps.filter(a => !_agendarGrupoRemovedIds.has(a.id));
+// Selo ao lado do total: quanto o grupo está abaixo do valor cheio.
+function _pintarDescontoTotalGrupo(fluxo) {
+    const cfg = _TOTAL_GRUPO_FLUXOS[fluxo];
+    const el = document.getElementById(`${fluxo}-total-pct`);
+    if (!cfg || !el) return;
+    const linhas = (cfg.todas || cfg.linhas)();
+    const cheio = linhas.reduce((s, a) => s + cfg.cheio(a), 0);
+    const atual = linhas.reduce((s, a) => s + cfg.atual(a), 0);
+    const pct = cheio > 0 ? ((cheio - atual) / cheio) * 100 : 0;
+    if (pct < 0.05) { el.classList.add('hidden'); return; }
+    el.textContent = `${pct.toFixed(1).replace('.', ',')}% OFF · −R$ ${formatBRL(cheio - atual)}`;
+    el.title = `Valor cheio: R$ ${formatBRL(cheio)}`;
+    el.classList.remove('hidden');
 }
 
-function editarTotalAgendarGrupo() {
-    if (!_agendarGrupoPending) return;
-    const ativas = _agendarGrupoAtivas();
-    if (!ativas.length) return;
-    const atual = ativas.reduce((s, a) => s + parseBRL(a.valorAplicado), 0);
-    document.getElementById('agendar-grupo-total-view').classList.add('hidden');
-    document.getElementById('agendar-grupo-total-edit').classList.remove('hidden');
-    const input = document.getElementById('agendar-grupo-total-input');
+function editarTotalGrupo(fluxo) {
+    const cfg = _TOTAL_GRUPO_FLUXOS[fluxo];
+    const linhas = cfg ? cfg.linhas() : [];
+    if (!linhas.length) { showNotification('Nenhuma vacina com valor para editar.', 'error'); return; }
+    const atual = linhas.reduce((s, a) => s + cfg.atual(a), 0);
+    document.getElementById(`${fluxo}-total-view`).classList.add('hidden');
+    document.getElementById(`${fluxo}-total-edit`).classList.remove('hidden');
+    const input = document.getElementById(`${fluxo}-total-input`);
     input.value = formatBRL(atual);
     input.focus();
     input.select();
 }
 
-function cancelarEdicaoTotalAgendarGrupo() {
-    document.getElementById('agendar-grupo-total-view').classList.remove('hidden');
-    document.getElementById('agendar-grupo-total-edit').classList.add('hidden');
+function cancelarEdicaoTotalGrupo(fluxo) {
+    document.getElementById(`${fluxo}-total-view`)?.classList.remove('hidden');
+    document.getElementById(`${fluxo}-total-edit`)?.classList.add('hidden');
 }
 
-function aplicarTotalAgendarGrupo() {
-    if (!_agendarGrupoPending) return;
-    const ativas = _agendarGrupoAtivas();
-    const cheio = ativas.reduce((s, a) => s + parseBRL(a.valorCheio), 0);
-    const atual = ativas.reduce((s, a) => s + parseBRL(a.valorAplicado), 0);
-    const novo = parseBRL(document.getElementById('agendar-grupo-total-input').value);
+function aplicarTotalGrupo(fluxo) {
+    const cfg = _TOTAL_GRUPO_FLUXOS[fluxo];
+    if (!cfg) return;
+    const linhas = cfg.linhas();
+    const cheio = linhas.reduce((s, a) => s + cfg.cheio(a), 0);
+    const atual = linhas.reduce((s, a) => s + cfg.atual(a), 0);
+    const novo = parseBRL(document.getElementById(`${fluxo}-total-input`).value);
 
     if (!(novo > 0)) { showNotification('Informe um valor total válido.', 'error'); return; }
     if (cheio <= 0) { showNotification('As vacinas do grupo não têm valor para descontar.', 'error'); return; }
@@ -2753,22 +2816,22 @@ function aplicarTotalAgendarGrupo() {
         showNotification(`O total não pode passar do valor cheio (R$ ${formatBRL(cheio)}).`, 'error');
         return;
     }
-    if (Math.abs(novo - atual) < 0.005) { cancelarEdicaoTotalAgendarGrupo(); return; }
+    if (Math.abs(novo - atual) < 0.005) { cancelarEdicaoTotalGrupo(fluxo); return; }
 
-    // Mesmo fator para todas; a sobra de arredondamento vai para a última vacina
-    // para o total bater exatamente com o digitado.
+    // Mesmo fator para todas; a sobra de arredondamento vai para a vacina mais
+    // cara, para o total bater exatamente com o digitado.
     const fator = novo / cheio;
-    let acumulado = 0;
-    const novos = ativas.map((a, i) => {
-        const base = parseBRL(a.valorCheio);
-        const valor = i === ativas.length - 1
-            ? Math.round((novo - acumulado) * 100) / 100
-            : Math.round(base * fator * 100) / 100;
-        acumulado += valor;
-        return { app: a, base, valor };
+    const novos = linhas.map(a => {
+        const base = cfg.cheio(a);
+        return { app: a, base, valor: Math.round(base * fator * 100) / 100 };
     });
+    const sobra = Math.round((novo - novos.reduce((s, n) => s + n.valor, 0)) * 100) / 100;
+    if (sobra) {
+        const maior = novos.reduce((m, n) => n.base > m.base ? n : m, novos[0]);
+        maior.valor = Math.round((maior.valor + sobra) * 100) / 100;
+    }
     const pct = (1 - fator) * 100;
-    _agendarGrupoTotalPending = { novos, pct };
+    _totalGrupoPending = { fluxo, novos, pct };
 
     document.getElementById('desc-grupo-de').textContent = `R$ ${formatBRL(atual)}`;
     document.getElementById('desc-grupo-para').textContent = `R$ ${formatBRL(novo)}`;
@@ -2788,31 +2851,17 @@ function aplicarTotalAgendarGrupo() {
     document.getElementById('modal-desconto-grupo').classList.add('active');
 }
 
-function fecharConfirmacaoTotalAgendarGrupo() {
-    _agendarGrupoTotalPending = null;
+function fecharConfirmacaoTotalGrupo() {
+    _totalGrupoPending = null;
     document.getElementById('modal-desconto-grupo').classList.remove('active');
 }
 
-function confirmarTotalAgendarGrupo() {
-    if (!_agendarGrupoTotalPending || !_agendarGrupoPending) return;
-    const { novos, pct } = _agendarGrupoTotalPending;
-    // Preserva o que já foi digitado nas linhas antes de re-renderizar.
-    novos.forEach(({ app, valor }) => {
-        ['pedido', 'date', 'hora', 'lote'].forEach(campo => {
-            const el = document.getElementById(`agendar-grupo-${campo}-${app.id}`);
-            if (!el) return;
-            if (campo === 'pedido') app.pedido = el.value;
-            else if (campo === 'date') app.data = el.value;
-            else if (campo === 'hora') app.hora = el.value;
-            else app.loteId = el.value ? Number(el.value) : app.loteId;
-        });
-        app.valorAplicado = formatBRL(valor);
-        app.descontoPct = pct > 0.0001 ? parseFloat(pct.toFixed(1)) : 0;
-        app.totalEditado = true;
-    });
-    fecharConfirmacaoTotalAgendarGrupo();
-    cancelarEdicaoTotalAgendarGrupo();
-    _renderAgendarGrupoLines();
+function confirmarTotalGrupo() {
+    if (!_totalGrupoPending) return;
+    const { fluxo, novos, pct } = _totalGrupoPending;
+    fecharConfirmacaoTotalGrupo();
+    cancelarEdicaoTotalGrupo(fluxo);
+    _TOTAL_GRUPO_FLUXOS[fluxo].aplicar(novos, pct);
     showNotification('Desconto aplicado a todas as vacinas do grupo.', 'success');
 }
 
@@ -3077,6 +3126,7 @@ function openEditarOportunidadeModal(patId, groupApps, fromStatus) {
     const countEl = document.getElementById('oport-grupo-count');
     if (countEl) countEl.textContent = groupApps.length + ' vacina' + (groupApps.length !== 1 ? 's' : '');
 
+    cancelarEdicaoTotalGrupo('oport-grupo');
     _renderEditarOportunidadeLines();
     document.getElementById('modal-editar-grupo-oportunidade').classList.add('active');
 }
@@ -3257,6 +3307,25 @@ function _onOportunidadeDataChange(appId) {
     _warnOportIdade(appId);
 }
 
+// Valor exibido na linha: o input é a fonte enquanto a linha está na tela.
+function _oportValorAtual(app) {
+    const el = document.getElementById(`oport-valor-${app.id}`);
+    return el ? el.value : app.valorAplicado;
+}
+
+// Copia para o estado o que foi digitado nas linhas; sem isso, re-renderizar
+// a lista descarta pedido, data, dose e valor.
+function _syncOportLinesFromDom() {
+    if (!_editarOportunidadePending) return;
+    _editarOportunidadePending.apps.forEach(app => {
+        const el = campo => document.getElementById(`oport-${campo}-${app.id}`);
+        if (el('pedido')) app.pedido = el('pedido').value;
+        if (el('data')) app.data = el('data').value;
+        if (el('dose')) app.dose = el('dose').value;
+        if (el('valor')) app.valorAplicado = el('valor').value;
+    });
+}
+
 function formatDescontoPct(app) {
     const cheioNum = parseBRL(app._oportCheio);
     const valorEl = document.getElementById(`oport-valor-${app.id}`);
@@ -3274,6 +3343,7 @@ function _recalcEditarOportunidadeTotal() {
     const totalEl = document.getElementById('oport-grupo-total');
     const count = _editarOportunidadePending.apps.length;
     if (totalEl) totalEl.textContent = `${count} vacina${count !== 1 ? 's' : ''} · ${formatCurrency(total)}`;
+    _pintarDescontoTotalGrupo('oport-grupo');
 }
 
 function addOportunidadeLine() {
@@ -3614,6 +3684,7 @@ function aplicarOportunidadeDesconto() {
         line._oportDescontoAtivo = false;
         valorEl.value = '0,00';
         document.getElementById('modal-desconto-oportunidade').classList.remove('active');
+        _syncOportLinesFromDom();
         _renderEditarOportunidadeLines();
         showNotification('Vacina marcada como cortesia!', 'success');
         return;
@@ -3635,6 +3706,7 @@ function aplicarOportunidadeDesconto() {
     line._oportDescontoAtivo = true;
     valorEl.value = formatBRL(finalNum);
     document.getElementById('modal-desconto-oportunidade').classList.remove('active');
+    _syncOportLinesFromDom();
     _renderEditarOportunidadeLines();
     showNotification('Desconto aplicado com sucesso!', 'success');
 }
@@ -3660,6 +3732,7 @@ function removerOportunidadeDesconto(appId) {
     line._oportDescontoAtivo = false;
     line._oportCortesia = false;
     line._oportCheio = '';
+    _syncOportLinesFromDom();
     _renderEditarOportunidadeLines();
 }
 

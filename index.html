@@ -2774,8 +2774,9 @@
                 <div class="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
                     <span class="text-[10px] font-black text-slate-500 uppercase tracking-wide">Total</span>
                     <div id="agendar-grupo-total-view" class="flex items-center gap-2">
+                        <span id="agendar-grupo-total-pct" class="hidden text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap"></span>
                         <span id="agendar-grupo-total" class="text-sm font-black text-emerald-700"></span>
-                        <button type="button" onclick="editarTotalAgendarGrupo()" title="Editar valor total (aplica desconto igual em todas as vacinas)"
+                        <button type="button" onclick="editarTotalGrupo('agendar-grupo')" title="Editar valor total (aplica desconto igual em todas as vacinas)"
                             class="h-7 w-7 rounded-lg bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 flex items-center justify-center transition shrink-0">
                             <i class="fas fa-pen text-[10px]"></i>
                         </button>
@@ -2784,14 +2785,14 @@
                         <div class="flex items-center border border-emerald-300 rounded-lg bg-white overflow-hidden focus-within:ring-2 focus-within:ring-emerald-400">
                             <span class="pl-2.5 text-xs font-black text-emerald-700">R$</span>
                             <input type="text" id="agendar-grupo-total-input" inputmode="decimal" placeholder="0,00"
-                                onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarTotalAgendarGrupo();}else if(event.key==='Escape'){cancelarEdicaoTotalAgendarGrupo();}"
+                                onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarTotalGrupo('agendar-grupo');}else if(event.key==='Escape'){cancelarEdicaoTotalGrupo('agendar-grupo');}"
                                 class="w-28 py-1.5 px-2 text-sm font-black text-emerald-700 outline-none text-right">
                         </div>
-                        <button type="button" onclick="cancelarEdicaoTotalAgendarGrupo()" title="Cancelar"
+                        <button type="button" onclick="cancelarEdicaoTotalGrupo('agendar-grupo')" title="Cancelar"
                             class="h-7 w-7 rounded-lg bg-white border border-slate-200 text-slate-400 hover:bg-slate-100 flex items-center justify-center transition shrink-0">
                             <i class="fas fa-times text-[10px]"></i>
                         </button>
-                        <button type="button" onclick="aplicarTotalAgendarGrupo()" title="Aplicar"
+                        <button type="button" onclick="aplicarTotalGrupo('agendar-grupo')" title="Aplicar"
                             class="h-7 w-7 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center transition shrink-0 shadow-sm">
                             <i class="fas fa-check text-[10px]"></i>
                         </button>
@@ -2841,8 +2842,8 @@
             </div>
             <div id="desc-grupo-lista" class="mx-6 mb-4 px-3 py-1 rounded-xl bg-slate-50 border border-slate-200 divide-y divide-slate-200 overflow-y-auto"></div>
             <div class="p-6 pt-0 flex gap-3">
-                <button onclick="fecharConfirmacaoTotalAgendarGrupo()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Cancelar</button>
-                <button onclick="confirmarTotalAgendarGrupo()" class="flex-1 bg-emerald-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-emerald-700 shadow-md">
+                <button onclick="fecharConfirmacaoTotalGrupo()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition">Cancelar</button>
+                <button onclick="confirmarTotalGrupo()" class="flex-1 bg-emerald-600 text-white font-black py-3 rounded-xl uppercase text-xs transition hover:bg-emerald-700 shadow-md">
                     <i class="fas fa-check mr-1"></i>Aplicar desconto
                 </button>
             </div>
@@ -3021,7 +3022,30 @@
                 </div>
                 <div class="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
                     <span class="text-[10px] font-black text-slate-500 uppercase tracking-wide">Total</span>
-                    <span id="oport-grupo-total" class="text-sm font-black text-emerald-700"></span>
+                    <div id="oport-grupo-total-view" class="flex items-center gap-2">
+                        <span id="oport-grupo-total-pct" class="hidden text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap"></span>
+                        <span id="oport-grupo-total" class="text-sm font-black text-emerald-700"></span>
+                        <button type="button" onclick="editarTotalGrupo('oport-grupo')" title="Editar valor total (aplica desconto igual em todas as vacinas)"
+                            class="h-7 w-7 rounded-lg bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 flex items-center justify-center transition shrink-0">
+                            <i class="fas fa-pen text-[10px]"></i>
+                        </button>
+                    </div>
+                    <div id="oport-grupo-total-edit" class="hidden flex items-center gap-2">
+                        <div class="flex items-center border border-emerald-300 rounded-lg bg-white overflow-hidden focus-within:ring-2 focus-within:ring-emerald-400">
+                            <span class="pl-2.5 text-xs font-black text-emerald-700">R$</span>
+                            <input type="text" id="oport-grupo-total-input" inputmode="decimal" placeholder="0,00"
+                                onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarTotalGrupo('oport-grupo');}else if(event.key==='Escape'){cancelarEdicaoTotalGrupo('oport-grupo');}"
+                                class="w-28 py-1.5 px-2 text-sm font-black text-emerald-700 outline-none text-right">
+                        </div>
+                        <button type="button" onclick="cancelarEdicaoTotalGrupo('oport-grupo')" title="Cancelar"
+                            class="h-7 w-7 rounded-lg bg-white border border-slate-200 text-slate-400 hover:bg-slate-100 flex items-center justify-center transition shrink-0">
+                            <i class="fas fa-times text-[10px]"></i>
+                        </button>
+                        <button type="button" onclick="aplicarTotalGrupo('oport-grupo')" title="Aplicar"
+                            class="h-7 w-7 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center transition shrink-0 shadow-sm">
+                            <i class="fas fa-check text-[10px]"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="p-5 pt-0 flex gap-3 shrink-0">
