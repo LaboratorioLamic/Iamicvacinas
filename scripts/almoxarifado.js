@@ -478,6 +478,7 @@ function renderEstoqueDashboard() {
                 <div class="flex items-baseline gap-1.5">
                     <span class="text-4xl font-black ${tema.acento} leading-none">${e.disponivel}</span>
                     <span class="${tema.metaColor} text-[10px] font-bold">disponíveis</span>
+                    <span class="ml-auto flex items-center gap-1 px-2 py-0.5 ${tema.badge} border rounded-full text-[11px] font-black whitespace-nowrap" title="Estoque mínimo configurado"><i class="fas fa-arrow-down-short-wide"></i>Mín. ${v.estoqueMinimo || 5}</span>
                 </div>
                 <div class="mt-1.5 h-1 ${tema.barBg} rounded-full overflow-hidden">
                     <div class="${tema.bar} h-full rounded-full transition-all duration-500" style="width:${pct}%"></div>

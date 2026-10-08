@@ -94,6 +94,9 @@ const est = (typeof getVaccineEstoque === 'function') ? getVaccineEstoque(v.id) 
                 ${est.reservado > 0 ? `<span class="block text-[9px] text-indigo-500 font-bold mt-0.5">${est.reservado} reserv.</span>` : ''}
             </td>
             <td class="p-3 text-center">
+                <span class="px-2.5 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-600">${v.estoqueMinimo || 5}</span>
+            </td>
+            <td class="p-3 text-center">
                 <span class="px-2 py-1 rounded-full text-[10px] font-black uppercase ${ativo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${ativo ? 'Ativa' : 'Inativa'}</span>
             </td>
             <td class="p-3 text-center">
